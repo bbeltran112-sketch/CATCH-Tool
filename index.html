@@ -161,6 +161,25 @@
   .sum-ok { color: var(--green); }
   .sum-err { color: var(--red); }
   .sum-neutral { color: var(--text3); }
+  .sum-filter-btn {
+    background: none; border: none; padding: 0; margin: 0;
+    font-family: inherit; font-size: inherit; cursor: pointer;
+    transition: opacity 0.15s; color: inherit; letter-spacing: inherit;
+  }
+  .sum-filter-btn:hover { opacity: 0.75; text-decoration: underline; }
+  .sum-filter-btn.active-filter {
+    outline: 1px solid currentColor; border-radius: 3px; padding: 1px 5px;
+  }
+  .sum-filter-btn.active-filter.sum-err { background: rgba(248,81,73,0.14); }
+  .sum-filter-btn.active-filter.sum-ok  { background: rgba(63,185,80,0.14); }
+  .sum-filter-clear {
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 1px 7px; font-family: inherit; font-size: 9px; cursor: pointer;
+    color: var(--text3); letter-spacing: 0.06em; display: none;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .sum-filter-clear:hover { color: var(--text); border-color: var(--text3); }
+  .sum-filter-clear.visible { display: inline-block; }
 
   .results-area { flex: 1; overflow-y: auto; padding: 14px; }
   .results-empty { color: var(--text3); font-size: 11px; padding: 20px 0; }
@@ -497,6 +516,25 @@
   .sum-ok { color: var(--green); }
   .sum-err { color: var(--red); }
   .sum-neutral { color: var(--text3); }
+  .sum-filter-btn {
+    background: none; border: none; padding: 0; margin: 0;
+    font-family: inherit; font-size: inherit; cursor: pointer;
+    transition: opacity 0.15s; color: inherit; letter-spacing: inherit;
+  }
+  .sum-filter-btn:hover { opacity: 0.75; text-decoration: underline; }
+  .sum-filter-btn.active-filter {
+    outline: 1px solid currentColor; border-radius: 3px; padding: 1px 5px;
+  }
+  .sum-filter-btn.active-filter.sum-err { background: rgba(248,81,73,0.14); }
+  .sum-filter-btn.active-filter.sum-ok  { background: rgba(63,185,80,0.14); }
+  .sum-filter-clear {
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 1px 7px; font-family: inherit; font-size: 9px; cursor: pointer;
+    color: var(--text3); letter-spacing: 0.06em; display: none;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .sum-filter-clear:hover { color: var(--text); border-color: var(--text3); }
+  .sum-filter-clear.visible { display: inline-block; }
 
   .results-area { flex: 1; overflow-y: auto; padding: 14px; }
   .results-empty { color: var(--text3); font-size: 11px; padding: 20px 0; }
@@ -934,6 +972,14 @@
   </div>
   <!-- Schema Manager hidden in production build -->
   <div id="settings-btn" style="display:none;"></div>
+  <!-- Security Controls -->
+  <div style="display:flex;align-items:center;gap:8px;margin-right:8px;" title="Session-Only mode: when ON, no validation history is written to localStorage — cleared when the tab closes">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;">
+      <input type="checkbox" id="session-only-toggle" onchange="onSessionOnlyToggle()" style="accent-color:var(--orange);cursor:pointer;" />
+      <span style="font-size:9px;color:var(--text3);font-family:var(--mono);">Session-Only</span>
+    </label>
+    <span id="session-only-label" style="font-size:9px;color:var(--text3);font-family:var(--mono);"></span>
+  </div>
   <div class="header-version"></div>
 </div>
 
@@ -1376,6 +1422,231 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════════════════════════════
+// SECURITY LAYER — Feature 1: XSS Fix · 2: PII Scrubber · 3: Session-Only
+//                  Feature 4: Inactivity Auto-Clear · 5: Export Warning
+//                  Feature 6: History TTL (7-day auto-expire)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Feature 1: HTML escaping helper (XSS prevention) ─────────────────────────
+// All user-supplied data rendered via innerHTML must go through escHtml().
+// The existing esc() in the library editor is extended here for global use.
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Feature 2: PII Scrubber ───────────────────────────────────────────────────
+// Strips likely PII from history/error-log entries before they touch localStorage.
+// Targets: SSN patterns, DOB-like dates embedded in field values, defendant names
+// in known name fields. Operates on the errors array inside a run object.
+const PII_FIELDS = new Set([
+  'defendant_name','defendant_first_name','defendant_last_name','defendant_middle_name',
+  'party_name','party_first_name','party_last_name','party_middle_name',
+  'attorney_name','appointee','case_style','victim_name'
+]);
+const SSN_RE   = /\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/g;
+const DATE_RE  = /\b(0?[1-9]|1[0-2])[\/\-](0?[1-9]|[12]\d|3[01])[\/\-](\d{2}|\d{4})\b/g;
+
+function scrubPII(value) {
+  if (typeof value !== 'string') return value;
+  return value
+    .replace(SSN_RE,  '[SSN-REDACTED]')
+    .replace(DATE_RE, '[DATE-REDACTED]');
+}
+
+function scrubRunPII(run) {
+  // Deep-clone so we never mutate the in-memory run
+  const r = JSON.parse(JSON.stringify(run));
+  if (Array.isArray(r.errors)) {
+    r.errors = r.errors.map(function(e) {
+      // Scrub PII field names
+      if (PII_FIELDS.has(e.field)) {
+        e.msg         = '[PII-REDACTED]';
+        e.translation = '[PII-REDACTED]';
+      }
+      // Scrub SSN / dates from all string values
+      e.msg         = scrubPII(e.msg);
+      e.translation = scrubPII(e.translation);
+      return e;
+    });
+  }
+  return r;
+}
+
+// ── Feature 3: Session-Only mode ─────────────────────────────────────────────
+// When enabled, history/error-log writes go to sessionStorage only (cleared
+// when the tab closes). Persists the toggle preference itself in localStorage.
+const SESSION_ONLY_KEY = 'catch_session_only_mode';
+
+function isSessionOnly() {
+  const toggle = document.getElementById('session-only-toggle');
+  return toggle ? toggle.checked : false;
+}
+
+function getStorage() {
+  return isSessionOnly() ? sessionStorage : localStorage;
+}
+
+function loadSessionOnlyPref() {
+  try {
+    const pref = localStorage.getItem(SESSION_ONLY_KEY);
+    const toggle = document.getElementById('session-only-toggle');
+    if (toggle && pref === '1') {
+      toggle.checked = true;
+      updateSessionOnlyLabel();
+    }
+  } catch(e) {}
+}
+
+function onSessionOnlyToggle() {
+  try {
+    localStorage.setItem(SESSION_ONLY_KEY, isSessionOnly() ? '1' : '0');
+  } catch(e) {}
+  updateSessionOnlyLabel();
+}
+
+function updateSessionOnlyLabel() {
+  const lbl = document.getElementById('session-only-label');
+  if (!lbl) return;
+  lbl.textContent = isSessionOnly()
+    ? 'Session-Only ON — nothing will persist after tab close'
+    : 'Session-Only OFF — history saved to browser storage';
+  lbl.style.color = isSessionOnly() ? 'var(--orange)' : 'var(--text3)';
+}
+
+// ── Feature 4: Inactivity Auto-Clear ─────────────────────────────────────────
+// Clears the validate textarea and results after 30 minutes of no user action.
+// Resets on any keypress, mouse move, or click. Shows a countdown warning at 25m.
+const INACTIVITY_MS     = 30 * 60 * 1000; // 30 minutes
+const INACTIVITY_WARN_MS = 25 * 60 * 1000; // warn at 25 minutes
+let inactivityTimer  = null;
+let inactivityWarnTimer = null;
+let inactivityWarnEl = null;
+
+function resetInactivityTimer() {
+  clearTimeout(inactivityTimer);
+  clearTimeout(inactivityWarnTimer);
+  if (inactivityWarnEl) { inactivityWarnEl.remove(); inactivityWarnEl = null; }
+
+  inactivityWarnTimer = setTimeout(function() {
+    showInactivityWarning();
+  }, INACTIVITY_WARN_MS);
+
+  inactivityTimer = setTimeout(function() {
+    autoClearOnInactivity();
+  }, INACTIVITY_MS);
+}
+
+function showInactivityWarning() {
+  if (inactivityWarnEl) return;
+  inactivityWarnEl = document.createElement('div');
+  inactivityWarnEl.id = 'inactivity-warn';
+  inactivityWarnEl.style.cssText = [
+    'position:fixed','bottom:16px','right:16px','z-index:9999',
+    'background:var(--orange-bg)','border:1px solid var(--orange)',
+    'color:var(--orange)','font-family:var(--mono)','font-size:10px',
+    'padding:8px 12px','border-radius:5px','max-width:320px','line-height:1.6'
+  ].join(';');
+  inactivityWarnEl.innerHTML =
+    '⚠ Inactivity detected — workspace will auto-clear in 5 minutes to protect sensitive data. ' +
+    '<span style="cursor:pointer;text-decoration:underline" onclick="resetInactivityTimer()">Keep active</span>';
+  document.body.appendChild(inactivityWarnEl);
+}
+
+function autoClearOnInactivity() {
+  // Clear the validation input and results (not history — just the live workspace)
+  const inputArea = document.getElementById('input-area');
+  const resultsArea = document.getElementById('results-area');
+  const summaryBar = document.getElementById('summary-bar');
+  const resultCount = document.getElementById('result-count');
+  if (inputArea)   inputArea.value = '';
+  if (resultsArea) resultsArea.innerHTML = '<div class="results-empty">Auto-cleared after 30 minutes of inactivity.</div>';
+  if (summaryBar)  summaryBar.style.display = 'none';
+  if (resultCount) resultCount.textContent = '';
+  if (inactivityWarnEl) { inactivityWarnEl.remove(); inactivityWarnEl = null; }
+  // Show cleared notice
+  const notice = document.createElement('div');
+  notice.style.cssText = [
+    'position:fixed','bottom:16px','right:16px','z-index:9999',
+    'background:var(--bg2)','border:1px solid var(--border2)',
+    'color:var(--text3)','font-family:var(--mono)','font-size:10px',
+    'padding:8px 12px','border-radius:5px'
+  ].join(';');
+  notice.textContent = 'Workspace auto-cleared after 30 min inactivity.';
+  document.body.appendChild(notice);
+  setTimeout(function() { notice.remove(); }, 4000);
+  resetInactivityTimer();
+}
+
+// Attach inactivity listeners after DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  ['mousemove','keydown','click','scroll'].forEach(function(evt) {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+  });
+  resetInactivityTimer();
+  loadSessionOnlyPref();
+});
+
+// ── Feature 5: Export Warning Modal ──────────────────────────────────────────
+// Any function that triggers a file download calls confirmExport() first.
+// Returns a Promise that resolves true (proceed) or false (cancel).
+function confirmExport(label) {
+  return new Promise(function(resolve) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position:fixed','inset:0','background:rgba(0,0,0,0.6)',
+      'z-index:10000','display:flex','align-items:center','justify-content:center'
+    ].join(';');
+    const box = document.createElement('div');
+    box.style.cssText = [
+      'background:var(--bg1)','border:1px solid var(--border2)','border-radius:6px',
+      'padding:20px 24px','max-width:400px','width:90%','font-family:var(--mono)'
+    ].join(';');
+    box.innerHTML =
+      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">⚠ Export Confirmation</div>' +
+      '<div style="font-size:10.5px;color:var(--text2);line-height:1.7;margin-bottom:16px">' +
+        'You are about to export <strong>' + escHtml(label) + '</strong>.<br>' +
+        'This file may contain court record data. Ensure you are saving it to an approved, secure location.' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button id="export-cancel-btn" style="background:transparent;border:1px solid var(--border2);color:var(--text3);padding:5px 14px;border-radius:4px;font-family:var(--mono);font-size:10px;cursor:pointer">Cancel</button>' +
+        '<button id="export-confirm-btn" style="background:var(--blue);color:#fff;border:none;padding:5px 14px;border-radius:4px;font-family:var(--mono);font-size:10px;cursor:pointer">Export</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    box.querySelector('#export-confirm-btn').onclick = function() { overlay.remove(); resolve(true); };
+    box.querySelector('#export-cancel-btn').onclick  = function() { overlay.remove(); resolve(false); };
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) { overlay.remove(); resolve(false); } });
+  });
+}
+
+// ── Feature 6: History TTL ────────────────────────────────────────────────────
+// Runs expire after 7 days. Called once during loadHistory() to silently prune
+// stale entries before they are ever displayed. No data is exported — expired
+// entries are simply discarded (they are old enough to not be actionable).
+const HISTORY_TTL_DAYS = 7;
+const HISTORY_TTL_MS   = HISTORY_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+function pruneExpiredRuns(runs) {
+  const cutoff = Date.now() - HISTORY_TTL_MS;
+  return runs.filter(function(run) {
+    if (!run.timestamp) return true; // keep if no timestamp (legacy entries)
+    const parsed = new Date(run.timestamp);
+    if (isNaN(parsed.getTime())) return true; // keep unparseable timestamps
+    return parsed.getTime() > cutoff;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// END SECURITY LAYER
+// ══════════════════════════════════════════════════════════════════════════════
+
 const VALID_V3 = [
   "di-texas-oca-court-appointments",
   "di-texas-oca-court-attorney",
@@ -1970,16 +2241,52 @@ function parseInput(text) {
   } catch(e) { return { error: e.message }; }
 }
 
+
+// ── Result filter (summary bar click) ───────────────────────────────────────
+let _activeResultFilter = 'all';
+
+function applyResultFilter(mode) {
+  _activeResultFilter = mode;
+  const ra = document.getElementById('results-area');
+  const errBtn   = document.getElementById('sb-err-btn');
+  const okBtn    = document.getElementById('sb-ok-btn');
+  const clearBtn = document.getElementById('sb-clear-btn');
+
+  if (errBtn)   errBtn.classList.toggle('active-filter',   mode === 'errors');
+  if (okBtn)    okBtn.classList.toggle('active-filter',    mode === 'valid');
+  if (clearBtn) clearBtn.classList.toggle('visible', mode !== 'all');
+
+  const cards = ra.querySelectorAll('.result-card');
+  cards.forEach(function(card) {
+    if (mode === 'all') {
+      card.style.display = '';
+    } else if (mode === 'errors') {
+      card.style.display = card.classList.contains('invalid') ? '' : 'none';
+    } else if (mode === 'valid') {
+      card.style.display = card.classList.contains('valid') ? '' : 'none';
+    }
+  });
+
+  if (mode !== 'all') ra.scrollTop = 0;
+}
+
 function runValidation() {
   const text = document.getElementById('input-area').value.trim();
   if (!text) return;
   const ra = document.getElementById('results-area');
   const sb = document.getElementById('summary-bar');
   const rc = document.getElementById('result-count');
+  _activeResultFilter = 'all';
+  const _prevErrBtn = document.getElementById('sb-err-btn');
+  const _prevOkBtn  = document.getElementById('sb-ok-btn');
+  const _prevClrBtn = document.getElementById('sb-clear-btn');
+  if (_prevErrBtn) _prevErrBtn.classList.remove('active-filter');
+  if (_prevOkBtn)  _prevOkBtn.classList.remove('active-filter');
+  if (_prevClrBtn) _prevClrBtn.classList.remove('visible');
 
   const parsed = parseInput(text);
   if (parsed.error) {
-    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">✗ JSON Parse Error</div><div class="parse-error-msg">${parsed.error}</div></div>`;
+    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">✗ JSON Parse Error</div><div class="parse-error-msg">${escHtml(parsed.error)}</div></div>`;
     sb.style.display = 'none';
     rc.textContent = '';
   const copyBtn = document.getElementById('copy-results-btn');
@@ -2013,7 +2320,7 @@ function runValidation() {
   if (totalErr === 0) {
     sbHtml += `<span class="sum-ok">✓ All valid</span>`;
   } else {
-    sbHtml += `<span class="sum-err">✗ ${totalErr} error${totalErr>1?'s':''}</span><span style="margin:0 8px;color:var(--text3)">·</span><span class="sum-ok">${validN} valid</span>`;
+    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">✗ ${totalErr} error${totalErr>1?'s':''}</button><span style="margin:0 8px;color:var(--text3)">·</span><button class="sum-filter-btn sum-ok" id="sb-ok-btn" onclick="applyResultFilter('valid')" title="Show only valid"> ${validN} valid</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">✕ clear filter</button>`;
   }
   sb.innerHTML = sbHtml;
   rc.textContent = '';
@@ -2064,10 +2371,10 @@ function runValidation() {
         ${!r.valid ? `<span class="error-count">${r.errors.length} error${r.errors.length>1?'s':''}</span>` : ''}
       </div>
       <div class="result-meta">
-        <div class="meta-row"><span class="meta-key">entityType:</span><span class="meta-val">${r.entityType}</span></div>
-        ${r.entityId ? `<div class="meta-row"><span class="meta-key">entityId &nbsp;:</span><span class="meta-val">${r.entityId}</span></div>` : ''}
-        <div class="meta-row"><span class="meta-key">recordid &nbsp;:</span><span class="meta-val">${r.recordid}</span></div>
-        <div class="meta-row"><span class="meta-key">county &nbsp;&nbsp; :</span><span class="meta-val">${r.county}</span></div>
+        <div class="meta-row"><span class="meta-key">entityType:</span><span class="meta-val">${escHtml(r.entityType)}</span></div>
+        ${r.entityId ? `<div class="meta-row"><span class="meta-key">entityId &nbsp;:</span><span class="meta-val">${escHtml(r.entityId)}</span></div>` : ''}
+        <div class="meta-row"><span class="meta-key">recordid &nbsp;:</span><span class="meta-val">${escHtml(r.recordid)}</span></div>
+        <div class="meta-row"><span class="meta-key">county &nbsp;&nbsp; :</span><span class="meta-val">${escHtml(r.county)}</span></div>
       </div>`;
     if (r.valid) {
       html += `<div style="padding:6px 12px 10px;color:var(--green);font-size:10.5px">All checks passed.</div>`;
@@ -2077,11 +2384,11 @@ function runValidation() {
         const translation = getTranslation(err.field, err.msg, r);
         html += `<div class="error-item">
           <div class="error-field-row">
-            <span class="error-field">${err.field}</span>
-            ${err.ref ? `<span class="oca-ref">${err.ref}</span>` : ''}
+            <span class="error-field">${escHtml(err.field)}</span>
+            ${err.ref ? `<span class="oca-ref">${escHtml(err.ref)}</span>` : ''}
           </div>
-          <div class="error-msg">${err.msg}</div>
-          ${translation ? `<div class="error-translation">${translation}</div>` : ''}
+          <div class="error-msg">${escHtml(err.msg)}</div>
+          ${translation ? `<div class="error-translation">${escHtml(translation)}</div>` : ''}
         </div>`;
       });
       html += `</div>`;
@@ -2182,28 +2489,32 @@ function switchTab(tab) {
 const HISTORY_KEY = 'tx_oca_di_val_history_v1';
 
 function loadHistory() {
-  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  try {
+    const raw = getStorage().getItem(HISTORY_KEY) || '[]';
+    const all = JSON.parse(raw);
+    return pruneExpiredRuns(Array.isArray(all) ? all : []);
+  }
   catch(e) { return []; }
 }
 
 function saveHistory(runs) {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(runs));
+    getStorage().setItem(HISTORY_KEY, JSON.stringify(runs));
   } catch(e) {
-    // localStorage blocked or full — silently skip
+    // storage blocked or full — silently skip
   }
 }
 
 function addToHistory(run) {
   const runs = loadHistory();
-  runs.unshift(run); // newest first
+  runs.unshift(scrubRunPII(run)); // PII scrub before storage
   if (runs.length > 200) runs.splice(200); // cap at 200 runs
   saveHistory(runs);
 }
 
 function clearHistory() {
   if (!confirm('Clear all validation history? This cannot be undone.')) return;
-  localStorage.removeItem(HISTORY_KEY);
+  getStorage().removeItem(HISTORY_KEY);
   renderHistory();
 }
 
@@ -2241,20 +2552,20 @@ function renderHistory() {
 
     const errorRows = run.errors.map(e =>
       `<div class="history-error-row">
-        <span class="history-entity-id">${e.entityId || e.recordid || '—'}</span>
-        <span style="color:var(--text3);min-width:60px">${e.field}</span>
-        <span>${e.msg.length > 80 ? e.msg.slice(0,80) + '...' : e.msg}</span>
-        ${e.ref ? `<span class="oca-ref" style="font-size:9px;background:var(--orange-bg);color:var(--orange);border:1px solid #3a2a00;padding:1px 4px;border-radius:2px;flex-shrink:0">${e.ref}</span>` : ''}
+        <span class="history-entity-id">${escHtml(e.entityId || e.recordid || '—')}</span>
+        <span style="color:var(--text3);min-width:60px">${escHtml(e.field)}</span>
+        <span>${escHtml(e.msg.length > 80 ? e.msg.slice(0,80) + '...' : e.msg)}</span>
+        ${e.ref ? `<span class="oca-ref" style="font-size:9px;background:var(--orange-bg);color:var(--orange);border:1px solid #3a2a00;padding:1px 4px;border-radius:2px;flex-shrink:0">${escHtml(e.ref)}</span>` : ''}
       </div>`
     ).join('');
 
     return `<div class="history-run">
       <div class="history-run-header">
         <span style="font-size:10px;color:var(--text3)">#${runs.length - idx}</span>
-        <span class="history-envelope">${run.envelopeId || 'No EnvelopeId'}</span>
+        <span class="history-envelope">${escHtml(run.envelopeId || 'No EnvelopeId')}</span>
         ${badge}
-        <span class="history-ts">${run.timestamp}</span>
-        <span class="history-stat" style="margin-left:4px">${run.entityCount} entities · ${run.publisher || '—'} · ${run.eventType || '—'}</span>
+        <span class="history-ts">${escHtml(run.timestamp)}</span>
+        <span class="history-stat" style="margin-left:4px">${run.entityCount} entities · ${escHtml(run.publisher || '—')} · ${escHtml(run.eventType || '—')}</span>
         <button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportRunCSV(${idx})">CSV</button>
         <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportRunJSON(${idx})">JSON</button>
       </div>
@@ -2263,9 +2574,11 @@ function renderHistory() {
   }).join('');
 }
 
-function exportCSV() {
+async function exportCSV() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to export.'); return; }
+  const ok = await confirmExport('Validation History CSV (' + runs.length + ' runs)');
+  if (!ok) return;
   const rows = [['Run#','Timestamp','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County','EntityType','Field','OCARef','Error','Translation']];
   runs.forEach((run, idx) => {
     if (run.errors.length === 0) {
@@ -2285,9 +2598,11 @@ function exportCSV() {
   a.click();
 }
 
-function exportJSON() {
+async function exportJSON() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to export.'); return; }
+  const ok = await confirmExport('Validation History JSON (' + runs.length + ' runs)');
+  if (!ok) return;
   const blob = new Blob([JSON.stringify(runs, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2295,10 +2610,12 @@ function exportJSON() {
   a.click();
 }
 
-function exportRunCSV(idx) {
+async function exportRunCSV(idx) {
   const runs = loadHistory();
   const run = runs[idx];
   if (!run) return;
+  const ok = await confirmExport('Run CSV — ' + (run.envelopeId || 'no envelope'));
+  if (!ok) return;
   const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
   const rows = [['Timestamp','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County','EntityType','Field','OCARef','Error','Translation']];
   if (run.errors.length === 0) {
@@ -2317,10 +2634,12 @@ function exportRunCSV(idx) {
   a.click();
 }
 
-function exportRunJSON(idx) {
+async function exportRunJSON(idx) {
   const runs = loadHistory();
   const run = runs[idx];
   if (!run) return;
+  const ok = await confirmExport('Run JSON — ' + (run.envelopeId || 'no envelope'));
+  if (!ok) return;
   const blob = new Blob([JSON.stringify(run, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2329,9 +2648,11 @@ function exportRunJSON(idx) {
   a.click();
 }
 
-function saveAllHistory() {
+async function saveAllHistory() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to save.'); return; }
+  const ok = await confirmExport('Full History Backup JSON (' + runs.length + ' runs)');
+  if (!ok) return;
   const blob = new Blob([JSON.stringify(runs, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2573,45 +2894,47 @@ function renderErrorLog() {
 
     return '<div class="log-card">' +
       '<div class="log-card-header">' +
-        '<span class="log-id">' + e.id + '</span>' +
+        '<span class="log-id">' + escHtml(e.id) + '</span>' +
         sourceBadge +
-        '<span class="log-pub">' + e.pub + '</span>' +
+        '<span class="log-pub">' + escHtml(e.pub) + '</span>' +
         (e.source === 'pinned'
-          ? '<span class="log-status-open">' + fixOwner + '</span>'
-          : '<span style="' + fixStyle + '">' + fixOwner + '</span>') +
-        '<span class="log-date">' + e.date + '</span>' +
+          ? '<span class="log-status-open">' + escHtml(fixOwner) + '</span>'
+          : '<span style="' + fixStyle + '">' + escHtml(fixOwner) + '</span>') +
+        '<span class="log-date">' + escHtml(e.date) + '</span>' +
         '<button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntry(' + idx + ')">CSV</button>' +
         '<button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntryJSON(' + idx + ')">JSON</button>' +
       '</div>' +
       '<div class="log-grid">' +
         '<div class="log-grid-label">Envelope</div>' +
-        '<div class="log-grid-value mono">' + e.envelope + '</div>' +
+        '<div class="log-grid-value mono">' + escHtml(e.envelope) + '</div>' +
       '</div>' +
       '<div class="log-grid">' +
         '<div class="log-grid-label">Entity</div>' +
-        '<div class="log-grid-value entity">' + e.entity + '</div>' +
+        '<div class="log-grid-value entity">' + escHtml(e.entity) + '</div>' +
       '</div>' +
       '<div class="log-grid">' +
         '<div class="log-grid-label">Root Cause</div>' +
-        '<div class="log-grid-value cause">' + e.cause + '</div>' +
+        '<div class="log-grid-value cause">' + escHtml(e.cause) + '</div>' +
       '</div>' +
       '<div class="log-grid">' +
         '<div class="log-grid-label">BIS Position</div>' +
-        '<div class="log-grid-value bis">' + e.bis + '</div>' +
+        '<div class="log-grid-value bis">' + escHtml(e.bis) + '</div>' +
       '</div>' +
       '<div class="log-grid">' +
         '<div class="log-grid-label">Priority</div>' +
-        '<div class="log-grid-value ' + prioClass + '">' + e.priority + '</div>' +
+        '<div class="log-grid-value ' + prioClass + '">' + escHtml(e.priority) + '</div>' +
       '</div>' +
     '</div>';
   }).join('');
 }
 
 // Per-entry export helpers
-function exportSingleLogEntry(idx) {
+async function exportSingleLogEntry(idx) {
   var all = getAllLogEntries();
   var e = all[idx];
   if (!e) return;
+  const ok = await confirmExport('Error Log Entry ' + (e.id || 'entry') + ' CSV');
+  if (!ok) return;
   var val = function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; };
   var rows = [['ID','Source','Date','EnvelopeId','Publisher','Entity','RootCause','BISPosition','Priority']];
   rows.push([val(e.id),val(e.source),val(e.date),val(e.envelope),val(e.pub),val(e.entity),val(e.cause),val(e.bis),val(e.priority)]);
@@ -2623,10 +2946,12 @@ function exportSingleLogEntry(idx) {
   a.click();
 }
 
-function exportSingleLogEntryJSON(idx) {
+async function exportSingleLogEntryJSON(idx) {
   var all = getAllLogEntries();
   var e = all[idx];
   if (!e) return;
+  const ok = await confirmExport('Error Log Entry ' + (e.id || 'entry') + ' JSON');
+  if (!ok) return;
   var blob = new Blob([JSON.stringify(e, null, 2)],{type:'application/json'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2634,9 +2959,11 @@ function exportSingleLogEntryJSON(idx) {
   a.click();
 }
 
-function exportErrorLogCSV() {
+async function exportErrorLogCSV() {
   var all = getAllLogEntries();
   if (all.length === 0) { alert('No entries to export.'); return; }
+  const ok = await confirmExport('TX Error Log CSV (' + all.length + ' entries)');
+  if (!ok) return;
   var val = function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; };
   var rows = [['ID','Source','Date','EnvelopeId','Publisher','Entity','RootCause','BISPosition','Priority']];
   all.forEach(function(e){
@@ -2650,9 +2977,11 @@ function exportErrorLogCSV() {
   a.click();
 }
 
-function exportErrorLogJSON() {
+async function exportErrorLogJSON() {
   var all = getAllLogEntries();
   if (all.length === 0) { alert('No entries to export.'); return; }
+  const ok = await confirmExport('TX Error Log JSON (' + all.length + ' entries)');
+  if (!ok) return;
   var blob = new Blob([JSON.stringify(all, null, 2)],{type:'application/json'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2999,8 +3328,10 @@ function deleteLibEntry(idx) {
   renderLibrary();
 }
 
-function exportLibrary() {
+async function exportLibrary() {
   const entries = loadLibrary();
+  const ok = await confirmExport('Error Library JSON (' + entries.length + ' entries)');
+  if (!ok) return;
   const blob = new Blob([JSON.stringify(entries, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
