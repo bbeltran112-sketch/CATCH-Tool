@@ -1102,7 +1102,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
     </div>
 
     <div class="ref-section">
-      <div class="ref-section-title">Pending Deprecation — Confirm with Justin Baker / Thomas Morrison</div>
+      <div class="ref-section-title">Pending Deprecation — Confirm with D&amp;I before removing</div>
       <div class="chip-row" style="align-items:center">
         <span class="chip chip-red">di-texas-oca-court-dispositions-non_criminal</span>
         <span style="font-size:10px;color:var(--text3)">underscore variant · version: null · titled "Illinois AOIC Court"</span>
@@ -1363,7 +1363,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
         <div class="ref-section-title">What This Tool Catches</div>
         <div class="rule-card">
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Invalid entity type names</span><span class="rule-note">e.g. di-texas-oca-court-charge (singular) — does not exist in the contract</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">County registration gaps</span><span class="rule-note">Odyssey Source ID is registered for ~105 TX counties — real counties outside that set are flagged with escalation guidance</span></div>
+          <div class="rule-row"><span class="rule-label" style="min-width:220px">County registration gaps</span><span class="rule-note">Odyssey Source ID is registered for ~105 TX counties — real counties outside that set are flagged with a D&I ticket escalation note</span></div>
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Wrong field names</span><span class="rule-note">e.g. filing_statute_citation → statute_citation (OCA-010)</span></div>
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Type violations</span><span class="rule-note">Fields that must be number|null submitted as strings (e.g. party_age_at_time_of_offense)</span></div>
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Additional properties</span><span class="rule-note">Fields not in the contract schema — e.g. appointment fields sent under court-case-status</span></div>
@@ -1375,7 +1375,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
       <div class="ref-section">
         <div class="ref-section-title">Known Limitations</div>
         <div class="rule-card">
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Source branch validation</span><span class="rule-note">Envelope-level Source ID validation is pending confirmation of the Source → publisher branch mapping from OCA (Justin Baker / Thomas Morrison). Source errors in ACB output are oneOf evaluation noise and are not actionable.</span></div>
+          <div class="rule-row"><span class="rule-label" style="min-width:220px">Source branch validation</span><span class="rule-note">AEP's System_County_Association schema is keyed to the Engagement Builder Source ID — not Tyler Tech-Odyssey. This causes AEP to evaluate Odyssey payloads against the wrong oneOf branch, generating false positives on Source, county, and publisher. CATCH resolves Source IDs correctly and does not replicate these errors. Submit a ticket to D&I to request the AEP schema be updated with a Tyler Tech-Odyssey oneOf branch.</span></div>
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Odyssey county list</span><span class="rule-note">The ~105-county restriction was extracted from real ACB error responses. It may not reflect future Source registration changes — confirm with OCA if unexpected county failures appear.</span></div>
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Schema version drift</span><span class="rule-note">Schemas embedded as of March 2026. Schemas are embedded at deploy time and maintained by BIS. Contact the BIS team if updated schemas are needed.</span></div>
           <div class="rule-row"><span class="rule-label" style="min-width:220px">Error Library matching</span><span class="rule-note">Library entries match on field + value or field name. Complex multi-field error patterns (e.g. errors that only appear in combination) require multiple entries or static rule additions.</span></div>
@@ -1388,8 +1388,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
         <div style="font-size:11px;color:var(--text2);font-family:var(--sans);line-height:1.7;">
           <strong>Tool owner:</strong> Bryce Beltran · TPM, Business Integration Services · Tyler Technologies Courts &amp; Justice<br>
           <strong>BIS TPM inbox:</strong> BIS.TPM&#64;tylertech.com<br>
-          <strong>OCA technical contacts:</strong> Justin Baker, Thomas Morrison (D&amp;I Senior Technical Consultants)<br>
-          <strong>OCA business contact:</strong> Frank Barker
+          <strong>OCA technical issues:</strong> Submit a ticket to D&amp;I
         </div>
       </div>
 
@@ -2001,7 +2000,7 @@ function getTranslation(field, msg, entity) {
   // county errors
   if (field === 'county') {
     if (msg.includes('Casey')) return '"Casey" is not a Texas county — this is test/demo data using a fake county. The submission cannot land in OCA. Fix owner: Odyssey CMS team (use a real registered county).';
-    if (msg.includes('registered for ~105 counties')) return `"${entity.county}" is a real Texas county but is outside the counties Odyssey's Source ID is registered to serve. OCA will reject any submission for this county from Odyssey until the Source registration is expanded. Escalate to OCA (Justin Baker / Frank Barker).`;
+    if (msg.includes('registered for ~105 counties')) return `"${entity.county}" is a valid Texas county but falls outside the registered county scope for this Source ID (Tyler Tech-Odyssey). Submissions for this county will be rejected by the Alliance until the Source registration is expanded. Submit a ticket to D&I to request county registration expansion.`;
     if (msg.includes('County-Subdivision format')) return 'v0.1 entity types require a county + court subdivision value (e.g. "Grayson-Sherman"), not just the county name. Fix owner: submitting publisher.';
     return 'The county value submitted is not in the allowed list for this entity type. Fix owner: submitting publisher.';
   }
@@ -2127,7 +2126,7 @@ function validateEntity(entity) {
     const countyValid = isOdyssey ? ODYSSEY_COUNTIES.has(entity.county) : V3_COUNTIES.includes(entity.county);
     if (!countyValid) {
       const isKnownFake = entity.county === "Casey";
-      const odysseyNote = isOdyssey ? ` (Tyler Tech-Odyssey Source ID is registered for ~105 counties — "${entity.county}" is not among them)` : " (county-only enum, no subdivisions)";
+      const odysseyNote = isOdyssey ? ` (Tyler Tech-Odyssey Source ID is registered for ~105 counties — "${entity.county}" is not among them. Submit ticket to D&I to request registration expansion.)` : " (county-only enum, no subdivisions)";
       errors.push({ field:"county", msg:`"${entity.county}" is not a valid county for this publisher's v3.0.0 submission${odysseyNote}.`, ref: isKnownFake ? "OCA-007, OCA-008, OCA-009" : null });
     }
   } else if (!isV3 && !V01_COUNTIES.has(entity.county)) {
