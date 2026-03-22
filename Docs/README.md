@@ -81,12 +81,11 @@ The production file (`CATCH.html`) is generated from `CATCH-admin.html` using th
 
 | Document | Audience | Read if... |
 |----------|----------|-----------|
-| [Onboarding Guide](docs/onboarding-guide.md) | All users · Clients | You are new to CATCH or want a full feature walkthrough |
-| [Schema Reference](docs/schema-reference.md) | BIS TPM · D&I · Technical users | You need to understand validation rules, entity types, or enums |
-| [Error Library](docs/error-library.md) | BIS TPM | You are managing error translations or adding new entries |
-| [Integrator Inventory](docs/integrator-inventory.md) | BIS TPM · D&I | You need to update Source ID or county registration data |
-| [AEP Discrepancy](docs/aep-discrepancy.md) | BIS TPM · D&I · Program Leadership | You are comparing AEP and CATCH validation results |
-| [Changelog](docs/changelog.md) | All | You want to know what changed in a given version |
+| [Onboarding Guide](Docs/onboarding-guide.md) | All users · Clients | You are new to CATCH or want a full feature walkthrough |
+| [Schema Reference](Docs/schema-reference.md) | BIS TPM · D&I · Technical users | You need to understand validation rules, entity types, or enums |
+| [Error Library](Docs/error-library.md) | BIS TPM | You are managing error translations or adding new entries |
+| [Integrator Inventory](Docs/integrator-inventory.md) | BIS TPM · D&I | You need to update Source ID or county registration data |
+| [Changelog](Docs/changelog.md) | All | You want to know what changed in a given version |
 
 > Operations runbook (schema update workflow, GitHub deployment steps, troubleshooting) is maintained as an internal Word document — not stored in this repo.
 
