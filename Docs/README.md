@@ -81,12 +81,12 @@ The production file (`CATCH.html`) is generated from `CATCH-admin.html` using th
 
 ## Documentation
 
-- [Onboarding Guide](/onboarding-guide.md) — All users · Clients
-- [Schema Reference](/schema-reference.md) — BIS TPM · D&I · Technical users
-- [Error Library](/error-library.md) — BIS TPM
-- [Integrator Inventory](/integrator-inventory.md) — BIS TPM · D&I
-- [AEP Discrepancy](/aep-discrepancy.md) — BIS TPM · D&I · Program Leadership
-- [Changelog](/changelog.md) — All
+- [Onboarding Guide](Docs/onboarding-guide.md) — All users · Clients
+- [Schema Reference](Docs/schema-reference.md) — BIS TPM · D&I · Technical users
+- [Error Library](Docs/error-library.md) — BIS TPM
+- [Integrator Inventory](Docs/integrator-inventory.md) — BIS TPM · D&I
+- [AEP Discrepancy](Docs/aep-discrepancy.md) — BIS TPM · D&I · Program Leadership
+- [Changelog](Docs/changelog.md) — All
 
 > Operations runbook (schema update workflow, GitHub deployment steps, troubleshooting) is maintained as an internal Word document — not stored in this repo.
 
