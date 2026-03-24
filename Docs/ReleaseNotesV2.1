@@ -1,0 +1,93 @@
+# CATCH v2.1 — Release Notes
+
+**Release date:** March 2026  
+**Built by:** BIS · Tyler Technologies Courts & Justice  
+**Supports:** TX OCA Community Pipeline · IL AOIC Community Pipeline
+
+---
+
+## What's new in v2.1
+
+### Error Catalog (new tab)
+Replaced the previous "Error Association" pivot with a purpose-built **Error Catalog** tab designed to support error library development. Every unique error ever seen across all stored history is deduplicated by `field + message + entity type` into a single flat table — one row per distinct error pattern.
+
+Each row shows:
+- Field name, entity type, and color-coded error category (Missing Field, Enum/Invalid Value, Type Error, Extra Field, Wrong Field Name, Invalid Entity Type)
+- Full error message (hover to see untruncated)
+- Occurrence count across all history
+- Every publisher/CMS vendor who has sent that error, as chips
+- Market (TX or IL)
+- Translation/fix from the Error Library if one exists
+- First seen and last seen timestamps
+
+Live search filters across field, message, publisher, and entity type simultaneously. Market dropdown filters to TX or IL only. **Export CSV** produces a UTF-8 BOM-encoded spreadsheet with one row per unique error — occurrence count, semicolon-separated publisher list, envelope IDs, translation, and OCA reference code — ready to use as the foundation of an error library.
+
+---
+
+### Error Library search
+The Error Library in Settings (⚙) now has a live search input above the entry list. Typing filters entries across field, translation, entity type, fix owner, match value, and recommended action. The count displays "Showing X of Y entries" when filtered. Save and Delete operations continue to work correctly against the underlying entry index regardless of what is filtered.
+
+---
+
+### Nav streamlined
+The tab bar has been simplified:
+
+| Before | After |
+|--------|-------|
+| Validate | Validate |
+| Schema Reference | Schema Reference |
+| TX Error Log | *(removed)* |
+| History / Export | History / Export |
+| About | Error Catalog *(new)* |
+| Error Association | Info |
+
+**TX Error Log tab removed** — the tab has been removed from the nav. The underlying panel and all auto-log JavaScript remain intact so no data is lost and existing behavior is unchanged. The pinned-entry and auto-log functionality can still be accessed via the gear icon for users who need it.
+
+**About renamed to Info and slimmed** — the Info tab dropped from ~21,000 characters to ~6,500. Removed: tab guide (redundant with the UI itself), step-by-step how-to (redundant), duplicate schema chip lists (those live in Schema Reference). Kept: tool overview, what CATCH catches (TX + IL), known limitations, and contact.
+
+---
+
+### IL publisher fix
+The Error Catalog was showing `(unknown)` for all IL errors because IL AOIC envelopes do not carry a `Publisher` field at the envelope level — the CMS vendor name is the `name` field on each individual entity.
+
+This release fixes publisher propagation at every point in the data pipeline:
+
+- **Run-level history:** `addToHistory` now falls back to `parsed.entities[0].name` when `parsed.publisher` is null (IL).
+- **Per-error history:** Each error object stored in history now carries its own `publisher` field derived from the entity's `name`, so the catalog can correctly attribute errors even in mixed-vendor payloads.
+- **Error Catalog:** `buildCatalogData` reads per-error publisher first, falling back to run-level publisher. IL errors now display the actual CMS vendor name (e.g. Journal Technologies, JANO Justice Systems) instead of `(unknown)`.
+
+---
+
+### Keyboard shortcut — Ctrl+Enter to validate
+`Ctrl+Enter` (Windows / Linux) and `Cmd+Enter` (Mac) now trigger **Run Validation** from the input textarea. No need to reach for the button when iterating on a payload.
+
+---
+
+## Bug fixes
+
+- Fixed Error Library Save/Delete operating on wrong entry index when the library was in a filtered state.
+- Fixed IL validation runs attributing all errors to `(unknown)` publisher in history and the Error Catalog.
+
+---
+
+## Unchanged in v2.1
+
+- All TX OCA validation rules (schema v3.0.0)
+- All IL AOIC validation rules (schema v3.1.0, 37 entity types)
+- History / Export — all export formats, Save All, Import, 7-day TTL
+- Schema Reference panel
+- Schema Manager (⚙ Settings) — upload, rollback, reset
+- Session-only mode and inactivity auto-clear
+- Error Library import/export
+
+---
+
+## Deployment
+
+Single-file deployment — replace `CATCH.html` in the repository root. No dependency changes. Azure Static Web Apps (Free SKU) picks up the update automatically on push to `main`.
+
+```
+gh release create v2.1 CATCH.html \
+  --title "CATCH v2.1" \
+  --notes-file CATCH_v2.1_Release_Notes.md
+```
