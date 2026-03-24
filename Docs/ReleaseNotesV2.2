@@ -1,0 +1,59 @@
+# CATCH v2.2 — Release Notes
+
+**Release date:** March 2026  
+**Built by:** BIS · Tyler Technologies Courts & Justice  
+**Supports:** TX OCA Community Pipeline · IL AOIC Community Pipeline
+
+---
+
+## What's new in v2.2
+
+### Bug fix — History / Export tab broken after v2.1 nav restructure
+
+**Symptom:** Clicking the History / Export tab would visually activate the Error Catalog tab instead, and the History panel would not display. History / Export was effectively inaccessible.
+
+**Root cause:** `switchTab()` used a hardcoded `tabs` array to match rendered nav buttons to panel IDs by index position:
+
+```js
+// v2.1 — stale, misaligned after nav restructure
+const tabs = ['validate', 'reference', 'errors', 'history', 'about'];
+```
+
+When v2.1 removed the TX Error Log tab from the nav and inserted Error Catalog, the rendered button order became `validate → reference → history → assoc → about`. The array was never updated to match, so every tab from History onward was offset by one index — History highlighted Error Catalog, Error Catalog highlighted Info, and panel show/hide logic followed the same wrong mapping.
+
+**Fix:** Updated the `tabs` array to match the actual v2.1+ nav order. Separated the tab-highlight list from the full panel show/hide list so the hidden `errors` panel (kept for JS compatibility) doesn't affect index alignment:
+
+```js
+// v2.2 — correct
+const tabs = ['validate', 'reference', 'history', 'assoc', 'about'];
+
+['validate', 'reference', 'errors', 'history', 'assoc', 'about'].forEach(p => {
+  // show/hide all panels including hidden errors panel
+});
+```
+
+---
+
+## Unchanged in v2.2
+
+All v2.1 features and fixes are intact. This release is a single targeted bug fix.
+
+- Error Catalog tab — deduplicated error table, live search, CSV export
+- Error Library search in Settings
+- IL publisher attribution fix
+- Ctrl+Enter / Cmd+Enter shortcut
+- Nav order: Validate · Schema Reference · History / Export · Error Catalog · Info
+- TX OCA validation (schema v3.0.0)
+- IL AOIC validation (schema v3.1.0, 37 entity types)
+
+---
+
+## Deployment
+
+Replace `CATCH.html` in the repository root. No other file changes.
+
+```
+gh release create v2.2 CATCH.html \
+  --title "CATCH v2.2" \
+  --notes-file CATCH_v2.2_Release_Notes.md
+```
