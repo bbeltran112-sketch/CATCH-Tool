@@ -1,0 +1,95 @@
+# CATCH v2.4 — Release Notes
+
+**Release date:** March 2026  
+**Built by:** BIS · Tyler Technologies Courts & Justice  
+**Supports:** TX OCA Community Pipeline · IL AOIC Community Pipeline
+
+---
+
+## What's new in v2.4
+
+### Bug fix — IL vendors (e.g. Goodin & Associates) incorrectly labeled as TX
+
+**Symptom:** IL CMS vendors including Goodin & Associates appeared with a TX market badge in the Error Catalog, even though they are IL-only vendors.
+
+**Root causes (two, both fixed):**
+
+---
+
+**Root cause 1 — Simple envelope format bypassed IL detection**
+
+`parseInput` handles four input shapes. The full IL envelope (`{ EventType, Entities: [...] }`) was correctly detected and routed to IL. But the *simple envelope* format (`{ eventType, entities: [...] }`) hardcoded `market: 'TX'` with no IL check at all:
+
+```js
+// Before — always TX regardless of entity types
+return { ..., publisher: p.publisher || null, market: 'TX' };
+```
+
+If a vendor like Goodin submitted payloads in the simple envelope format — or if a payload was pasted without the `EventType` wrapper — every entity inside would be processed as TX, publisher read from `p.publisher` (which doesn't exist on IL payloads), and the run stored as market TX.
+
+**Fix:** The simple envelope branch now inspects the first entity type before deciding market. If it matches a known IL entity type, it routes through the IL path — normalizes via `normalizeEntityIL`, derives publisher from `entity.name` across all entities, and returns `market: 'IL'`:
+
+```js
+const firstET = (p.entities[0] && (p.entities[0].EntityType || p.entities[0].entityType)) || '';
+const simpleMarket = IL_VALID_ENTITY_TYPES.includes(firstET) ? 'IL' : 'TX';
+if (simpleMarket === 'IL') {
+  const simpleILNames = [...new Set(p.entities.map(e => e.name || e.Name || '').filter(Boolean))];
+  const simpleILPublisher = simpleILNames.length > 0 ? simpleILNames.join('; ') : null;
+  return { entities: p.entities.map(e => normalizeEntityIL(e, evType)), ..., publisher: simpleILPublisher, market: 'IL' };
+}
+// TX path unchanged
+```
+
+---
+
+**Root cause 2 — Already-stored history had no retroactive correction**
+
+Runs stored before v2.1 IL support was added have `run.market = undefined`, which `buildCatalogData` resolved as `'TX'` via `run.market || 'TX'`. Any IL vendor run stored in that window — including Goodin — would appear in the catalog as TX permanently, with no way to fix it without clearing history.
+
+**Fix:** `buildCatalogData` now applies a publisher-aware market correction when reading stored history. If a run's publisher matches any of the 7 registered IL CMS vendors and the stored market is `TX` or missing, it is corrected to `IL` at read time:
+
+```js
+const IL_VENDOR_NAMES = [
+  'Journal Technologies', 'Goodin & Associates', 'DuPage County',
+  'JANO Justice Systems', 'Tyler Technologies (Enterprise Justice)',
+  'Justice Systems', 'Tracker - Solution Specialties'
+];
+const publisherIsIL = IL_VENDOR_NAMES.some(v => runPublisher.includes(v));
+const market = (run.market && run.market !== 'TX') ? run.market
+             : publisherIsIL ? 'IL'
+             : run.market || 'TX';
+```
+
+This correction is applied at read time — stored history is not modified. It takes effect immediately on next catalog refresh without requiring a history clear or re-import.
+
+---
+
+## Bug fixes
+
+- Fixed IL CMS vendors appearing with TX market badge in Error Catalog.
+- Fixed simple envelope format (`{ eventType, entities: [...] }`) always routing to TX regardless of entity types.
+- Fixed pre-v2.1 history runs for IL vendors permanently showing as TX in the Error Catalog.
+
+---
+
+## Unchanged in v2.4
+
+- All TX OCA validation rules (schema v3.0.0)
+- All IL AOIC validation rules (schema v3.1.0, 37 entity types)
+- Full IL envelope format detection (unchanged — was already correct)
+- Array and single-entity IL detection (unchanged — fixed in v2.3)
+- Error Catalog tab, Error Library search, nav structure
+- Ctrl+Enter / Cmd+Enter shortcut
+- History / Export — all export formats, Save All, Import, 7-day TTL
+
+---
+
+## Deployment
+
+Replace `CATCH.html` in the repository root. No other file changes. The market correction for previously stored history takes effect immediately on next Error Catalog refresh — no history clear needed.
+
+```
+gh release create v2.4 CATCH.html \
+  --title "CATCH v2.4" \
+  --notes-file CATCH_v2.4_Release_Notes.md
+```
