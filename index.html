@@ -181,6 +181,73 @@
   .sum-filter-clear:hover { color: var(--text); border-color: var(--text3); }
   .sum-filter-clear.visible { display: inline-block; }
 
+  /* Legend popover */
+  .legend-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 1px 6px;
+    cursor: pointer;
+    margin-left: auto;
+    flex-shrink: 0;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .legend-btn:hover { color: var(--text2); border-color: var(--text2); }
+  .legend-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 14px;
+    z-index: 100;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 12px 14px;
+    min-width: 310px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: none;
+    font-size: 10px;
+  }
+  .legend-popover.open { display: block; }
+  .legend-popover-title {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .legend-section-label {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin: 10px 0 5px;
+  }
+  .legend-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .legend-row:last-child { margin-bottom: 0; }
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .legend-label { color: var(--text2); flex-shrink: 0; min-width: 80px; font-weight: 600; font-size: 9.5px; }
+  .legend-desc { color: var(--text3); font-family: var(--sans); font-size: 9.5px; }
+
+
   .results-area { flex: 1; overflow-y: auto; padding: 14px; }
   .results-empty { color: var(--text3); font-size: 11px; padding: 20px 0; }
 
@@ -986,9 +1053,10 @@
 <div class="tabs">
   <div class="tab active" onclick="switchTab('validate')">Validate</div>
   <div class="tab" onclick="switchTab('reference')">Schema Reference</div>
-  <div class="tab" onclick="switchTab('history')">History / Export</div>
-  <div class="tab" onclick="switchTab('assoc')">Error Catalog</div>
+  <div class="tab" onclick="switchTab('history')">History / Export <span id="tab-badge-history" style="display:none;background:var(--blue);color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;"></span></div>
+  <div class="tab" onclick="switchTab('assoc')">Error Catalog <span id="tab-badge-catalog" style="display:none;background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;"></span></div>
   <div class="tab" onclick="switchTab('about')">Info</div>
+  <div class="tab" onclick="switchTab('release')">Release Notes</div>
 </div>
 
 <div class="content">
@@ -998,9 +1066,10 @@
     <div class="pane-left">
       <div class="pane-header">
         <span class="pane-label">ENTITY PAYLOAD · JSON</span>
-        <span class="pane-action" onclick="clearInput()">Clear</span>
+        <span id="entity-preview" style="font-size:9.5px;color:var(--text3);margin-left:6px;"></span>
+        <span class="pane-action" style="margin-left:auto;" onclick="clearInput()">Clear</span>
       </div>
-      <textarea id="input-area" placeholder='Paste entity payload or envelope here...
+      <textarea id="input-area" ondragover="event.preventDefault()" ondrop="handlePayloadDrop(event)" placeholder='Paste entity payload or envelope here...
 
 Accepts all formats:
 
@@ -1023,12 +1092,91 @@ Validates: entityType, county enum, publisher enum,
 required fields, type violations (string vs number|null),
 wrong field names, enum violations, OCA error cross-refs'></textarea>
       <div class="pane-footer">
-        <button class="run-btn" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border2);margin-right:8px;width:auto;padding:0 16px;" onclick="formatInput()">⇄ Format</button>
-        <button class="run-btn" onclick="runValidation()">▶  Run Validation</button>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+          <span style="font-size:10px;color:var(--text3);white-space:nowrap;">EnvelopeId:</span>
+          <input class="envelope-input" id="envelope-override" placeholder="Auto-detected from payload — override here" style="flex:1;" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="run-btn" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border2);width:auto;padding:0 16px;" onclick="formatInput()">⇄ Format</button>
+          <button class="run-btn" id="run-btn" onclick="runValidation()">▶  Run Validation</button>
+        </div>
       </div>
     </div>
     <div class="pane-right">
-      <div id="summary-bar" class="summary-bar"></div>
+      <div id="summary-bar" class="summary-bar" style="position:sticky;top:0;z-index:10;position:relative;">
+        <button class="legend-btn" onclick="toggleLegend(event)" title="Colour legend">? legend</button>
+        <div class="legend-popover" id="legend-popover">
+          <div class="legend-popover-title">Colour Key</div>
+
+          <div class="legend-section-label">Summary Bar — Timestamps</div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:var(--orange);"></div>
+            <span class="legend-label">⬆ Submitted</span>
+            <span class="legend-desc">When the AEP received the envelope — converted from <code style="font-family:var(--mono);font-size:9px;">OriginalTimestamp</code></span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:var(--purple);"></div>
+            <span class="legend-label">⚡ Analysed</span>
+            <span class="legend-desc">When CATCH processed this payload — the tool's own clock</span>
+          </div>
+
+          <div class="legend-section-label">Summary Bar — Validation Result</div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:var(--green);"></div>
+            <span class="legend-label">Green</span>
+            <span class="legend-desc">All entities passed validation — no errors found</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:var(--red);"></div>
+            <span class="legend-label">Red</span>
+            <span class="legend-desc">One or more entities failed — click to filter to errors only</span>
+          </div>
+
+          <div class="legend-section-label">Error Catalog — Category Badges</div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:#e06c75;"></div>
+            <span class="legend-label">Missing Field</span>
+            <span class="legend-desc">A required field is absent from the entity</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:#e5c07b;"></div>
+            <span class="legend-label">Enum / Value</span>
+            <span class="legend-desc">Value is not in the allowed enum for that field</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:#61afef;"></div>
+            <span class="legend-label">Type Error</span>
+            <span class="legend-desc">Field sent as string but must be <code style="font-family:var(--mono);font-size:9px;">number|null</code></span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:#c678dd;"></div>
+            <span class="legend-label">Extra Field</span>
+            <span class="legend-desc">Field not allowed by schema (<code style="font-family:var(--mono);font-size:9px;">additionalProperties: false</code>)</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:#56b6c2;"></div>
+            <span class="legend-label">Wrong Name</span>
+            <span class="legend-desc">Field name is incorrect — a known correct alternative exists</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:#d19a66;"></div>
+            <span class="legend-label">Entity Type</span>
+            <span class="legend-desc">EntityType value is unrecognised or uses an invalid format</span>
+          </div>
+
+          <div class="legend-section-label">History — Envelope Badges</div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:var(--orange);"></div>
+            <span class="legend-label">⬆ Submitted</span>
+            <span class="legend-desc">Envelope's own timestamp from the AEP payload</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-swatch" style="background:var(--purple);"></div>
+            <span class="legend-label">⚡ Analysed</span>
+            <span class="legend-desc">Time CATCH ran its validation against this envelope</span>
+          </div>
+        </div>
+      </div>
       <div class="pane-header">
         <span class="pane-label">RESULTS</span>
         <span id="result-count" class="pane-action" style="cursor:default"></span>
@@ -1286,6 +1434,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
         <option value="pinned">Pinned</option>
         <option value="auto">Auto-logged</option>
       </select>
+      <input class="envelope-input" id="log-search" placeholder="Search envelope ID, cause, field, county…" oninput="renderErrorLog()" style="width:220px;flex-shrink:0;" />
       <span class="log-count" id="log-count"></span>
       <button class="export-btn" style="margin-left:auto" onclick="exportErrorLogCSV()">↓ CSV</button>
       <button class="export-btn" style="margin-left:4px" onclick="exportErrorLogJSON()">↓ JSON</button>
@@ -1395,13 +1544,202 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
     </div>
     <div class="history-toolbar" style="border-top:none; padding-top:6px; padding-bottom:6px;">
       <div class="envelope-label">Filter:</div>
-      <input class="envelope-input" id="history-filter" placeholder="Filter by EnvelopeId, publisher, county, or entity type…" oninput="renderHistory()" style="width:100%;" />
+      <input class="envelope-input" id="history-filter" placeholder="Filter by EnvelopeId, publisher, county, or entity type…" oninput="renderHistory();updateHistoryFilterClear()" style="flex:1;" />
+      <button id="history-filter-clear" onclick="clearHistoryFilter()" style="display:none;background:none;border:1px solid var(--border2);border-radius:3px;color:var(--text3);font-family:var(--mono);font-size:10px;padding:2px 8px;cursor:pointer;flex-shrink:0;" title="Clear filter">✕</button>
     </div>
-    <div class="history-toolbar" style="border-top:none; padding-top:6px; padding-bottom:6px;">
-      <div class="envelope-label">EnvelopeId override:</div>
-      <input class="envelope-input" id="envelope-override" placeholder="Auto-detected from payload — paste here to override" />
-    </div>
+
     <div id="history-list" style="flex:1;overflow-y:auto;"></div>
+  </div>
+
+  <!-- RELEASE NOTES PANEL -->
+  <div class="panel" id="panel-release" style="display:none; overflow-y:auto; padding:24px; flex-direction:column;">
+    <div style="max-width:760px;">
+
+      <div style="margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;">CATCH · Release Notes</div>
+        <div style="font-size:10.5px;color:var(--text3);font-family:var(--sans);">Changelog for all versions — newest first</div>
+      </div>
+
+      <!-- v2.5 -->
+      <div style="margin-bottom:28px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:13px;font-weight:700;color:var(--text);">v2.5</span>
+          <span style="font-size:9px;background:var(--blue);color:#fff;padding:2px 8px;border-radius:3px;font-weight:700;">Latest</span>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">March 2026 · BIS Engineering</span>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--orange);margin-bottom:8px;">⬆ New — Timestamp Tracking</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Envelope submission time</span>
+              <span style="color:var(--text2);">The <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">OriginalTimestamp</code> Unix millisecond value is now converted to a human-readable local time and displayed in the summary bar as <span style="color:var(--orange);">⬆ submitted</span>, so you can immediately see when the AEP received the envelope.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">CATCH analysed-at time</span>
+              <span style="color:var(--text2);">Each validation run now records the exact time CATCH processed the envelope, shown as <span style="color:var(--purple);">⚡ analysed</span> in the summary bar and History tab — distinct from the submission timestamp so lag is always visible.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Error Log timestamps</span>
+              <span style="color:var(--text2);">Auto-logged Error Log entries now include the envelope's <span style="color:var(--orange);">⬆ submitted</span> time alongside CATCH's analysis date.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">CSV / JSON exports</span>
+              <span style="color:var(--text2);">History exports now include separate columns: <em>Analysed At (CATCH)</em>, <em>Envelope Submitted At (AEP)</em>, and <em>OriginalTimestamp (Unix ms)</em>.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px;">◈ Improved — Error Catalog</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Envelope log column</span>
+              <span style="color:var(--text2);">The Error Catalog table now includes an <em>Envelopes</em> column — every envelope ID that contributed to each error pattern is tracked and displayed (up to 3 visible, full list on hover).</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green);margin-bottom:8px;">✦ New — UX Improvements</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">EnvelopeId override</span>
+              <span style="color:var(--text2);">Moved from the History tab to the Validate pane footer — now visible and accessible at the point of use, before running.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Entity type in results</span>
+              <span style="color:var(--text2);">Result card headers now show the entity type inline (e.g. <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">di-texas-oca-court-case-status</code>) so you don't have to expand the metadata to identify which entity failed.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Drag-and-drop input</span>
+              <span style="color:var(--text2);">Drop a <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">.json</code> file directly onto the input pane to load it — no copy-paste required.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Entity count preview</span>
+              <span style="color:var(--text2);">The input pane header shows a live entity count as you type or paste — with a red <em>invalid JSON</em> indicator if the payload is malformed before you even run.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Tab badges</span>
+              <span style="color:var(--text2);">The History and Error Catalog tabs now display live numeric badges — History shows total run count, Error Catalog shows total logged error count.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">History filter clear</span>
+              <span style="color:var(--text2);">A ✕ button appears next to the history filter input when text is entered, clearing it in one click.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Run button state</span>
+              <span style="color:var(--text2);">The Run Validation button now shows <em>⏳ Running…</em> and disables during processing — prevents double-clicks on large payloads and provides clear feedback.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Error Log search</span>
+              <span style="color:var(--text2);">Free-text search added to the Error Log toolbar — search across envelope IDs, cause text, field names, counties, and BIS notes simultaneously.</span>
+            </div>
+            <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+              <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Colour legend</span>
+              <span style="color:var(--text2);">A <em>? legend</em> button on the summary bar opens a popover explaining every colour used across the tool — timestamp colours, validation result colours, Error Catalog category badges, and History envelope badges.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- v2.4 -->
+      <div style="margin-bottom:28px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:13px;font-weight:700;color:var(--text);">v2.4</span>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">March 2026 · BIS Engineering</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Error Catalog tab</span>
+            <span style="color:var(--text2);">New tab aggregating all unique error patterns across validation history — deduplicated by field + message + entity type, with occurrence count, publishers, markets, first/last seen, and translation.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Error Log auto-logging</span>
+            <span style="color:var(--text2);">TX validation runs with errors are automatically written to the Error Log. Cap is configurable (100–10,000 entries) with auto-export before trimming.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Schema Manager</span>
+            <span style="color:var(--text2);">Upload custom schema JSON files per market, with rollback and reset-to-built-in support. Validation dynamically merges uploaded schemas with built-in rules.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Error Library</span>
+            <span style="color:var(--text2);">Codified recurring error patterns with plain-English translations, fix owners, and match types (field_value, field_name, contains). Exportable and importable.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Session-Only mode</span>
+            <span style="color:var(--text2);">Toggle to store all history in sessionStorage only — cleared automatically when the tab closes. Preference persists in localStorage.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- v2.3 -->
+      <div style="margin-bottom:28px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:13px;font-weight:700;color:var(--text);">v2.3</span>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">February 2026 · BIS Engineering</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Security layer</span>
+            <span style="color:var(--text2);">XSS prevention via <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">escHtml()</code> on all user-supplied data, PII scrubber stripping SSNs and dates before localStorage writes, and inactivity auto-clear at 30 minutes with a 25-minute warning.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">History TTL</span>
+            <span style="color:var(--text2);">Validation history entries auto-expire after 7 days. Export warning modal added before any file download.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">IL AOIC support</span>
+            <span style="color:var(--text2);">Full validation for Illinois AOIC payloads — 37 entity types, instanceid/localid required fields, CMS vendor enum, and IL-specific type/enum rules.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Result filter buttons</span>
+            <span style="color:var(--text2);">Summary bar now has clickable filter buttons to show errors-only or valid-only results from a run, with a clear filter button.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- v2.0 -->
+      <div style="margin-bottom:28px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:13px;font-weight:700;color:var(--text);">v2.0</span>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">January 2026 · BIS Engineering</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">History / Export tab</span>
+            <span style="color:var(--text2);">All validation runs auto-saved to browser storage. Per-run and bulk CSV/JSON export. Import previous history backups. Filter by envelope ID, publisher, or entity type.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Error translations</span>
+            <span style="color:var(--text2);">Validation errors now include plain-English <em>↳ translation</em> lines explaining the fix, powered by a built-in pattern library.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">OCA error cross-refs</span>
+            <span style="color:var(--text2);">Errors linked to known OCA issues (OCA-006 through OCA-011) display the reference badge inline.</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Pinned Error Log</span>
+            <span style="color:var(--text2);">OCA-006 through OCA-011 manually curated in the TX Error Log with root cause, BIS position, and priority. Exportable as CSV or JSON.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- v1.0 -->
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:13px;font-weight:700;color:var(--text);">v1.0</span>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">December 2025 · BIS Engineering</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
+            <span style="color:var(--text3);min-width:140px;flex-shrink:0;">Initial release</span>
+            <span style="color:var(--text2);">TX OCA payload validator — entity type, county enum (publisher-aware Odyssey restriction), publisher enum, required fields, type checks, enum checks, additionalProperties, and wrong field name detection. Schema Reference tab with valid entity types, counties, and publisher list.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
 </div>
@@ -1587,7 +1925,10 @@ document.addEventListener('DOMContentLoaded', function() {
         runValidation();
       }
     });
+    inputArea.addEventListener('input', updateEntityPreview);
+    inputArea.addEventListener('paste', function() { setTimeout(updateEntityPreview, 50); });
   }
+  updateTabBadges();
 });
 
 // ── Feature 5: Export Warning Modal ──────────────────────────────────────────
@@ -2315,6 +2656,137 @@ function normalizeEntity(raw, eventType) {
   return { entityType, entityId, _eventType: eventType || '', ...data };
 }
 
+
+
+// ── Entity count preview ─────────────────────────────────────────────────────
+function updateEntityPreview() {
+  const ta = document.getElementById('input-area');
+  const preview = document.getElementById('entity-preview');
+  if (!ta || !preview) return;
+  const text = ta.value.trim();
+  if (!text) { preview.textContent = ''; return; }
+  try {
+    const p = JSON.parse(text);
+    let count = 0;
+    if (p.Events && Array.isArray(p.Events)) {
+      p.Events.forEach(ev => { count += (ev.Entities || []).length; });
+    } else if (p.entities && Array.isArray(p.entities)) {
+      count = p.entities.length;
+    } else if (Array.isArray(p)) {
+      count = p.length;
+    } else {
+      count = 1;
+    }
+    preview.textContent = count + ' entit' + (count === 1 ? 'y' : 'ies') + ' detected';
+    preview.style.color = 'var(--cyan)';
+  } catch(e) {
+    if (text.length > 5) {
+      preview.textContent = 'invalid JSON';
+      preview.style.color = 'var(--red)';
+    } else {
+      preview.textContent = '';
+    }
+  }
+}
+
+
+// ── Tab badges ───────────────────────────────────────────────────────────────
+function updateTabBadges() {
+  // History badge
+  try {
+    const runs = loadHistory();
+    const badge = document.getElementById('tab-badge-history');
+    if (badge) {
+      if (runs.length > 0) {
+        badge.textContent = runs.length > 99 ? '99+' : runs.length;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  } catch(e) {}
+  // Catalog badge — count unique errors from history
+  try {
+    const errBadge = document.getElementById('tab-badge-catalog');
+    if (errBadge) {
+      const runs = loadHistory();
+      const errRuns = runs.filter(r => r.errorCount > 0);
+      if (errRuns.length > 0) {
+        const totalErrs = errRuns.reduce((s, r) => s + r.errorCount, 0);
+        errBadge.textContent = totalErrs > 999 ? '999+' : totalErrs;
+        errBadge.style.display = 'inline-block';
+      } else {
+        errBadge.style.display = 'none';
+      }
+    }
+  } catch(e) {}
+}
+
+
+// ── Drag-and-drop payload file ───────────────────────────────────────────────
+function handlePayloadDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  if (!file.name.endsWith('.json') && file.type !== 'application/json' && file.type !== 'text/plain') {
+    alert('Please drop a .json file.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const ta = document.getElementById('input-area');
+    if (ta) {
+      ta.value = ev.target.result;
+      updateEntityPreview();
+    }
+  };
+  reader.readAsText(file);
+}
+
+
+// ── History filter clear ──────────────────────────────────────────────────────
+function clearHistoryFilter() {
+  const input = document.getElementById('history-filter');
+  if (input) { input.value = ''; renderHistory(); }
+  const btn = document.getElementById('history-filter-clear');
+  if (btn) btn.style.display = 'none';
+}
+function updateHistoryFilterClear() {
+  const input = document.getElementById('history-filter');
+  const btn = document.getElementById('history-filter-clear');
+  if (!input || !btn) return;
+  btn.style.display = input.value.trim() ? 'inline-block' : 'none';
+}
+
+// ── Legend toggle ────────────────────────────────────────────────────────────
+function toggleLegend(e) {
+  e.stopPropagation();
+  const pop = document.getElementById('legend-popover');
+  if (!pop) return;
+  pop.classList.toggle('open');
+}
+// Close legend when clicking elsewhere
+document.addEventListener('click', function(e) {
+  const pop = document.getElementById('legend-popover');
+  if (pop && pop.classList.contains('open') && !pop.contains(e.target)) {
+    pop.classList.remove('open');
+  }
+});
+
+// ── Timestamp helpers ────────────────────────────────────────────────────────
+function formatUnixMs(ts) {
+  if (!ts) return null;
+  try {
+    const d = new Date(Number(ts));
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleString('en-US', {
+      month: '2-digit', day: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      timeZoneName: 'short'
+    });
+  } catch(e) { return null; }
+}
+
 function parseInput(text) {
   try {
     const p = JSON.parse(text);
@@ -2333,7 +2805,7 @@ function parseInput(text) {
       const entities = [];
       const evType = p.EventType || null;
       p.Events.forEach(ev => (ev.Entities || []).forEach(ent => entities.push(normalizeEntity(ent, evType))));
-      return { entities, eventType: evType, envelopeId: p.EnvelopeId || null, publisher: p.Publisher || null, market: 'TX' };
+      return { entities, eventType: evType, envelopeId: p.EnvelopeId || null, publisher: p.Publisher || null, market: 'TX', originalTimestamp: p.OriginalTimestamp || null };
     }
     // Simple envelope: { eventType, entities: [...] }
     if (p.entities && Array.isArray(p.entities)) {
@@ -2384,6 +2856,16 @@ function normalizeEntityIL(raw, eventType) {
 function runValidation() {
   const text = document.getElementById('input-area').value.trim();
   if (!text) return;
+  const runBtn = document.getElementById('run-btn');
+  if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ Running…'; }
+  // Defer to next tick so the button state renders before heavy work
+  setTimeout(function() { _runValidationCore(); }, 10);
+}
+function _runValidationCore() {
+  const text = document.getElementById('input-area').value.trim();
+  const runBtn = document.getElementById('run-btn');
+  function restoreBtn() { if (runBtn) { runBtn.disabled = false; runBtn.innerHTML = '▶&nbsp; Run Validation'; } }
+  if (!text) { restoreBtn(); return; }
   const ra = document.getElementById('results-area');
   const sb = document.getElementById('summary-bar');
   const rc = document.getElementById('result-count');
@@ -2439,6 +2921,13 @@ function runValidation() {
   if (parsed.eventType) {
     sbHtml += `<span class="sum-neutral">eventType:</span><span style="color:var(--cyan);margin-left:4px">${parsed.eventType}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
   }
+  // Envelope submission time from OriginalTimestamp
+  const submittedAt = parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : null;
+  if (submittedAt) {
+    sbHtml += `<span class="sum-neutral">submitted:</span><span style="color:var(--orange);margin-left:4px" title="Envelope OriginalTimestamp: ${parsed.originalTimestamp}">${submittedAt}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  }
+  const analysedAt = new Date().toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'});
+  sbHtml += `<span class="sum-neutral">CATCH analysed:</span><span style="color:var(--purple);margin-left:4px">${analysedAt}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
   sbHtml += `<span class="sum-neutral">entities:</span><span style="color:var(--text);margin-left:4px">${results.length}</span>`;
   sbHtml += `<span style="margin:0 8px;color:var(--text3)">·</span>`;
   if (totalErr === 0) {
@@ -2472,6 +2961,9 @@ function runValidation() {
     });
     addToHistory({
       timestamp: new Date().toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+      analysedAt: new Date().toISOString(),
+      envelopeSubmittedAt: parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : null,
+      originalTimestamp: parsed.originalTimestamp || null,
       envelopeId,
       eventType: parsed.eventType || '',
       publisher: parsed.publisher || '',
@@ -2487,15 +2979,17 @@ function runValidation() {
     try {
       const overrideElLog = document.getElementById('envelope-override');
       const envelopeIdLog = (overrideElLog ? overrideElLog.value.trim() : '') || parsed.envelopeId || null;
-      autoLogRunToErrorLog(parsed, results, envelopeIdLog);
+      autoLogRunToErrorLog(parsed, results, envelopeIdLog, parsed.originalTimestamp || null);
     } catch(e) { /* error log unavailable — validation continues */ }
   }
 
+  try {
   ra.innerHTML = results.map(r => {
     const cls = r.valid ? 'valid' : 'invalid';
     let html = `<div class="result-card ${cls}">
       <div class="result-header">
         <span class="${r.valid ? 'status-valid' : 'status-invalid'}">${r.valid ? '✓ VALID' : '✗ INVALID'} · Entity ${r.i + 1}</span>
+        <span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="${escHtml(r.entityType)}">${escHtml(r.entityType)}</span>
         ${!r.valid ? `<span class="error-count">${r.errors.length} error${r.errors.length>1?'s':''}</span>` : ''}
       </div>
       <div class="result-meta">
@@ -2527,6 +3021,9 @@ function runValidation() {
     html += `</div>`;
     return html;
   }).join('');
+  } catch(renderErr) { console.error(renderErr); }
+  restoreBtn();
+  updateTabBadges();
 }
 
 // ── Format + Copy ────────────────────────────────────────────────────────────
@@ -2626,10 +3123,10 @@ function clearInput() {
 
 function switchTab(tab) {
   // Tab order must match the rendered nav exactly: Validate, Schema Reference, History/Export, Error Catalog, Info
-  const tabs = ['validate','reference','history','assoc','about'];
+  const tabs = ['validate','reference','history','assoc','about','release'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
   // All panels including hidden ones (errors panel kept for JS compatibility)
-  ['validate','reference','errors','history','assoc','about'].forEach(p => {
+  ['validate','reference','errors','history','assoc','about','release'].forEach(p => {
     const el = document.getElementById('panel-' + p);
     if (!el) return;
     if (p === tab) { el.style.display = 'flex'; el.classList.add('active'); }
@@ -2719,7 +3216,8 @@ function renderHistory() {
         <span class="history-envelope">${escHtml(run.envelopeId || 'No EnvelopeId')}</span>
         ${badge}
         ${run.market && run.market !== 'TX' ? `<span style="font-size:9px;background:#0d1f3d;color:var(--cyan);border:1px solid #1a3a6e;padding:1px 6px;border-radius:3px;flex-shrink:0;">${escHtml(run.market)}</span>` : ''}
-        <span class="history-ts">${escHtml(run.timestamp)}</span>
+        ${run.envelopeSubmittedAt ? `<span title="Envelope OriginalTimestamp — when the AEP received the submission" style="font-size:9px;color:var(--orange);background:var(--orange-bg);border:1px solid #3a2a00;padding:1px 6px;border-radius:3px;flex-shrink:0;">⬆ submitted ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
+        <span title="When CATCH analysed this envelope" class="history-ts" style="color:var(--purple)">⚡ analysed ${escHtml(run.timestamp)}</span>
         <span class="history-stat" style="margin-left:4px">${run.entityCount} entities · ${escHtml(run.publisher || '—')} · ${escHtml(run.eventType || '—')}</span>
         <button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportRunCSV(${idx})">CSV</button>
         <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportRunJSON(${idx})">JSON</button>
@@ -2734,15 +3232,15 @@ async function exportCSV() {
   if (runs.length === 0) { alert('No history to export.'); return; }
   const ok = await confirmExport('Validation History CSV (' + runs.length + ' runs)');
   if (!ok) return;
-  const rows = [['Run#','Timestamp','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
+  const rows = [['Run#','Analysed At (CATCH)','Envelope Submitted At (AEP)','OriginalTimestamp (Unix ms)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
   runs.forEach((run, idx) => {
     const mkt = run.market || 'TX';
     const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
     if (run.errors.length === 0) {
-      rows.push([runs.length-idx, run.timestamp, mkt, run.envelopeId||'', run.eventType||'', run.publisher||'', run.entityCount, 0, '', '', '', '', '', '', 'All valid', '']);
+      rows.push([runs.length-idx, run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, run.envelopeId||'', run.eventType||'', run.publisher||'', run.entityCount, 0, '', '', '', '', '', '', 'All valid', '']);
     } else {
       run.errors.forEach(e => {
-        rows.push([runs.length-idx, run.timestamp, mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
+        rows.push([runs.length-idx, run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
       });
     }
   });
@@ -2774,12 +3272,12 @@ async function exportRunCSV(idx) {
     if (!ok) return;
     const mkt = run.market || 'TX';
     const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-    const rows = [['Timestamp','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
+    const rows = [['Analysed At (CATCH)','Envelope Submitted At (AEP)','OriginalTimestamp (Unix ms)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
     if (run.errors.length === 0) {
-      rows.push([run.timestamp, mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, 0, '','','','','','','All valid','']);
+      rows.push([run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, 0, '','','','','','','All valid','']);
     } else {
       run.errors.forEach(e => {
-        rows.push([run.timestamp, mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
+        rows.push([run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
       });
     }
     const csv = rows.map(r => r.join(',')).join('\n');
@@ -2959,7 +3457,7 @@ function saveErrorLog(entries) {
 }
 
 // Convert a validation run result into error log entries
-function autoLogRunToErrorLog(parsed, results, envelopeId) {
+function autoLogRunToErrorLog(parsed, results, envelopeId, originalTimestamp) {
   var errorResults = results.filter(function(r) { return !r.valid; });
   if (errorResults.length === 0) return;
 
@@ -2975,6 +3473,7 @@ function autoLogRunToErrorLog(parsed, results, envelopeId) {
     }).join(' | ');
     var refs = [...new Set(r.errors.filter(function(e){ return e.ref; }).map(function(e){ return e.ref; }))].join(', ');
 
+    var submittedAt = originalTimestamp ? formatUnixMs(originalTimestamp) : null;
     existing.unshift({
       id: 'AUTO-' + Date.now() + '-' + Math.random().toString(36).slice(2,6).toUpperCase(),
       source: 'auto',
@@ -2983,6 +3482,7 @@ function autoLogRunToErrorLog(parsed, results, envelopeId) {
       pub: r.entityType ? (r.publisher || parsed.publisher || 'Unknown') : (parsed.publisher || 'Unknown'),
       entity: r.entityType + (r.entityId ? ' (' + r.entityId + ')' : ''),
       cause: causeLines,
+      submittedAt: submittedAt || null,
       bis: 'Auto-logged from validation run. Review and update BIS position as needed.',
       priority: refs && refs.toLowerCase().indexOf('oca') !== -1 ? 'Review required' : 'Pending review',
       refs: refs
@@ -3022,6 +3522,7 @@ function renderErrorLog() {
   var priorityFilter = (document.getElementById('log-filter-priority') || {}).value || '';
   var sourceFilter   = (document.getElementById('log-filter-source')   || {}).value || '';
 
+  var searchQ = ((document.getElementById('log-search') || {}).value || '').toLowerCase();
   var all = getAllLogEntries();
 
   var filtered = all.filter(function(e) {
@@ -3030,6 +3531,10 @@ function renderErrorLog() {
     if (priorityFilter === 'critical' && e.priority.toLowerCase().indexOf('critical') === -1)          return false;
     if (priorityFilter === 'medium'   && e.priority.toLowerCase().indexOf('medium')   === -1)          return false;
     if (sourceFilter  && e.source !== sourceFilter)                                                    return false;
+    if (searchQ) {
+      var haystack = [e.id||'', e.envelope||'', e.pub||'', e.entity||'', e.cause||'', e.bis||'', e.priority||''].join(' ').toLowerCase();
+      if (haystack.indexOf(searchQ) === -1) return false;
+    }
     return true;
   });
 
@@ -3060,7 +3565,7 @@ function renderErrorLog() {
         (e.source === 'pinned'
           ? '<span class="log-status-open">' + escHtml(fixOwner) + '</span>'
           : '<span style="' + fixStyle + '">' + escHtml(fixOwner) + '</span>') +
-        '<span class="log-date">' + escHtml(e.date) + '</span>' +
+        '<span class="log-date">' + escHtml(e.date) + (e.submittedAt ? ' <span style="color:var(--orange);font-size:9px;margin-left:6px;">⬆ ' + escHtml(e.submittedAt) + '</span>' : '') + '</span>' +
         '<button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntry(' + idx + ')">CSV</button>' +
         '<button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntryJSON(' + idx + ')">JSON</button>' +
       '</div>' +
@@ -3727,6 +4232,7 @@ function _applyFilterAndRender() {
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:180px;">Publisher(s)</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">Market</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:200px;">Translation / Fix</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:220px;">Envelopes</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">First Seen</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">Last Seen</th>
       </tr>
@@ -3745,6 +4251,13 @@ function _applyFilterAndRender() {
     const publishers = e.publishers.map(p => `<span style="display:inline-block;background:var(--bg3);color:var(--cyan);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:9px;margin:1px 2px 1px 0;">${escHtml(p)}</span>`).join('');
     const markets = e.markets.map(m => `<span style="display:inline-block;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:9px;margin:1px 2px 1px 0;">${escHtml(m)}</span>`).join('');
 
+    // Envelopes column — show up to 3 IDs, with full list in tooltip
+    const envIds = e.envelopeIds || [];
+    const envDisplay = envIds.slice(0, 3).map(id =>
+      `<span style="display:inline-block;background:var(--orange-bg);color:var(--orange);border:1px solid #3a2a00;border-radius:3px;padding:1px 5px;font-size:9px;font-family:var(--mono);margin:1px 2px 1px 0;white-space:nowrap;" title="${escHtml(id)}">${escHtml(id.length > 8 ? id.slice(0,8)+'…' : id)}</span>`
+    ).join('') + (envIds.length > 3 ? `<span style="font-size:9px;color:var(--text3);margin-left:2px;">+${envIds.length - 3} more</span>` : '');
+    const envTooltip = envIds.join('\n');
+
     html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);" title="${escHtml(e.msg)}">
       <td style="padding:7px 10px;font-family:var(--mono);color:var(--cyan);font-size:10px;vertical-align:top;">${escHtml(e.field)}</td>
       <td style="padding:7px 10px;color:var(--text2);font-size:9.5px;vertical-align:top;" title="${escHtml(e.entityType)}">${escHtml(etDisplay)}</td>
@@ -3754,6 +4267,7 @@ function _applyFilterAndRender() {
       <td style="padding:7px 10px;vertical-align:top;">${publishers}</td>
       <td style="padding:7px 10px;vertical-align:top;">${markets}</td>
       <td style="padding:7px 10px;color:var(--text3);font-size:9.5px;vertical-align:top;" title="${escHtml(e.translation)}">${escHtml(transDisplay)}</td>
+      <td style="padding:7px 10px;vertical-align:top;" title="${escHtml(envTooltip)}">${envDisplay || '<span style="color:var(--text3);font-size:9px;">—</span>'}</td>
       <td style="padding:7px 10px;color:var(--text3);font-size:9px;white-space:nowrap;vertical-align:top;">${escHtml(e.firstSeen)}</td>
       <td style="padding:7px 10px;color:var(--text3);font-size:9px;white-space:nowrap;vertical-align:top;">${escHtml(e.lastSeen)}</td>
     </tr>`;
