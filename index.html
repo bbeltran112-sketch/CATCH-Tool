@@ -3287,79 +3287,16 @@ function renderHistory() {
 }
 
 // ── Clean single-fire download helper ────────────────────────────────────────
-async function dlFile(blob, filename) {
-  // Brave (and other Chromium browsers) block ALL programmatic download APIs
-  // from file:// pages — blob URLs, data URIs, showSaveFilePicker, window.open.
-  // The only guaranteed-to-work approach: read the content and show it in a
-  // copy-to-clipboard modal. One click copies everything to the clipboard,
-  // then the user can paste into Excel / Notepad / VS Code.
-  const reader = new FileReader();
-  reader.onload = function() {
-    // Strip the data URI prefix (e.g. "data:text/csv;base64,") to get raw text
-    const raw = reader.result;
-    let text = raw;
-    try {
-      // data URIs for text blobs may be base64 or plain depending on browser
-      if (raw.startsWith('data:') && raw.includes(',')) {
-        const [meta, encoded] = raw.split(',');
-        text = meta.includes('base64') ? atob(encoded) : decodeURIComponent(encoded);
-      }
-    } catch(e) { text = raw; }
-
-    // Build the modal
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10000;display:flex;align-items:center;justify-content:center;';
-
-    const box = document.createElement('div');
-    box.style.cssText = 'background:var(--bg1);border:1px solid var(--border2);border-radius:6px;padding:0;width:min(90vw,700px);max-height:80vh;display:flex;flex-direction:column;font-family:var(--mono);box-shadow:0 12px 40px rgba(0,0,0,0.6);';
-
-    const ext = filename.split('.').pop().toUpperCase();
-    const isCsv = ext === 'CSV';
-
-    box.innerHTML =
-      '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;">' +
-        '<span style="font-size:11px;font-weight:700;color:var(--text);">⇓ Export — ' + filename + '</span>' +
-        '<span style="font-size:9px;color:var(--text3);font-family:var(--sans);margin-left:4px;">Copy below, then paste into ' + (isCsv ? 'Excel or a text editor' : 'a text editor') + ' and save as <strong>.' + ext.toLowerCase() + '</strong></span>' +
-        '<button id="dl-close-btn" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:3px;color:var(--text3);font-family:var(--mono);font-size:10px;padding:2px 8px;cursor:pointer;">✕ Close</button>' +
-      '</div>' +
-      '<div style="padding:8px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0;">' +
-        '<button id="dl-copy-btn" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:5px 16px;font-family:var(--mono);font-size:10px;font-weight:600;cursor:pointer;">&#128203; Copy All to Clipboard</button>' +
-        '<span id="dl-copy-msg" style="font-size:10px;color:var(--green);display:none;">✓ Copied!</span>' +
-        '<span style="font-size:9px;color:var(--text3);margin-left:auto;">' + text.split('
-').length.toLocaleString() + ' lines · ' + (text.length / 1024).toFixed(1) + ' KB</span>' +
-      '</div>' +
-      '<textarea id="dl-content-area" readonly style="flex:1;background:var(--bg);color:var(--text2);border:none;outline:none;padding:12px 16px;font-family:var(--mono);font-size:10px;line-height:1.6;resize:none;min-height:300px;overflow-y:auto;white-space:pre;"></textarea>';
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    // Populate textarea after append so it renders
-    const ta = box.querySelector('#dl-content-area');
-    ta.value = text;
-
-    // Copy button
-    box.querySelector('#dl-copy-btn').onclick = function() {
-      navigator.clipboard.writeText(text).then(function() {
-        const msg = box.querySelector('#dl-copy-msg');
-        msg.style.display = 'inline';
-        setTimeout(function() { msg.style.display = 'none'; }, 2000);
-      }).catch(function() {
-        ta.select();
-        document.execCommand('copy');
-        const msg = box.querySelector('#dl-copy-msg');
-        msg.style.display = 'inline';
-        setTimeout(function() { msg.style.display = 'none'; }, 2000);
-      });
-    };
-
-    // Close
-    const close = function() { overlay.remove(); };
-    box.querySelector('#dl-close-btn').onclick = close;
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-  };
-  reader.readAsDataURL(blob);
+function dlFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 500);
 }
-
 async function exportCSV() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to export.'); return; }
