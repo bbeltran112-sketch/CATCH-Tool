@@ -4193,13 +4193,29 @@ function buildCatalogData() {
   const runs = loadHistory();
   if (!runs || runs.length === 0) return [];
 
-  // Key: field + '|||' + msg + '|||' + entityType
+  // Key: field + errorCategory + entityType
+  // Grouping by category rather than full message collapses noise like
+  // "received string \"30\"" / "received string \"31\"" into one row.
   const map = {};
+
+  // Extract the specific bad value from common error message patterns
+  function extractBadValue(msg) {
+    // "Invalid value "X"." or 'received string "X"'
+    const m = msg.match(/Invalid value ["“‘]([^"”’]+)["”’]/) ||
+              msg.match(/received string ["“‘]([^"”’]+)["”’]/);
+    return m ? m[1] : null;
+  }
+
+  // Strip the specific bad value from a message to produce a canonical template
+  function canonicalMsg(msg) {
+    return msg
+      .replace(/Invalid value ["“‘][^"”’"]+["”’"]\.?\s*/g, 'Invalid value <BAD_VALUE>. ')
+      .replace(/received string ["“‘][^"”’"]+["”’"]/g, 'received string <BAD_VALUE>')
+      .trim();
+  }
 
   runs.forEach(run => {
     const runPublisher = (run.publisher || '').trim();
-    // Correct market if run was stored without market (pre-v2.1) or if publisher
-    // is a known IL vendor that was incorrectly stored as TX
     const IL_VENDOR_NAMES = ['Journal Technologies', 'Goodin & Associates', 'DuPage County', 'JANO Justice Systems', 'Tyler Technologies (Enterprise Justice)', 'Justice Systems', 'Tracker - Solution Specialties'];
     const publisherIsIL = IL_VENDOR_NAMES.some(v => runPublisher.includes(v));
     const market = (run.market && run.market !== 'TX') ? run.market
@@ -4213,20 +4229,25 @@ function buildCatalogData() {
       const field = e.field || '';
       const msg = e.msg || '';
       const entityType = e.entityType || '';
-      const key = field + '|||' + msg + '|||' + entityType;
+      const category = classifyErrorCatalog(msg);
+      const key = field + '|||' + category + '|||' + entityType;
+
+      const badVal = extractBadValue(msg);
+      const template = canonicalMsg(msg);
 
       if (!map[key]) {
         map[key] = {
           field,
-          msg,
+          msg: template,          // canonical (value-stripped) message
           entityType,
-          errorCategory: classifyErrorCatalog(msg),
+          errorCategory: category,
           count: 0,
+          badValues: new Set(),   // distinct bad values seen
           publishers: new Set(),
           markets: new Set(),
           envelopeIds: new Set(),
           firstSeen: ts,
-          submittedAt: runSubmittedAt,  // ⬆ envelope submission time for first occurrence
+          submittedAt: runSubmittedAt,
           lastSeen: ts,
           ref: e.ref || '',
           translation: e.translation || '',
@@ -4235,22 +4256,26 @@ function buildCatalogData() {
 
       const entry = map[key];
       entry.count++;
+      if (badVal) entry.badValues.add(badVal);
       const errPublisher = (e.publisher && e.publisher.trim()) ? e.publisher.trim() : (runPublisher || '(unknown)');
       entry.publishers.add(errPublisher);
       entry.markets.add(market);
       if (envelopeId) entry.envelopeIds.add(envelopeId);
-      // Track first/last seen; carry the submittedAt from the earliest run
       if (ts && ts < entry.firstSeen) {
         entry.firstSeen = ts;
         entry.submittedAt = runSubmittedAt;
       }
       if (ts && ts > entry.lastSeen) entry.lastSeen = ts;
+      // Keep the most descriptive translation (prefer ones with OCA refs)
+      if (!entry.translation && e.translation) entry.translation = e.translation;
+      if (e.ref && !entry.ref) entry.ref = e.ref;
     });
   });
 
   return Object.values(map)
     .map(e => ({
       ...e,
+      badValues: Array.from(e.badValues).sort(),
       publishers: Array.from(e.publishers).sort(),
       markets: Array.from(e.markets).sort(),
       envelopeIds: Array.from(e.envelopeIds),
@@ -4341,17 +4366,17 @@ function _applyFilterAndRender() {
   <table style="width:100%;border-collapse:collapse;font-size:10.5px;">
     <thead>
       <tr style="background:var(--bg3);border-bottom:2px solid var(--border2);position:sticky;top:0;z-index:1;">
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);white-space:nowrap;min-width:130px;">Field</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:120px;">Entity Type</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);white-space:nowrap;min-width:140px;">Field</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:160px;">Publisher</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:90px;">Category</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:280px;">Error Message</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:180px;">Description</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:110px;">Bad Values</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:100px;">Entity Type</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:140px;">Fix Owner</th>
         <th style="text-align:right;padding:7px 10px;font-weight:600;color:var(--text3);">Count</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:180px;">Publisher(s)</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">Market</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:200px;">Translation / Fix</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:220px;">Envelopes</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">OCA Ref</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--orange);white-space:nowrap;">⬆ Submitted</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">Last Seen</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:100px;">Envelopes</th>
       </tr>
     </thead>
     <tbody>`;
@@ -4360,38 +4385,58 @@ function _applyFilterAndRender() {
     const rowBg = idx % 2 === 0 ? 'var(--bg)' : 'var(--bg2)';
     const catColor = CAT_COLORS[e.errorCategory] || '#5c6370';
 
-    // Truncate long messages for display
-    const msgDisplay = e.msg.length > 120 ? e.msg.slice(0, 120) + '…' : e.msg;
-    const etDisplay = e.entityType.length > 35 ? '…' + e.entityType.slice(-35) : e.entityType;
-    const transDisplay = e.translation ? (e.translation.length > 100 ? e.translation.slice(0, 100) + '…' : e.translation) : '—';
+    // Extract fix owner from translation text
+    function extractFixOwner(trans) {
+      if (!trans) return '—';
+      const m = trans.match(/[Ff]ix owner[:\s]+([^.]+)/);
+      if (m) return m[1].trim().replace(/\.$/, '');
+      if (/D&I ticket|Submit.*ticket/i.test(trans)) return 'D&I ticket — OCA';
+      return '—';
+    }
+    const fixOwner = extractFixOwner(e.translation);
 
-    const publishers = e.publishers.map(p => `<span style="display:inline-block;background:var(--bg3);color:var(--cyan);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:9px;margin:1px 2px 1px 0;">${escHtml(p)}</span>`).join('');
-    const markets = e.markets.map(m => `<span style="display:inline-block;background:var(--bg3);color:var(--text2);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:9px;margin:1px 2px 1px 0;">${escHtml(m)}</span>`).join('');
+    // Publisher + market combined pill
+    const pubMarket = e.publishers.map((p, pi) => {
+      const mkt = e.markets[pi] || e.markets[0] || '';
+      return `<span style="display:inline-block;background:var(--bg3);color:var(--cyan);border:1px solid var(--border2);border-radius:10px;padding:1px 7px;font-size:9px;margin:1px 2px 1px 0;white-space:nowrap;">${escHtml(p)}${mkt ? ' <span style=\'color:var(--text3);\'>&middot; ' + escHtml(mkt) + '</span>' : ''}</span>`;
+    }).join('');
 
-    // Envelopes column — show up to 3 IDs, with full list in tooltip
+    const etDisplay = e.entityType;
+
+    // Description: canonical message with first bad value subbed in
+    const rawMsg = e.msg.replace('<BAD_VALUE>', e.badValues && e.badValues.length ? '"' + e.badValues[0] + '"' : '<value>');
+    const msgDisplay = rawMsg.length > 100 ? rawMsg.slice(0, 100) + '…' : rawMsg;
+
+    // Bad values — compact chips
+    const badValsDisplay = (e.badValues && e.badValues.length > 0)
+      ? e.badValues.slice(0, 4).map(v => `<span style="display:inline-block;background:var(--red-bg);color:var(--red);border:1px solid #3d1515;border-radius:3px;padding:0px 4px;font-size:9px;font-family:var(--mono);margin:1px 2px 1px 0;white-space:nowrap;">${escHtml(String(v).length > 14 ? String(v).slice(0,14)+'…' : String(v))}</span>`).join('') + (e.badValues.length > 4 ? `<span style="font-size:9px;color:var(--text3);">+${e.badValues.length - 4}</span>` : '')
+      : '<span style="color:var(--text3);font-size:9px;">—</span>';
+
+    // Envelope IDs — just count + first ID as tooltip anchor
     const envIds = e.envelopeIds || [];
-    const envDisplay = envIds.slice(0, 3).map(id =>
-      `<span style="display:inline-block;background:var(--orange-bg);color:var(--orange);border:1px solid #3a2a00;border-radius:3px;padding:1px 5px;font-size:9px;font-family:var(--mono);margin:1px 2px 1px 0;white-space:nowrap;" title="${escHtml(id)}">${escHtml(id.length > 8 ? id.slice(0,8)+'…' : id)}</span>`
-    ).join('') + (envIds.length > 3 ? `<span style="font-size:9px;color:var(--text3);margin-left:2px;">+${envIds.length - 3} more</span>` : '');
-    const envTooltip = envIds.join('\n');
+    const envDisplay = envIds.length === 0 ? '<span style="color:var(--text3);font-size:9px;">—</span>'
+      : `<span style="font-size:9px;color:var(--text2);font-family:var(--mono);" title="${escHtml(envIds.join('\n'))}">${escHtml(envIds[0].slice(0,8))}…${envIds.length > 1 ? ' <span style=\'color:var(--text3);\'>+' + (envIds.length - 1) + '</span>' : ''}</span>`;
 
-    html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);" title="${escHtml(e.msg)}">
-      <td style="padding:7px 10px;font-family:var(--mono);color:var(--cyan);font-size:10px;vertical-align:top;">${escHtml(e.field)}</td>
-      <td style="padding:7px 10px;color:var(--text2);font-size:9.5px;vertical-align:top;" title="${escHtml(e.entityType)}">${escHtml(etDisplay)}</td>
+    // OCA ref badge
+    const refDisplay = e.ref ? `<span style="font-size:9px;background:var(--orange-bg);color:var(--orange);border:1px solid #3a2a00;padding:1px 5px;border-radius:3px;">${escHtml(e.ref)}</span>` : '';
+
+    html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);" title="${escHtml(rawMsg)}">
+      <td style="padding:7px 10px;font-family:var(--mono);color:var(--cyan);font-size:10px;vertical-align:top;white-space:nowrap;">${escHtml(e.field)}</td>
+      <td style="padding:7px 10px;vertical-align:top;">${pubMarket}</td>
       <td style="padding:7px 10px;vertical-align:top;"><span style="display:inline-block;background:${catColor}22;color:${catColor};border:1px solid ${catColor}44;border-radius:3px;padding:2px 7px;font-size:9px;white-space:nowrap;">${escHtml(e.errorCategory)}</span></td>
-      <td style="padding:7px 10px;color:var(--text2);font-size:10px;vertical-align:top;" title="${escHtml(e.msg)}">${escHtml(msgDisplay)}</td>
-      <td style="padding:7px 10px;text-align:right;font-weight:700;color:${e.count > 1 ? 'var(--red)' : 'var(--text2)'};vertical-align:top;">${e.count.toLocaleString()}</td>
-      <td style="padding:7px 10px;vertical-align:top;">${publishers}</td>
-      <td style="padding:7px 10px;vertical-align:top;">${markets}</td>
-      <td style="padding:7px 10px;color:var(--text3);font-size:9.5px;vertical-align:top;" title="${escHtml(e.translation)}">${escHtml(transDisplay)}</td>
-      <td style="padding:7px 10px;vertical-align:top;" title="${escHtml(envTooltip)}">${envDisplay || '<span style="color:var(--text3);font-size:9px;">—</span>'}</td>
-      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;">${e.submittedAt ? `<span style='color:var(--orange);font-size:9px;'>\u2b06 ${escHtml(e.submittedAt)}</span>` : `<span style='color:var(--text3);font-size:9px;'>${escHtml(e.firstSeen)}</span>`}</td>
-      <td style="padding:7px 10px;color:var(--text3);font-size:9px;white-space:nowrap;vertical-align:top;">${escHtml(e.lastSeen)}</td>
+      <td style="padding:7px 10px;color:var(--text2);font-size:10px;vertical-align:top;max-width:220px;" title="${escHtml(rawMsg)}">${escHtml(msgDisplay)}</td>
+      <td style="padding:7px 10px;vertical-align:top;">${badValsDisplay}</td>
+      <td style="padding:7px 10px;color:var(--text2);font-size:9.5px;vertical-align:top;" title="${escHtml(e.entityType)}">${escHtml(etDisplay)}</td>
+      <td style="padding:7px 10px;color:var(--text2);font-size:9.5px;vertical-align:top;max-width:160px;">${escHtml(fixOwner)}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;color:${e.count >= 500 ? 'var(--red)' : e.count >= 100 ? 'var(--orange)' : 'var(--text2)'};vertical-align:top;white-space:nowrap;">${e.count.toLocaleString()}</td>
+      <td style="padding:7px 10px;vertical-align:top;">${refDisplay}</td>
+      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;">${e.submittedAt ? `<span style='color:var(--orange);'>⬆ ${escHtml(e.submittedAt)}</span>` : `<span style='color:var(--text3);'>${escHtml(e.firstSeen)}</span>`}</td>
+      <td style="padding:7px 10px;vertical-align:top;">${envDisplay}</td>
     </tr>`;
   });
 
   html += `</tbody></table></div>`;
-  html += `<div style="margin-top:10px;font-size:9.5px;color:var(--text3);">Hover any row to see full message · ${_catalogFiltered.length} unique errors · generated ${new Date().toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`;
+  html += `<div style="margin-top:10px;font-size:9.5px;color:var(--text3);">${_catalogFiltered.length} issues · sorted by occurrence count · generated ${new Date().toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`;
 
   container.innerHTML = html;
 }
@@ -4472,23 +4517,31 @@ function exportCatalogCSV() {
   }
 
   const val = v => '"' + String(v || '').replace(/"/g, '""') + '"';
-  const header = ['Field','Entity Type','Error Category','Error Message','Occurrence Count','Publishers','Markets','Envelope IDs','Translation / Fix','OCA Ref','Submitted At (AEP)','Last Seen'];
+  const header = ['Field','Publisher','Market','Error Category','Description','Bad Values','Entity Type','Fix Owner','Occurrence Count','OCA Ref','Submitted At (AEP)','Envelope IDs'];
   const rows = [header];
 
   data.forEach(e => {
+    const csvFixOwner = (function(t) {
+      if (!t) return '';
+      const m = t.match(/[Ff]ix owner[:\s]+([^.]+)/);
+      if (m) return m[1].trim();
+      if (/D&I ticket|Submit.*ticket/i.test(t)) return 'D&I ticket — OCA';
+      return '';
+    })(e.translation);
+    const csvMsg = (e.msg || '').replace('<BAD_VALUE>', (e.badValues && e.badValues.length) ? e.badValues[0] : '<value>');
     rows.push([
       val(e.field),
-      val(e.entityType),
-      val(e.errorCategory),
-      val(e.msg),
-      e.count,
       val(e.publishers.join('; ')),
       val(e.markets.join('; ')),
-      val(e.envelopeIds.slice(0, 10).join('; ') + (e.envelopeIds.length > 10 ? ' (+' + (e.envelopeIds.length - 10) + ' more)' : '')),
-      val(e.translation),
+      val(e.errorCategory),
+      val(csvMsg),
+      val((e.badValues || []).join('; ')),
+      val(e.entityType),
+      val(csvFixOwner),
+      e.count,
       val(e.ref),
       val(e.submittedAt || e.firstSeen),
-      val(e.lastSeen),
+      val(e.envelopeIds.slice(0, 10).join('; ') + (e.envelopeIds.length > 10 ? ' (+' + (e.envelopeIds.length - 10) + ' more)' : '')),
     ]);
   });
 
