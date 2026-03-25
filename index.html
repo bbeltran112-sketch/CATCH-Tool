@@ -2991,7 +2991,7 @@ function _runValidationCore() {
   if (totalErr === 0) {
     sbHtml += `<span class="sum-ok">✓ All valid</span>`;
   } else {
-    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">✗ ${totalErr} error${totalErr>1?'s':''}</button><span style="margin:0 8px;color:var(--text3)">·</span><button class="sum-filter-btn sum-ok" id="sb-ok-btn" onclick="applyResultFilter('valid')" title="Show only valid"> ${validN} valid</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">✕ clear filter</button>`;
+    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">✗ ${totalErr} error${totalErr>1?'s':''}</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">✕ clear filter</button>`;
   }
   sb.innerHTML = sbHtml;
   rc.textContent = '';
@@ -3286,11 +3286,21 @@ function renderHistory() {
   }).join('');
 }
 
+// ── Clean single-fire download helper ────────────────────────────────────────
+function dlFile(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
 async function exportCSV() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to export.'); return; }
-  const ok = await confirmExport('Validation History CSV (' + runs.length + ' runs)');
-  if (!ok) return;
   const rows = [['Run#','Analysed At (CATCH)','Envelope Submitted At (AEP)','OriginalTimestamp (Unix ms)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
   runs.forEach((run, idx) => {
     const mkt = run.market || 'TX';
@@ -3305,76 +3315,48 @@ async function exportCSV() {
   });
   const csv = rows.map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'CATCH_Validation_History_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
+  dlFile(blob, 'CATCH_Validation_History_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
 async function exportJSON() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to export.'); return; }
-  const ok = await confirmExport('Validation History JSON (' + runs.length + ' runs)');
-  if (!ok) return;
   const blob = new Blob([JSON.stringify(runs, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'TX_OCA_DI_Validation_History_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
+  dlFile(blob, 'TX_OCA_DI_Validation_History_' + new Date().toISOString().slice(0,10) + '.json');
 }
 
 async function exportRunCSV(idx) {
   const runs = loadHistory();
   const run = runs[idx];
   if (!run) return;
-  confirmExport('Run CSV — ' + (run.envelopeId || 'no envelope')).then(function(ok) {
-    if (!ok) return;
-    const mkt = run.market || 'TX';
-    const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-    const rows = [['Analysed At (CATCH)','Envelope Submitted At (AEP)','OriginalTimestamp (Unix ms)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
-    if (run.errors.length === 0) {
-      rows.push([run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, 0, '','','','','','','All valid','']);
-    } else {
-      run.errors.forEach(e => {
-        rows.push([run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
-      });
-    }
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    const envSlug = (run.envelopeId || 'no-envelope').slice(0,8);
-    a.download = 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
-  });
+  const mkt = run.market || 'TX';
+  const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
+  const rows = [['Analysed At (CATCH)','Envelope Submitted At (AEP)','OriginalTimestamp (Unix ms)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
+  if (run.errors.length === 0) {
+    rows.push([run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, 0, '','','','','','','All valid','']);
+  } else {
+    run.errors.forEach(e => {
+      rows.push([run.timestamp, run.envelopeSubmittedAt||'', run.originalTimestamp||'', mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
+    });
+  }
+  const csv_r = rows.map(r => r.join(',')).join('\n');
+  const envSlug = (run.envelopeId || 'no-envelope').slice(0,8);
+  dlFile(new Blob([csv_r], {type:'text/csv'}), 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
 async function exportRunJSON(idx) {
   const runs = loadHistory();
   const run = runs[idx];
   if (!run) return;
-  confirmExport('Run JSON — ' + (run.envelopeId || 'no envelope')).then(function(ok) {
-    if (!ok) return;
-    const mkt = run.market || 'TX';
-    const blob = new Blob([JSON.stringify(run, null, 2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    const envSlug = (run.envelopeId || 'no-envelope').slice(0,8);
-    a.download = 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.json';
-    a.click();
-  });
+  const mkt2 = run.market || 'TX';
+  const envSlug2 = (run.envelopeId || 'no-envelope').slice(0,8);
+  dlFile(new Blob([JSON.stringify(run, null, 2)], {type:'application/json'}), 'CATCH_' + mkt2 + '_' + envSlug2 + '_' + new Date().toISOString().slice(0,10) + '.json');
 }
 
 async function saveAllHistory() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to save.'); return; }
-  const ok = await confirmExport('Full History Backup JSON (' + runs.length + ' runs)');
-  if (!ok) return;
-  const blob = new Blob([JSON.stringify(runs, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'TX_OCA_DI_History_Backup_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
+  dlFile(new Blob([JSON.stringify(runs, null, 2)], {type:'application/json'}), 'TX_OCA_DI_History_Backup_' + new Date().toISOString().slice(0,10) + '.json');
 }
 
 function importHistory(event) {
@@ -3677,37 +3659,25 @@ async function exportSingleLogEntry(idx) {
   var all = getAllLogEntries();
   var e = all[idx];
   if (!e) return;
-  const ok = await confirmExport('Error Log Entry ' + (e.id || 'entry') + ' CSV');
-  if (!ok) return;
   var val = function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; };
   var rows = [['ID','Source','Date','EnvelopeId','Publisher','Entity','RootCause','BISPosition','Priority']];
   rows.push([val(e.id),val(e.source),val(e.date),val(e.envelope),val(e.pub),val(e.entity),val(e.cause),val(e.bis),val(e.priority)]);
   var csv = rows.map(function(r){ return r.join(','); }).join('\n');
   var blob = new Blob([csv],{type:'text/csv'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
+  dlFile(blob, 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
 async function exportSingleLogEntryJSON(idx) {
   var all = getAllLogEntries();
   var e = all[idx];
   if (!e) return;
-  const ok = await confirmExport('Error Log Entry ' + (e.id || 'entry') + ' JSON');
-  if (!ok) return;
   var blob = new Blob([JSON.stringify(e, null, 2)],{type:'application/json'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
+  dlFile(blob, 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.json');
 }
 
 async function exportErrorLogCSV() {
   var all = getAllLogEntries();
   if (all.length === 0) { alert('No entries to export.'); return; }
-  const ok = await confirmExport('TX Error Log CSV (' + all.length + ' entries)');
-  if (!ok) return;
   var val = function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; };
   var rows = [['ID','Source','Date','EnvelopeId','Publisher','Entity','RootCause','BISPosition','Priority']];
   all.forEach(function(e){
@@ -3715,22 +3685,14 @@ async function exportErrorLogCSV() {
   });
   var csv = rows.map(function(r){ return r.join(','); }).join('\n');
   var blob = new Blob([csv],{type:'text/csv'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
+  dlFile(blob, 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
 async function exportErrorLogJSON() {
   var all = getAllLogEntries();
   if (all.length === 0) { alert('No entries to export.'); return; }
-  const ok = await confirmExport('TX Error Log JSON (' + all.length + ' entries)');
-  if (!ok) return;
   var blob = new Blob([JSON.stringify(all, null, 2)],{type:'application/json'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
+  dlFile(blob, 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.json');
 }
 
 // Populate filter dropdowns from merged entry set
@@ -4161,13 +4123,8 @@ function deleteLibEntry(idx) {
 
 async function exportLibrary() {
   const entries = loadLibrary();
-  const ok = await confirmExport('Error Library JSON (' + entries.length + ' entries)');
-  if (!ok) return;
   const blob = new Blob([JSON.stringify(entries, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'CATCH_Error_Library_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
+  dlFile(blob, 'CATCH_Error_Library_' + new Date().toISOString().slice(0,10) + '.json');
 }
 
 function importLibrary(event) {
@@ -4251,6 +4208,7 @@ function buildCatalogData() {
                  : run.market || 'TX';
     const ts = run.timestamp || '';
     const envelopeId = run.envelopeId || '';
+    const runSubmittedAt = run.envelopeSubmittedAt || null;
 
     (run.errors || []).forEach(e => {
       const field = e.field || '';
@@ -4269,6 +4227,7 @@ function buildCatalogData() {
           markets: new Set(),
           envelopeIds: new Set(),
           firstSeen: ts,
+          submittedAt: runSubmittedAt,  // ⬆ envelope submission time for first occurrence
           lastSeen: ts,
           ref: e.ref || '',
           translation: e.translation || '',
@@ -4281,8 +4240,11 @@ function buildCatalogData() {
       entry.publishers.add(errPublisher);
       entry.markets.add(market);
       if (envelopeId) entry.envelopeIds.add(envelopeId);
-      // Track first/last seen by comparing timestamps (stored as locale strings)
-      if (ts && ts < entry.firstSeen) entry.firstSeen = ts;
+      // Track first/last seen; carry the submittedAt from the earliest run
+      if (ts && ts < entry.firstSeen) {
+        entry.firstSeen = ts;
+        entry.submittedAt = runSubmittedAt;
+      }
       if (ts && ts > entry.lastSeen) entry.lastSeen = ts;
     });
   });
@@ -4389,7 +4351,7 @@ function _applyFilterAndRender() {
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">Market</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:200px;">Translation / Fix</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:220px;">Envelopes</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">First Seen</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--orange);white-space:nowrap;">⬆ Submitted</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">Last Seen</th>
       </tr>
     </thead>
@@ -4424,7 +4386,7 @@ function _applyFilterAndRender() {
       <td style="padding:7px 10px;vertical-align:top;">${markets}</td>
       <td style="padding:7px 10px;color:var(--text3);font-size:9.5px;vertical-align:top;" title="${escHtml(e.translation)}">${escHtml(transDisplay)}</td>
       <td style="padding:7px 10px;vertical-align:top;" title="${escHtml(envTooltip)}">${envDisplay || '<span style="color:var(--text3);font-size:9px;">—</span>'}</td>
-      <td style="padding:7px 10px;color:var(--text3);font-size:9px;white-space:nowrap;vertical-align:top;">${escHtml(e.firstSeen)}</td>
+      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;">${e.submittedAt ? `<span style='color:var(--orange);font-size:9px;'>\u2b06 ${escHtml(e.submittedAt)}</span>` : `<span style='color:var(--text3);font-size:9px;'>${escHtml(e.firstSeen)}</span>`}</td>
       <td style="padding:7px 10px;color:var(--text3);font-size:9px;white-space:nowrap;vertical-align:top;">${escHtml(e.lastSeen)}</td>
     </tr>`;
   });
@@ -4441,54 +4403,85 @@ function jumpToField(fieldName, entityIdx) {
   if (!ta || !ta.value.trim()) return;
 
   const text = ta.value;
-  // Search for "fieldName" (with quotes) as it appears in JSON
   const needle = '"' + fieldName + '"';
   const positions = [];
   let pos = 0;
+
+  // Only match as a JSON key (followed by optional whitespace then colon)
   while ((pos = text.indexOf(needle, pos)) !== -1) {
-    positions.push(pos);
+    const after = text.slice(pos + needle.length).match(/^\s*:/);
+    if (after) positions.push(pos);
     pos += needle.length;
+  }
+  // Fallback: any occurrence if key-scan found nothing (e.g. compact JSON)
+  if (positions.length === 0) {
+    pos = 0;
+    while ((pos = text.indexOf(needle, pos)) !== -1) {
+      positions.push(pos);
+      pos += needle.length;
+    }
   }
 
   if (positions.length === 0) {
-    // Field name not literally in the text — flash red as "not found"
     ta.style.boxShadow = 'inset 0 0 0 2px var(--red)';
     setTimeout(() => { ta.style.boxShadow = ''; }, 900);
     return;
   }
 
-  // Pick the best occurrence: use entity index, clamped to available matches
   const targetPos = positions[Math.min(entityIdx, positions.length - 1)];
-
-  // Extend selection to end of this line (captures the value too)
-  const lineEnd = text.indexOf('\n', targetPos + needle.length);
+  const lineEnd   = text.indexOf('\n', targetPos + needle.length);
   const selectEnd = lineEnd !== -1 ? lineEnd : text.length;
 
-  // Focus textarea and highlight the field
   ta.focus();
   ta.setSelectionRange(targetPos, selectEnd);
 
-  // Scroll to the selection — approximate based on line number + line height
-  const linesAbove   = text.substring(0, targetPos).split('\n').length - 1;
-  const lineHeightPx = Math.ceil(11.5 * 1.7); // matches CSS: font-size 11.5px × line-height 1.7
-  const targetScrollTop = Math.max(0, linesAbove * lineHeightPx - Math.floor(ta.clientHeight / 3));
-  ta.scrollTop = targetScrollTop;
+  // Mirror-div technique: measure exact pixel offset of the target character
+  // so we can scroll reliably regardless of JSON formatting
+  function measureScrollTop(textarea, charPos) {
+    const cs = window.getComputedStyle(textarea);
+    const m  = document.createElement('div');
+    ['boxSizing','width','paddingTop','paddingRight','paddingBottom','paddingLeft',
+     'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth',
+     'fontFamily','fontSize','fontWeight','fontStyle','letterSpacing','lineHeight',
+     'tabSize','wordBreak','overflowWrap'].forEach(p => { m.style[p] = cs[p]; });
+    m.style.position   = 'absolute';
+    m.style.top        = '-9999px';
+    m.style.left       = '-9999px';
+    m.style.visibility = 'hidden';
+    m.style.height     = 'auto';
+    m.style.overflow   = 'hidden';
+    m.style.whiteSpace = 'pre-wrap';
+    const before = document.createTextNode(textarea.value.slice(0, charPos));
+    const marker = document.createElement('span');
+    marker.textContent = textarea.value.slice(charPos, charPos + 1) || '|';
+    m.appendChild(before);
+    m.appendChild(marker);
+    m.appendChild(document.createTextNode(textarea.value.slice(charPos + 1)));
+    document.body.appendChild(m);
+    const top = marker.offsetTop;
+    document.body.removeChild(m);
+    return top;
+  }
 
-  // Flash the left border blue to confirm jump landed
-  ta.style.boxShadow = 'inset 3px 0 0 var(--blue)';
-  setTimeout(() => { ta.style.boxShadow = ''; }, 1100);
+  // Use rAF so our scroll fires after the browser's own scroll-to-selection
+  requestAnimationFrame(() => {
+    const markerTop = measureScrollTop(ta, targetPos);
+    ta.scrollTop = Math.max(0, markerTop - Math.floor(ta.clientHeight / 3));
+    ta.style.boxShadow = 'inset 3px 0 0 var(--blue)';
+    setTimeout(() => { ta.style.boxShadow = ''; }, 1200);
+  });
 }
 
 function exportCatalogCSV() {
-  if (!_catalogData.length) {
-    renderCatalog();
-    if (!_catalogData.length) { alert('No history data to export.'); return; }
+  // Use filtered data if a filter is active, otherwise full catalog
+  const data = (_catalogFiltered.length ? _catalogFiltered : _catalogData);
+  if (!data.length) {
+    alert('No catalog data to export. Run a validation first, then click ↺ Refresh on the Error Catalog tab.');
+    return;
   }
 
-  const data = _catalogFiltered.length ? _catalogFiltered : _catalogData;
   const val = v => '"' + String(v || '').replace(/"/g, '""') + '"';
-
-  const header = ['Field','Entity Type','Error Category','Error Message','Occurrence Count','Publishers','Markets','Envelope IDs','Translation / Fix','OCA Ref','First Seen','Last Seen'];
+  const header = ['Field','Entity Type','Error Category','Error Message','Occurrence Count','Publishers','Markets','Envelope IDs','Translation / Fix','OCA Ref','Submitted At (AEP)','Last Seen'];
   const rows = [header];
 
   data.forEach(e => {
@@ -4503,18 +4496,22 @@ function exportCatalogCSV() {
       val(e.envelopeIds.slice(0, 10).join('; ') + (e.envelopeIds.length > 10 ? ' (+' + (e.envelopeIds.length - 10) + ' more)' : '')),
       val(e.translation),
       val(e.ref),
-      val(e.firstSeen),
+      val(e.submittedAt || e.firstSeen),
       val(e.lastSeen),
     ]);
   });
 
   const csv = rows.map(r => r.join(',')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
+  const suffix = (_catalogFiltered.length && _catalogFiltered.length !== _catalogData.length) ? '_filtered' : '';
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const suffix = _catalogFiltered.length !== _catalogData.length ? '_filtered' : '';
+  a.href = url;
   a.download = 'CATCH_Error_Catalog' + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 
 </script>
@@ -4533,41 +4530,44 @@ function exportCatalogCSV() {
   <div class="settings-body">
 
     <!-- Upload section -->
-    <div class="settings-section">
-      <div class="settings-section-title">Upload Schemas</div>
+    <div class="settings-section" style="opacity:0.38;pointer-events:none;user-select:none;">
+      <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+        Upload Schemas
+        <span style="font-size:9px;background:var(--bg3);color:var(--text3);border:1px solid var(--border2);border-radius:3px;padding:1px 7px;font-weight:400;letter-spacing:0.04em;">&#128274; BIS-managed</span>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:10px;font-family:var(--sans);">Schema updates are managed by BIS Engineering. Contact <strong style="color:var(--text2);">BIS.TPM@tylertech.com</strong> to request a schema change.</div>
       <div class="market-select-row">
         <span class="market-select-label">Market:</span>
-        <select class="market-select" id="upload-market">
+        <select class="market-select" id="upload-market" disabled>
           <option value="TX">TX — OCA Community</option>
           <option value="IL">IL — AOIC</option>
           <option value="custom">Custom…</option>
         </select>
-        <input id="custom-market-input" placeholder="Market code (e.g. GA)" style="display:none;background:var(--bg);color:var(--cyan);border:1px solid var(--border2);border-radius:4px;padding:4px 8px;font-family:var(--mono);font-size:10px;outline:none;width:100px;" />
       </div>
-
-      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('schema-file-input').click()">
+      <div class="drop-zone" id="drop-zone" style="cursor:default;">
         <div class="drop-zone-label">Drop schema JSON files here</div>
         <div class="drop-zone-sub">or click to browse — multiple files supported</div>
       </div>
-      <input type="file" id="schema-file-input" accept=".json" multiple style="display:none" onchange="onSchemaFilePick(event)" />
-
+      <input type="file" id="schema-file-input" accept=".json" multiple style="display:none" />
       <div id="queued-files-list"></div>
-
       <div id="upload-message"></div>
-      <button class="upload-btn" id="apply-schemas-btn" onclick="applyUploadedSchemas()" disabled style="margin-top:10px">Apply Schemas</button>
+      <button class="upload-btn" id="apply-schemas-btn" disabled style="margin-top:10px;cursor:not-allowed;">Apply Schemas</button>
     </div>
 
     <!-- Rollback section -->
-    <div class="settings-section">
-      <div class="settings-section-title">Rollback &amp; Reset</div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">A snapshot is taken automatically before any upload is applied. Use rollback to restore the previous schema set for a market.</div>
+    <div class="settings-section" style="opacity:0.38;pointer-events:none;user-select:none;">
+      <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+        Rollback &amp; Reset
+        <span style="font-size:9px;background:var(--bg3);color:var(--text3);border:1px solid var(--border2);border-radius:3px;padding:1px 7px;font-weight:400;letter-spacing:0.04em;">&#128274; BIS-managed</span>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;font-family:var(--sans);">Schema rollback and reset are controlled by BIS Engineering.</div>
       <div class="schema-rollback-row">
-        <select class="market-select" id="rollback-market">
+        <select class="market-select" id="rollback-market" disabled>
           <option value="TX">TX</option>
           <option value="IL">IL</option>
         </select>
-        <button class="rollback-btn" id="rollback-btn" onclick="rollbackSchemas()">↩ Rollback</button>
-        <button class="reset-btn" onclick="resetToBuiltIn()">✕ Reset to Built-in</button>
+        <button class="rollback-btn" id="rollback-btn" disabled style="cursor:not-allowed;">↩ Rollback</button>
+        <button class="reset-btn" disabled style="cursor:not-allowed;">✕ Reset to Built-in</button>
       </div>
       <div id="rollback-message"></div>
     </div>
