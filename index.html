@@ -3288,14 +3288,18 @@ function renderHistory() {
 
 // ── Clean single-fire download helper ────────────────────────────────────────
 function dlFile(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 500);
+  // Use FileReader to convert blob -> data URI — works in file:// without browser
+  // download permissions (createObjectURL is blocked by Chrome on local files).
+  const reader = new FileReader();
+  reader.onload = function() {
+    const a = document.createElement('a');
+    a.href = reader.result;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+  reader.readAsDataURL(blob);
 }
 
 async function exportCSV() {
@@ -4502,16 +4506,8 @@ function exportCatalogCSV() {
   });
 
   const csv = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
   const suffix = (_catalogFiltered.length && _catalogFiltered.length !== _catalogData.length) ? '_filtered' : '';
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'CATCH_Error_Catalog' + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 500);
+  dlFile(new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'}), 'CATCH_Error_Catalog' + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
 </script>
