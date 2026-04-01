@@ -2925,11 +2925,27 @@ function _runValidationCore() {
 
 // ── Export ELT Report (.xlsx) ─────────────────────────────────────────────────
 function exportELTReport() {
-  if (!_lastValidationResults || !_lastValidationParsed) return;
+  // Try to use current session data first (full entity details available)
+  if (_lastValidationResults && _lastValidationParsed) {
+    confirmExport('CATCH ELT Validation Report (.xlsx)').then(function(confirmed) {
+      if (!confirmed) return;
+      try { _buildAndDownloadELTReport(); }
+      catch(e) { console.error('ELT export failed:', e); }
+    });
+    return;
+  }
+
+  // Fallback: use most recent history run (only entities with errors available)
+  const runs = loadHistory();
+  if (runs.length === 0) {
+    alert('⚠ No validation data available.\n\nPlease run a validation first by pasting a payload and clicking "Run Validation".');
+    return;
+  }
+
   confirmExport('CATCH ELT Validation Report (.xlsx)').then(function(confirmed) {
     if (!confirmed) return;
-    try { _buildAndDownloadELTReport(); }
-    catch(e) { console.error('ELT export failed:', e); }
+    try { _buildAndDownloadELTReportFromHistory(runs[0]); }
+    catch(e) { console.error('ELT export from history failed:', e); }
   });
 }
 
@@ -3148,6 +3164,242 @@ function _buildAndDownloadELTReport() {
   ws4['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:totRow,c:4});
   ws4['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}];
   ws4['!cols'] = [{wch:40},{wch:16},{wch:10},{wch:12},{wch:48}];
+  ws4['!rows'] = [{hpt:28},{hpt:18}];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Build workbook and download
+  // ═══════════════════════════════════════════════════════════════════════════
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, '📊 Dashboard');
+  XLSX.utils.book_append_sheet(wb, ws2, '🔍 Error Log');
+  XLSX.utils.book_append_sheet(wb, ws3, '📋 Entity Detail');
+  XLSX.utils.book_append_sheet(wb, ws4, '📈 Error Summary');
+
+  var safeEnv = (envelopeId !== '—' ? envelopeId.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,20) + '_' : '');
+  var fileName = 'CATCH_ELT_Report_' + safeEnv + now.toISOString().slice(0,10) + '.xlsx';
+  XLSX.writeFile(wb, fileName);
+}
+
+function _buildAndDownloadELTReportFromHistory(run) {
+  var now     = new Date();
+  var ts      = run.timestamp || now.toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  var envelopeId = run.envelopeId || '—';
+  var publisher  = run.publisher || '—';
+  var market     = run.market || 'TX';
+  var eventType  = run.eventType || '—';
+
+  var totalErrors    = run.errorCount || 0;
+  var totalEntities  = run.entityCount || 0;
+  var totalInvalid   = run.errors.length > 0 ? run.errors.length : 0; // Approximate: count unique entities with errors
+  var uniqueEntityIds = {};
+  run.errors.forEach(function(e) {
+    var key = e.entityId || e.recordid || e.entityType;
+    uniqueEntityIds[key] = true;
+  });
+  totalInvalid = Object.keys(uniqueEntityIds).length || (totalErrors > 0 ? 1 : 0);
+  var totalValid = totalEntities - totalInvalid;
+
+  // ── helper: style a cell ──────────────────────────────────────────────────
+  function mkCell(v, opts) {
+    return { v: v, t: typeof v === 'number' ? 'n' : 's',
+             s: {
+               font: { name: 'Arial', sz: opts.sz||10, bold: !!opts.bold, italic: !!opts.italic,
+                        color: { rgb: (opts.color||'000000') } },
+               fill: opts.fill ? { fgColor: { rgb: opts.fill }, patternType: 'solid' } : { patternType: 'none' },
+               alignment: { horizontal: opts.align||'left', vertical: 'center', wrapText: !!opts.wrap },
+               border: {
+                 top:    { style:'thin', color:{ rgb:'BDD7EE' } },
+                 bottom: { style:'thin', color:{ rgb:'BDD7EE' } },
+                 left:   { style:'thin', color:{ rgb:'BDD7EE' } },
+                 right:  { style:'thin', color:{ rgb:'BDD7EE' } }
+               },
+               numFmt: opts.numFmt || ''
+             }
+           };
+  }
+  function hdr(v)  { return mkCell(v, { bold:true, fill:'1F3864', color:'FFFFFF', sz:11, align:'center' }); }
+  function subhdr(v){ return mkCell(v, { bold:true, fill:'2E75B6', color:'FFFFFF', sz:10, align:'center' }); }
+  function label(v, align){ return mkCell(v, { bold:true, fill:'E9EFF7', align: align||'left', sz:10 }); }
+  function val(v, fill, align){ return mkCell(v, { fill:fill||null, align:align||'left', sz:10 }); }
+  function ok(v)   { return mkCell(v, { fill:'D4EDDA', align:'center', sz:10, bold:true }); }
+  function err(v)  { return mkCell(v, { fill:'FFE0E0', align:'center', sz:10, bold:true }); }
+  function warn(v) { return mkCell(v, { fill:'FFF3CD', align:'center', sz:10, bold:true }); }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHEET 1 – Dashboard
+  // ═══════════════════════════════════════════════════════════════════════════
+  var ws1 = {};
+  function s1(r,c,cell) {
+    var addr = XLSX.utils.encode_cell({r:r,c:c});
+    ws1[addr] = cell;
+  }
+
+  // Title
+  s1(0,0, hdr('CATCH · ELT Validation Report — TX OCA Community Pipeline'));
+  s1(1,0, mkCell('Generated: ' + now.toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}) + '  |  Tyler Technologies BIS (from history)', { bold:false, fill:'2E75B6', color:'FFFFFF', sz:10, align:'center', italic:true }));
+
+  // Run metadata
+  s1(3,0, hdr('RUN METADATA'));
+  var metaRows = [
+    ['Envelope ID',  envelopeId],
+    ['Publisher',    publisher],
+    ['Market',       market],
+    ['Event Type',   eventType],
+    ['Analysed At',  ts],
+    ['Total Entities', totalEntities],
+    ['Valid Entities (est.)', totalValid],
+    ['Invalid Entities', totalInvalid],
+    ['Total Errors', totalErrors],
+  ];
+  metaRows.forEach(function(row, i) {
+    s1(4+i, 0, label(row[0]));
+    s1(4+i, 1, val(row[1], i%2===0 ? 'D6E4F0' : null));
+  });
+
+  // Entity summary - only entities with errors available from history
+  var summaryStartRow = 15;
+  s1(summaryStartRow, 0, hdr('ENTITY SUMMARY (Entities with Errors Only)'));
+  ['#', 'Entity Type', 'Record ID', 'County', 'Status', 'Error Count'].forEach(function(h,c) {
+    s1(summaryStartRow+1, c, subhdr(h));
+  });
+
+  // Group errors by entity
+  var entitiesByKey = {};
+  run.errors.forEach(function(e) {
+    var key = (e.entityId || e.recordid || e.entityType) + '||' + e.entityType;
+    if (!entitiesByKey[key]) {
+      entitiesByKey[key] = {
+        entityType: e.entityType,
+        recordid: e.recordid || '—',
+        county: e.county || '—',
+        errors: []
+      };
+    }
+    entitiesByKey[key].errors.push(e);
+  });
+
+  var entityList = Object.keys(entitiesByKey).map(function(k) { return entitiesByKey[k]; });
+  entityList.forEach(function(ent, i) {
+    var row = summaryStartRow + 2 + i;
+    var altFill = i%2===0 ? 'D6E4F0' : null;
+    s1(row, 0, val(i+1, altFill, 'center'));
+    s1(row, 1, val(ent.entityType, altFill));
+    s1(row, 2, val(ent.recordid, altFill));
+    s1(row, 3, val(ent.county, altFill));
+    s1(row, 4, err('✗ INVALID'));
+    s1(row, 5, err(ent.errors.length));
+  });
+
+  var lastRow = summaryStartRow + 2 + entityList.length;
+  ws1['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:lastRow,c:5});
+  ws1['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:5}},
+    {s:{r:1,c:0},e:{r:1,c:5}},
+    {s:{r:3,c:0},e:{r:3,c:5}},
+    {s:{r:summaryStartRow,c:0},e:{r:summaryStartRow,c:5}}
+  ];
+  ws1['!cols'] = [{wch:6},{wch:38},{wch:18},{wch:16},{wch:12},{wch:12}];
+  ws1['!rows'] = [{hpt:28},{hpt:18}];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHEET 2 – Validation Error Log
+  // ═══════════════════════════════════════════════════════════════════════════
+  var ws2 = {};
+  function s2(r,c,cell) { ws2[XLSX.utils.encode_cell({r:r,c:c})] = cell; }
+
+  s2(0,0, hdr('CATCH Validation Error Log — Field-Level Failures'));
+  var errHdrs = ['Entity Type','Record ID','County','Field','OCA Ref','Error Message','Translation'];
+  errHdrs.forEach(function(h,c){ s2(1,c, subhdr(h)); });
+
+  if (run.errors.length === 0) {
+    s2(2,0, mkCell('✓ No errors — all entities passed validation', { fill:'D4EDDA', bold:true, sz:10, color:'155724' }));
+  } else {
+    run.errors.forEach(function(e, i) {
+      var altFill = i%2===0 ? 'D6E4F0' : null;
+      s2(2+i, 0, val(e.entityType, altFill));
+      s2(2+i, 1, val(e.recordid, altFill));
+      s2(2+i, 2, val(e.county || '—', altFill));
+      s2(2+i, 3, val(e.field, altFill));
+      s2(2+i, 4, val(e.ref || '', altFill));
+      s2(2+i, 5, mkCell(e.msg, { fill:'FFE0E0', sz:10, wrap:true }));
+      s2(2+i, 6, mkCell(e.translation || '', { fill:altFill, sz:10, wrap:true }));
+    });
+  }
+
+  var ws2LastRow = Math.max(2, 1 + run.errors.length);
+  ws2['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:ws2LastRow,c:6});
+  ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:6}}];
+  ws2['!cols'] = [{wch:36},{wch:16},{wch:14},{wch:22},{wch:10},{wch:40},{wch:40}];
+  ws2['!rows'] = [{hpt:28},{hpt:18}];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHEET 3 – Entity Detail
+  // ═══════════════════════════════════════════════════════════════════════════
+  var ws3 = {};
+  function s3(r,c,cell) { ws3[XLSX.utils.encode_cell({r:r,c:c})] = cell; }
+
+  s3(0,0, hdr('Entity Detail — Entities with Errors Only (from history)'));
+  var detailHdrs = ['Entity #','Entity Type','Record ID','County','Publisher','Status','Error Count','Error Fields'];
+  detailHdrs.forEach(function(h,c){ s3(1,c, subhdr(h)); });
+
+  entityList.forEach(function(ent, i) {
+    var row = 2 + i;
+    var altFill = i%2===0 ? 'D6E4F0' : null;
+    var errorFields = ent.errors.map(function(e){ return e.field; }).join(', ');
+    s3(row,0, val(i+1, altFill, 'center'));
+    s3(row,1, val(ent.entityType, altFill));
+    s3(row,2, val(ent.recordid, altFill));
+    s3(row,3, val(ent.county, altFill));
+    s3(row,4, val(publisher, altFill));
+    s3(row,5, err('✗ INVALID'));
+    s3(row,6, err(ent.errors.length));
+    s3(row,7, mkCell(errorFields, { fill:'FFE0E0', sz:10, wrap:true }));
+  });
+
+  var ws3LastRow = 1 + entityList.length;
+  ws3['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:ws3LastRow,c:7});
+  ws3['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
+  ws3['!cols'] = [{wch:7},{wch:36},{wch:16},{wch:22},{wch:20},{wch:12},{wch:12},{wch:36}];
+  ws3['!rows'] = [{hpt:28},{hpt:18}];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHEET 4 – Error Summary by Type
+  // ═══════════════════════════════════════════════════════════════════════════
+  var ws4 = {};
+  function s4(r,c,cell) { ws4[XLSX.utils.encode_cell({r:r,c:c})] = cell; }
+
+  s4(0,0, hdr('Error Summary by Entity Type'));
+  ['Entity Type','Entities with Errors','Total Errors','Unique Error Fields'].forEach(function(h,c){ s4(1,c, subhdr(h)); });
+
+  // Group by entity type
+  var byType = {};
+  entityList.forEach(function(ent) {
+    if (!byType[ent.entityType]) byType[ent.entityType] = { count:0, errors:0, fields: {} };
+    byType[ent.entityType].count++;
+    byType[ent.entityType].errors += ent.errors.length;
+    ent.errors.forEach(function(e){ byType[ent.entityType].fields[e.field] = true; });
+  });
+
+  var typeRows = Object.keys(byType).sort();
+  typeRows.forEach(function(et, i) {
+    var d = byType[et];
+    var altFill = i%2===0 ? 'D6E4F0' : null;
+    s4(2+i, 0, val(et, altFill));
+    s4(2+i, 1, val(d.count, altFill, 'center'));
+    s4(2+i, 2, err(d.errors));
+    s4(2+i, 3, val(Object.keys(d.fields).join(', '), altFill));
+  });
+
+  // Totals row
+  var totRow = 2 + typeRows.length;
+  s4(totRow,0, mkCell('TOTALS', {bold:true,fill:'2E75B6',color:'FFFFFF',sz:10}));
+  s4(totRow,1, mkCell(entityList.length, {bold:true,fill:'2E75B6',color:'FFFFFF',sz:10,align:'center'}));
+  s4(totRow,2, mkCell(totalErrors, {bold:true,fill:'2E75B6',color:'FFFFFF',sz:10,align:'center'}));
+  s4(totRow,3, mkCell('', {fill:'2E75B6'}));
+
+  ws4['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:totRow,c:3});
+  ws4['!merges'] = [{s:{r:0,c:0},e:{r:0,c:3}}];
+  ws4['!cols'] = [{wch:40},{wch:20},{wch:14},{wch:48}];
   ws4['!rows'] = [{hpt:28},{hpt:18}];
 
   // ═══════════════════════════════════════════════════════════════════════════
