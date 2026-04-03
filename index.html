@@ -670,7 +670,7 @@
   .legend-label { color: var(--text2); flex-shrink: 0; min-width: 80px; font-weight: 600; font-size: 9.5px; }
   .legend-desc { color: var(--text3); font-family: var(--sans); font-size: 9.5px; }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
 
@@ -1090,7 +1090,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
       </select>
       <input class="envelope-input" id="log-search" placeholder="Search envelope ID, cause, field, county…" oninput="renderErrorLog()" style="width:220px;flex-shrink:0;" />
       <span class="log-count" id="log-count"></span>
-      <button class="export-btn" style="margin-left:auto" onclick="exportErrorLogCSV()">↓ CSV</button>
+      <button class="export-btn" style="margin-left:auto" onclick="exportErrorLogCSV()">↓ XLSX</button>
       <button class="export-btn" style="margin-left:4px" onclick="exportErrorLogJSON()">↓ JSON</button>
     </div>
     <div id="error-log-container"></div>
@@ -1190,7 +1190,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
       <div class="history-stat">Runs: <span id="hist-run-count">0</span></div>
       <div class="history-stat" style="margin-left:8px">Errors: <span id="hist-err-count">0</span></div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-        <button class="export-btn" onclick="exportCSV()">↓ CSV</button>
+        <button class="export-btn" onclick="exportCSV()">↓ XLSX</button>
         <button class="export-btn" onclick="exportJSON()">↓ JSON</button>
         <button class="export-btn" onclick="exportELTReport()" title="Export full ELT validation report as Excel workbook" style="background:var(--bg3);border-color:var(--cyan);color:var(--cyan);">↓ ELT Report</button>
         <div style="width:1px;height:14px;background:var(--border2);margin:0 2px;"></div>
@@ -1298,8 +1298,8 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
               <span style="color:var(--text2);">The raw Unix millisecond timestamp (<code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">1774400907357</code>) has been removed from the export. <em>Envelope Submitted At (AEP)</em> already provides the same information in a human-readable format — the raw value added noise without adding context. Applies to both bulk history export and per-run CSV export.</span>
             </div>
             <div style="display:flex;gap:10px;font-size:10.5px;font-family:var(--sans);">
-              <span style="color:var(--text3);min-width:180px;flex-shrink:0;">Legend section prepended</span>
-              <span style="color:var(--text2);">Every history CSV export (bulk and per-run) now opens with a <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">## LEGEND</code> block — a three-column table (Column, Description, Example / Notes) covering all 17 output columns. Written generically so it remains accurate as CMS traffic expands to additional publishers beyond Tyler Tech-Odyssey. The data section follows after a blank line under <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">## DATA</code>.</span>
+              <span style="color:var(--text3);min-width:180px;flex-shrink:0;">Exports upgraded to .xlsx</span>
+              <span style="color:var(--text2);">History exports (bulk and per-run) are now <strong>.xlsx</strong> workbooks with two sheets: <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">📋 Validation History</code> (or <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">📋 Run Data</code>) with styled headers, alternating row fills, and frozen header row; and <code style="font-family:var(--mono);font-size:9.5px;color:var(--cyan);">📖 Legend</code> with full column descriptions. Error Log exports likewise upgraded to .xlsx with expanded column names.</span>
             </div>
           </div>
         </div>
@@ -2974,10 +2974,10 @@ function _buildAndDownloadELTReport() {
                fill: opts.fill ? { fgColor: { rgb: opts.fill }, patternType: 'solid' } : { patternType: 'none' },
                alignment: { horizontal: opts.align||'left', vertical: 'center', wrapText: !!opts.wrap },
                border: {
-                 top:    { style:'thin', color:{ rgb:'BDD7EE' } },
-                 bottom: { style:'thin', color:{ rgb:'BDD7EE' } },
-                 left:   { style:'thin', color:{ rgb:'BDD7EE' } },
-                 right:  { style:'thin', color:{ rgb:'BDD7EE' } }
+                 top:    { style:'thin', color:{ rgb:'7895A8' } },
+                 bottom: { style:'thin', color:{ rgb:'7895A8' } },
+                 left:   { style:'thin', color:{ rgb:'7895A8' } },
+                 right:  { style:'thin', color:{ rgb:'7895A8' } }
                },
                numFmt: opts.numFmt || ''
              }
@@ -3049,7 +3049,7 @@ function _buildAndDownloadELTReport() {
     {s:{r:3,c:0},e:{r:3,c:5}},
     {s:{r:summaryStartRow,c:0},e:{r:summaryStartRow,c:5}}
   ];
-  ws1['!cols'] = [{wch:6},{wch:38},{wch:18},{wch:16},{wch:12},{wch:12}];
+  ws1['!cols'] = [{wch:22},{wch:44},{wch:38},{wch:16},{wch:12},{wch:12}];
   ws1['!rows'] = [{hpt:28},{hpt:18}];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -3089,6 +3089,8 @@ function _buildAndDownloadELTReport() {
   ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
   ws2['!cols'] = [{wch:7},{wch:36},{wch:16},{wch:14},{wch:22},{wch:10},{wch:40},{wch:40}];
   ws2['!rows'] = [{hpt:28},{hpt:18}];
+  ws2['!freeze'] = {xSplit:0, ySplit:2};
+  ws2['!autofilter'] = {ref:'A2:H2'};
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SHEET 3 – Entity Detail
@@ -3122,6 +3124,8 @@ function _buildAndDownloadELTReport() {
   ws3['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
   ws3['!cols'] = [{wch:7},{wch:36},{wch:16},{wch:22},{wch:20},{wch:12},{wch:12},{wch:36}];
   ws3['!rows'] = [{hpt:28},{hpt:18}];
+  ws3['!freeze'] = {xSplit:0, ySplit:2};
+  ws3['!autofilter'] = {ref:'A2:H2'};
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SHEET 4 – Error Summary by Type
@@ -3165,6 +3169,8 @@ function _buildAndDownloadELTReport() {
   ws4['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}];
   ws4['!cols'] = [{wch:40},{wch:16},{wch:10},{wch:12},{wch:48}];
   ws4['!rows'] = [{hpt:28},{hpt:18}];
+  ws4['!freeze'] = {xSplit:0, ySplit:2};
+  ws4['!autofilter'] = {ref:'A2:E2'};
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Build workbook and download
@@ -3208,10 +3214,10 @@ function _buildAndDownloadELTReportFromHistory(run) {
                fill: opts.fill ? { fgColor: { rgb: opts.fill }, patternType: 'solid' } : { patternType: 'none' },
                alignment: { horizontal: opts.align||'left', vertical: 'center', wrapText: !!opts.wrap },
                border: {
-                 top:    { style:'thin', color:{ rgb:'BDD7EE' } },
-                 bottom: { style:'thin', color:{ rgb:'BDD7EE' } },
-                 left:   { style:'thin', color:{ rgb:'BDD7EE' } },
-                 right:  { style:'thin', color:{ rgb:'BDD7EE' } }
+                 top:    { style:'thin', color:{ rgb:'7895A8' } },
+                 bottom: { style:'thin', color:{ rgb:'7895A8' } },
+                 left:   { style:'thin', color:{ rgb:'7895A8' } },
+                 right:  { style:'thin', color:{ rgb:'7895A8' } }
                },
                numFmt: opts.numFmt || ''
              }
@@ -3298,7 +3304,7 @@ function _buildAndDownloadELTReportFromHistory(run) {
     {s:{r:3,c:0},e:{r:3,c:5}},
     {s:{r:summaryStartRow,c:0},e:{r:summaryStartRow,c:5}}
   ];
-  ws1['!cols'] = [{wch:6},{wch:38},{wch:18},{wch:16},{wch:12},{wch:12}];
+  ws1['!cols'] = [{wch:22},{wch:44},{wch:38},{wch:16},{wch:12},{wch:12}];
   ws1['!rows'] = [{hpt:28},{hpt:18}];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -3331,6 +3337,8 @@ function _buildAndDownloadELTReportFromHistory(run) {
   ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:6}}];
   ws2['!cols'] = [{wch:36},{wch:16},{wch:14},{wch:22},{wch:10},{wch:40},{wch:40}];
   ws2['!rows'] = [{hpt:28},{hpt:18}];
+  ws2['!freeze'] = {xSplit:0, ySplit:2};
+  ws2['!autofilter'] = {ref:'A2:G2'};
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SHEET 3 – Entity Detail
@@ -3361,6 +3369,8 @@ function _buildAndDownloadELTReportFromHistory(run) {
   ws3['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
   ws3['!cols'] = [{wch:7},{wch:36},{wch:16},{wch:22},{wch:20},{wch:12},{wch:12},{wch:36}];
   ws3['!rows'] = [{hpt:28},{hpt:18}];
+  ws3['!freeze'] = {xSplit:0, ySplit:2};
+  ws3['!autofilter'] = {ref:'A2:H2'};
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SHEET 4 – Error Summary by Type
@@ -3401,6 +3411,8 @@ function _buildAndDownloadELTReportFromHistory(run) {
   ws4['!merges'] = [{s:{r:0,c:0},e:{r:0,c:3}}];
   ws4['!cols'] = [{wch:40},{wch:20},{wch:14},{wch:48}];
   ws4['!rows'] = [{hpt:28},{hpt:18}];
+  ws4['!freeze'] = {xSplit:0, ySplit:2};
+  ws4['!autofilter'] = {ref:'A2:D2'};
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Build workbook and download
@@ -3644,7 +3656,7 @@ function renderHistory() {
         ${run.envelopeSubmittedAt ? `<span title="Envelope OriginalTimestamp — when the AEP received the submission" style="font-size:9px;color:var(--orange);background:var(--orange-bg);border:1px solid #3a2a00;padding:1px 6px;border-radius:3px;flex-shrink:0;">⬆ submitted ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
         <span title="When CATCH analysed this envelope" class="history-ts" style="color:var(--purple)">⚡ analysed ${escHtml(run.timestamp)}</span>
         <span class="history-stat" style="margin-left:4px">${run.entityCount} entities · ${escHtml(run.publisher || '—')} · ${escHtml(run.eventType || '—')}</span>
-        <button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportRunCSV(${idx})">CSV</button>
+        <button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportRunCSV(${idx})">XLSX</button>
         <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportRunJSON(${idx})">JSON</button>
       </div>
       ${run.errorCount > 0 ? `<div id="${runId}-errors" class="history-errors">${errorRows}</div>` : ''}
@@ -3663,29 +3675,125 @@ function dlFile(blob, filename) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
-// Legend rows embedded in export — generic across all CMS publishers
-const HISTORY_LEGEND_CSV = '"Column","Description","Example / Notes"\n"Run#","Sequential run number assigned by CATCH - newest run is #1. Consistent across bulk export.","153"\n"Analysed At (CATCH)","Date and time CATCH processed this envelope - the tool\'s own clock.","03/25/2026, 11:16 AM"\n"Envelope Submitted At (AEP)","Date and time the Alliance Exchange Platform (AEP) received the submission. Converted from the raw Unix timestamp in the payload.","03/24/2026, 08:08:27 PM CDT"\n"Market","Pipeline market the envelope was submitted to. TX = Texas OCA Community Pipeline. IL = Illinois AOIC Community Pipeline.","TX"\n"EnvelopeId","Unique identifier for the envelope assigned by the D&I pipeline. Use this to look up the raw payload in the AEP or ACB logs.","6cead12b-6969-47bb-..."\n"EventType","The event type declared at the envelope level. Determines whether entities are new records or deletes.","di-texas-oca-new-record-event"\n"Publisher","The CMS vendor that submitted the envelope, as declared in the Publisher field of the payload.","Tyler Tech-Odyssey"\n"EntityCount","Total number of entities contained in the envelope.","51"\n"ErrorCount","Number of entities in the envelope that failed validation. A run where ErrorCount = EntityCount means every entity failed.","51"\n"EntityId","The CMS-assigned identifier for the specific entity that triggered this error row. Set by the publisher in the EntityId field of the payload. Useful for looking up the record in the source CMS.","CaseStatusSC-1010208"\n"RecordId","The D&I pipeline record identifier (UUID) from inside the entity data. Distinct from EntityId - this is the identifier used by the Alliance pipeline, not the CMS.","d89d63af-2a0d-4103-..."\n"County/InstanceId","TX payloads: the county field from the entity data - the Texas county the court record belongs to. IL payloads: the instanceid field - the court instance identifier used by the AOIC pipeline.","Eastland (TX) / instanceid value (IL)"\n"EntityType","The schema entity type declared for this entity. Determines which contract schema is validated against. Must match an approved value for the pipeline and event type.","di-texas-oca-court-case-status"\n"Field","The specific field within the entity that triggered the validation error.","case_status_event"\n"Ref","OCA or BIS error reference number if this error has been previously logged and tracked. Blank if no reference has been assigned.","OCA-001"\n"Error","Full validation error message as generated by CATCH, including any invalid values and the list of allowed options.","Invalid value ""Dismissal"". Valid options: ..."\n"Translation","Plain-English explanation of the error and recommended fix, including fix ownership (publisher, D&I, BIS).","The case status event value does not match the approved enum. Fix owner: submitting publisher."';
+// ── Shared XLSX cell helpers (reused by history, error-log, and catalog exports) ─
+const HISTORY_LEGEND_ROWS = [
+  ['Column', 'Description', 'Example / Notes'],
+  ['Run #', 'Sequential run number assigned by CATCH — newest run is #1. Consistent across bulk export.', '153'],
+  ['Analysed At (CATCH)', "Date and time CATCH processed this envelope — the tool's own clock.", '03/25/2026, 11:16 AM'],
+  ['Envelope Submitted At (AEP)', 'Date and time the Alliance Exchange Platform (AEP) received the submission. Converted from the raw Unix timestamp in the payload.', '03/24/2026, 08:08:27 PM CDT'],
+  ['Market', 'Pipeline market the envelope was submitted to. TX = Texas OCA Community Pipeline. IL = Illinois AOIC Community Pipeline.', 'TX'],
+  ['Envelope ID', 'Unique identifier for the envelope assigned by the D&I pipeline. Use this to look up the raw payload in the AEP or ACB logs.', '6cead12b-6969-47bb-…'],
+  ['Event Type', 'The event type declared at the envelope level. Determines whether entities are new records or deletes.', 'di-texas-oca-new-record-event'],
+  ['Publisher', 'The CMS vendor that submitted the envelope, as declared in the Publisher field of the payload.', 'Tyler Tech-Odyssey'],
+  ['Entity Count', 'Total number of entities contained in the envelope.', '51'],
+  ['Error Count', 'Number of entities in the envelope that failed validation. A run where Error Count = Entity Count means every entity failed.', '51'],
+  ['Entity ID', 'The CMS-assigned identifier for the specific entity that triggered this error row. Set by the publisher in the EntityId field of the payload. Useful for looking up the record in the source CMS.', 'CaseStatusSC-1010208'],
+  ['Record ID', 'The D&I pipeline record identifier (UUID) from inside the entity data. Distinct from Entity ID — this is the identifier used by the Alliance pipeline, not the CMS.', 'd89d63af-2a0d-4103-…'],
+  ['County / Instance ID', 'TX payloads: the county field from the entity data — the Texas county the court record belongs to. IL payloads: the instanceid field — the court instance identifier used by the AOIC pipeline.', 'Eastland (TX) / instanceid value (IL)'],
+  ['Entity Type', 'The schema entity type declared for this entity. Determines which contract schema is validated against. Must match an approved value for the pipeline and event type.', 'di-texas-oca-court-case-status'],
+  ['Field', 'The specific field within the entity that triggered the validation error.', 'case_status_event'],
+  ['Ref', 'OCA or BIS error reference number if this error has been previously logged and tracked. Blank if no reference has been assigned.', 'OCA-001'],
+  ['Error', 'Full validation error message as generated by CATCH, including any invalid values and the list of allowed options.', 'Invalid value "Dismissal". Valid options: …'],
+  ['Translation', 'Plain-English explanation of the error and recommended fix, including fix ownership (publisher, D&I, BIS).', 'The case status event value does not match the approved enum. Fix owner: submitting publisher.'],
+];
+
+function _xc(v, opts) {
+  opts = opts || {};
+  return {
+    v: v, t: typeof v === 'number' ? 'n' : 's',
+    s: {
+      font:      { name:'Arial', sz:opts.sz||10, bold:!!opts.bold, italic:!!opts.italic, color:{ rgb:opts.color||'000000' } },
+      fill:       opts.fill ? { fgColor:{ rgb:opts.fill }, patternType:'solid' } : { patternType:'none' },
+      alignment: { horizontal:opts.align||'left', vertical:'center', wrapText:!!opts.wrap },
+      border: {
+        top:    { style:'thin', color:{ rgb:'7895A8' } },
+        bottom: { style:'thin', color:{ rgb:'7895A8' } },
+        left:   { style:'thin', color:{ rgb:'7895A8' } },
+        right:  { style:'thin', color:{ rgb:'7895A8' } }
+      }
+    }
+  };
+}
+function _xHdr(v)    { return _xc(v, { bold:true, fill:'1F3864', color:'FFFFFF', sz:11, align:'center' }); }
+function _xCol(v)    { return _xc(v, { bold:true, fill:'2E75B6', color:'FFFFFF', sz:10, align:'center' }); }
+function _xOk(v)     { return _xc(v, { fill:'D4EDDA', align:'center', sz:10, bold:true, color:'155724' }); }
+function _xErr(v)    { return _xc(v, { fill:'FFE0E0', align:'center', sz:10, bold:true, color:'721C24' }); }
+function _xAlt(v,i,align) { return _xc(v, { fill:i%2===0?'EBF3FB':null, align:align||'left', sz:10 }); }
+
+function _buildLegendSheet(legendRows) {
+  var ws = {};
+  var cols = ['Column', 'Description', 'Example / Notes'];
+  var colWidths = [22, 72, 40];
+  cols.forEach(function(h, c) { ws[XLSX.utils.encode_cell({r:0,c:c})] = _xCol(h); });
+  legendRows.slice(1).forEach(function(row, i) {
+    row.forEach(function(v, c) {
+      ws[XLSX.utils.encode_cell({r:i+1,c:c})] = _xc(v, { fill:i%2===0?'EBF3FB':null, sz:10, wrap:c===1 });
+    });
+  });
+  ws['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:legendRows.length-1,c:2});
+  ws['!cols'] = colWidths.map(function(w){ return {wch:w}; });
+  ws['!rows'] = [{hpt:18}];
+  ws['!freeze'] = {xSplit:0, ySplit:1};
+  return ws;
+}
+
+function _buildHistoryDataSheet(runs, includeRunNum) {
+  var ws = {};
+  var hdrs = includeRunNum
+    ? ['Run #','Analysed At (CATCH)','Envelope Submitted At (AEP)','Market','Envelope ID','Event Type','Publisher','Entity Count','Error Count','Entity ID','Record ID','County / Instance ID','Entity Type','Field','Ref','Error','Translation']
+    : ['Analysed At (CATCH)','Envelope Submitted At (AEP)','Market','Envelope ID','Event Type','Publisher','Entity Count','Error Count','Entity ID','Record ID','County / Instance ID','Entity Type','Field','Ref','Error','Translation'];
+  var colWidths = includeRunNum
+    ? [7,22,26,8,38,32,20,13,12,22,18,20,36,22,10,48,48]
+    : [22,26,8,38,32,20,13,12,22,18,20,36,22,10,48,48];
+
+  hdrs.forEach(function(h,c){ ws[XLSX.utils.encode_cell({r:0,c:c})] = _xCol(h); });
+
+  var dataRows = [];
+  runs.forEach(function(run, idx) {
+    var mkt = run.market || 'TX';
+    var runNum = runs.length - idx;
+    if (run.errors.length === 0) {
+      var base = includeRunNum ? [runNum] : [];
+      dataRows.push(base.concat([run.timestamp, run.envelopeSubmittedAt||'', mkt, run.envelopeId||'', run.eventType||'', run.publisher||'', run.entityCount, 0, '', '', '', '', '', '', '✓ All valid', '']));
+    } else {
+      run.errors.forEach(function(e) {
+        var base = includeRunNum ? [runNum] : [];
+        dataRows.push(base.concat([run.timestamp, run.envelopeSubmittedAt||'', mkt, run.envelopeId||'', run.eventType||'', run.publisher||'', run.entityCount, run.errorCount, e.entityId||'', e.recordid||'', e.county||e.instanceid||'', e.entityType||'', e.field||'', e.ref||'', e.msg||'', e.translation||'']));
+      });
+    }
+  });
+
+  var errColIdx  = hdrs.indexOf('Error');
+  var transColIdx = hdrs.indexOf('Translation');
+  dataRows.forEach(function(row, i) {
+    row.forEach(function(v, c) {
+      var isErr   = c === errColIdx && v && v !== '✓ All valid';
+      var isOk    = c === errColIdx && v === '✓ All valid';
+      var isCount = hdrs[c] === 'Error Count';
+      var cell;
+      if (isErr)        cell = _xc(v,  { fill:'FFE0E0', sz:10, wrap:true });
+      else if (isOk)    cell = _xOk(v);
+      else if (isCount && typeof v === 'number') cell = v > 0 ? _xErr(v) : _xOk(v);
+      else              cell = _xAlt(v, i, (hdrs[c]==='Run #'||hdrs[c]==='Market'||hdrs[c]==='Entity Count'||hdrs[c]==='Error Count') ? 'center' : 'left');
+      ws[XLSX.utils.encode_cell({r:i+1,c:c})] = cell;
+    });
+  });
+
+  ws['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:Math.max(1,dataRows.length),c:hdrs.length-1});
+  ws['!cols'] = colWidths.map(function(w){ return {wch:w}; });
+  ws['!rows'] = [{hpt:20}];
+  ws['!freeze'] = {xSplit:0, ySplit:1};
+  return ws;
+}
 
 async function exportCSV() {
   const runs = loadHistory();
   if (runs.length === 0) { alert('No history to export.'); return; }
-  const rows = [['Run#','Analysed At (CATCH)','Envelope Submitted At (AEP)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
-  runs.forEach((run, idx) => {
-    const mkt = run.market || 'TX';
-    const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-    if (run.errors.length === 0) {
-      rows.push([runs.length-idx, val(run.timestamp), val(run.envelopeSubmittedAt||''), mkt, val(run.envelopeId||''), val(run.eventType||''), val(run.publisher||''), run.entityCount, 0, '', '', '', '', '', '', 'All valid', '']);
-    } else {
-      run.errors.forEach(e => {
-        rows.push([runs.length-idx, val(run.timestamp), val(run.envelopeSubmittedAt||''), mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
-      });
-    }
-  });
-  // Prepend legend block separated by a blank line and a section marker
-  const dataCSV = rows.map(r => r.join(',')).join('\n');
-  const fullCSV = '## LEGEND\n' + HISTORY_LEGEND_CSV + '\n\n## DATA\n' + dataCSV;
-  const blob = new Blob(['\uFEFF' + fullCSV], {type:'text/csv;charset=utf-8'});
-  dlFile(blob, 'CATCH_Validation_History_' + new Date().toISOString().slice(0,10) + '.csv');
+  if (!(await confirmExport('CATCH Validation History (.xlsx)'))) return;
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet(runs, true),  '📋 Validation History');
+  XLSX.utils.book_append_sheet(wb, _buildLegendSheet(HISTORY_LEGEND_ROWS), '📖 Legend');
+  XLSX.writeFile(wb, 'CATCH_Validation_History_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportJSON() {
@@ -3699,20 +3807,13 @@ async function exportRunCSV(idx) {
   const runs = loadHistory();
   const run = runs[idx];
   if (!run) return;
+  if (!(await confirmExport('CATCH Run Export (.xlsx)'))) return;
   const mkt = run.market || 'TX';
-  const val = v => '"' + String(v||'').replace(/"/g,'""') + '"';
-  const rows = [['Analysed At (CATCH)','Envelope Submitted At (AEP)','Market','EnvelopeId','EventType','Publisher','EntityCount','ErrorCount','EntityId','RecordId','County/InstanceId','EntityType','Field','Ref','Error','Translation']];
-  if (run.errors.length === 0) {
-    rows.push([val(run.timestamp), val(run.envelopeSubmittedAt||''), mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, 0, '','','','','','','All valid','']);
-  } else {
-    run.errors.forEach(e => {
-      rows.push([val(run.timestamp), val(run.envelopeSubmittedAt||''), mkt, val(run.envelopeId), val(run.eventType), val(run.publisher), run.entityCount, run.errorCount, val(e.entityId), val(e.recordid), val(e.county||e.instanceid||''), val(e.entityType), val(e.field), val(e.ref), val(e.msg), val(e.translation)]);
-    });
-  }
-  const dataCSV = rows.map(r => r.join(',')).join('\n');
-  const fullCSV = '## LEGEND\n' + HISTORY_LEGEND_CSV + '\n\n## DATA\n' + dataCSV;
   const envSlug = (run.envelopeId || 'no-envelope').slice(0,8);
-  dlFile(new Blob(['\uFEFF' + fullCSV], {type:'text/csv;charset=utf-8'}), 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.csv');
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet([run], false), '📋 Run Data');
+  XLSX.utils.book_append_sheet(wb, _buildLegendSheet(HISTORY_LEGEND_ROWS), '📖 Legend');
+  XLSX.writeFile(wb, 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportRunJSON(idx) {
@@ -4033,7 +4134,7 @@ function renderErrorLog() {
           ? '<span class="log-status-open">' + escHtml(fixOwner) + '</span>'
           : '<span style="' + fixStyle + '">' + escHtml(fixOwner) + '</span>') +
         '<span class="log-date">' + escHtml(e.date) + (e.submittedAt ? ' <span style="color:var(--orange);font-size:9px;margin-left:6px;">⬆ ' + escHtml(e.submittedAt) + '</span>' : '') + '</span>' +
-        '<button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntry(' + idx + ')">CSV</button>' +
+        '<button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntry(' + idx + ')">XLSX</button>' +
         '<button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntryJSON(' + idx + ')">JSON</button>' +
       '</div>' +
       '<div class="log-grid">' +
@@ -4061,16 +4162,34 @@ function renderErrorLog() {
 }
 
 // Per-entry export helpers
+var _LOG_HDRS = ['Error ID','Source','Date','Envelope ID','Publisher','Entity Type','Root Cause','BIS Position','Priority'];
+var _LOG_WIDTHS = [14, 12, 14, 38, 22, 38, 52, 52, 11];
+
+function _buildErrorLogSheet(entries) {
+  var ws = {};
+  _LOG_HDRS.forEach(function(h,c){ ws[XLSX.utils.encode_cell({r:0,c:c})] = _xCol(h); });
+  entries.forEach(function(e, i) {
+    var row = [e.id||'', e.source||'', e.date||'', e.envelope||'', e.pub||'', e.entity||'', e.cause||'', e.bis||'', e.priority||''];
+    row.forEach(function(v, c) {
+      var wrap = c >= 6;
+      ws[XLSX.utils.encode_cell({r:i+1,c:c})] = _xc(v, { fill:i%2===0?'EBF3FB':null, sz:10, wrap:wrap, align:c===8?'center':'left' });
+    });
+  });
+  ws['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:Math.max(1,entries.length),c:_LOG_HDRS.length-1});
+  ws['!cols'] = _LOG_WIDTHS.map(function(w){ return {wch:w}; });
+  ws['!rows'] = [{hpt:20}];
+  ws['!freeze'] = {xSplit:0, ySplit:1};
+  return ws;
+}
+
 async function exportSingleLogEntry(idx) {
   var all = getAllLogEntries();
   var e = all[idx];
   if (!e) return;
-  var val = function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; };
-  var rows = [['ID','Source','Date','EnvelopeId','Publisher','Entity','RootCause','BISPosition','Priority']];
-  rows.push([val(e.id),val(e.source),val(e.date),val(e.envelope),val(e.pub),val(e.entity),val(e.cause),val(e.bis),val(e.priority)]);
-  var csv = rows.map(function(r){ return r.join(','); }).join('\n');
-  var blob = new Blob([csv],{type:'text/csv'});
-  dlFile(blob, 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.csv');
+  if (!(await confirmExport('CATCH Error Log Entry (.xlsx)'))) return;
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, _buildErrorLogSheet([e]), '📋 Error Log Entry');
+  XLSX.writeFile(wb, 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportSingleLogEntryJSON(idx) {
@@ -4084,14 +4203,10 @@ async function exportSingleLogEntryJSON(idx) {
 async function exportErrorLogCSV() {
   var all = getAllLogEntries();
   if (all.length === 0) { alert('No entries to export.'); return; }
-  var val = function(v){ return '"' + String(v||'').replace(/"/g,'""') + '"'; };
-  var rows = [['ID','Source','Date','EnvelopeId','Publisher','Entity','RootCause','BISPosition','Priority']];
-  all.forEach(function(e){
-    rows.push([val(e.id),val(e.source),val(e.date),val(e.envelope),val(e.pub),val(e.entity),val(e.cause),val(e.bis),val(e.priority)]);
-  });
-  var csv = rows.map(function(r){ return r.join(','); }).join('\n');
-  var blob = new Blob([csv],{type:'text/csv'});
-  dlFile(blob, 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.csv');
+  if (!(await confirmExport('CATCH Error Log (.xlsx)'))) return;
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, _buildErrorLogSheet(all), '📋 Error Log');
+  XLSX.writeFile(wb, 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportErrorLogJSON() {
