@@ -1188,7 +1188,7 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
   <div class="panel history-panel" id="panel-history" style="display:none;">
     <div class="history-toolbar">
       <div class="history-stat">Runs: <span id="hist-run-count">0</span></div>
-      <div class="history-stat" style="margin-left:8px">Errors: <span id="hist-err-count">0</span></div>
+      <div class="history-stat" style="margin-left:8px" title="Total errors across all stored runs">Errors (all runs): <span id="hist-err-count">0</span></div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
         <button class="export-btn" onclick="exportCSV()">↓ XLSX</button>
         <button class="export-btn" onclick="exportJSON()">↓ JSON</button>
@@ -1798,6 +1798,8 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   resetInactivityTimer();
   loadSessionOnlyPref();
+  // Check if a previous session hit the storage quota
+  _checkStorageWarning();
   // Initialize reference panel for default market (TX)
   updateSchemaReferencePanel();
   // Ctrl+Enter / Cmd+Enter to run validation from the input textarea
@@ -2927,7 +2929,7 @@ function _runValidationCore() {
 function exportELTReport() {
   // Try to use current session data first (full entity details available)
   if (_lastValidationResults && _lastValidationParsed) {
-    confirmExport('CATCH ELT Validation Report (.xlsx)').then(function(confirmed) {
+    confirmExport('CATCH ELT Validation Report (.xlsx) — current session').then(function(confirmed) {
       if (!confirmed) return;
       try { _buildAndDownloadELTReport(); }
       catch(e) { console.error('ELT export failed:', e); }
@@ -2935,17 +2937,31 @@ function exportELTReport() {
     return;
   }
 
-  // Fallback: use most recent history run (only entities with errors available)
+  // Fallback: use most recent history run
   const runs = loadHistory();
   if (runs.length === 0) {
     alert('⚠ No validation data available.\n\nPlease run a validation first by pasting a payload and clicking "Run Validation".');
     return;
   }
 
-  confirmExport('CATCH ELT Validation Report (.xlsx)').then(function(confirmed) {
+  const run = runs[0];
+  const label = 'most recent run — ' + (run.envelopeId ? run.envelopeId.slice(0,16) + '…' : 'no envelope ID') + ' · ' + (run.timestamp || '');
+  confirmExport('CATCH ELT Validation Report (.xlsx)\nUsing ' + label + '\n\nℹ To export a specific run, use the ELT button on its history card.').then(function(confirmed) {
     if (!confirmed) return;
-    try { _buildAndDownloadELTReportFromHistory(runs[0]); }
+    try { _buildAndDownloadELTReportFromHistory(run); }
     catch(e) { console.error('ELT export from history failed:', e); }
+  });
+}
+
+function exportELTReportFromRun(idx) {
+  const runs = loadHistory();
+  const run = runs[idx];
+  if (!run) { alert('Run not found.'); return; }
+  const label = (run.envelopeId ? run.envelopeId.slice(0,16) + '… ' : '') + '(' + (run.timestamp || '') + ')';
+  confirmExport('CATCH ELT Validation Report (.xlsx)\nRun: ' + label).then(function(confirmed) {
+    if (!confirmed) return;
+    try { _buildAndDownloadELTReportFromHistory(run); }
+    catch(e) { console.error('ELT export from run failed:', e); }
   });
 }
 
@@ -3637,19 +3653,74 @@ function loadHistory() {
   catch(e) { return []; }
 }
 
+// Maximum chars to store per error message — prevents a single run with long
+// enum-listing messages (e.g. 200-value valid-options list) from blowing the
+// ~5 MB localStorage quota and causing a silent save failure.
+const MAX_ERR_MSG_CHARS = 300;
+
+function _trimRunForStorage(run) {
+  // Deep-clone so we never mutate the live in-memory run
+  const r = JSON.parse(JSON.stringify(run));
+  if (Array.isArray(r.errors)) {
+    r.errors = r.errors.map(function(e) {
+      if (typeof e.msg === 'string' && e.msg.length > MAX_ERR_MSG_CHARS) {
+        e.msg = e.msg.slice(0, MAX_ERR_MSG_CHARS) + '… [truncated for storage]';
+      }
+      return e;
+    });
+  }
+  return r;
+}
+
 function saveHistory(runs) {
   try {
     getStorage().setItem(HISTORY_KEY, JSON.stringify(runs));
+    // Clear any prior storage warning if save succeeded
+    try { localStorage.removeItem('_catch_storage_warn'); } catch(e) {}
   } catch(e) {
-    // storage blocked or full — silently skip
+    // QuotaExceededError — trim oldest runs one at a time and retry
+    const trimmed = runs.slice();
+    let saved = false;
+    while (trimmed.length > 1) {
+      trimmed.pop();
+      try {
+        getStorage().setItem(HISTORY_KEY, JSON.stringify(trimmed));
+        saved = true;
+        // Set a warning flag so the UI can alert the user
+        try { localStorage.setItem('_catch_storage_warn', '1'); } catch(ex) {}
+        break;
+      } catch(ex) { /* keep trimming */ }
+    }
+    if (!saved) {
+      // Storage is completely blocked or quota is extremely low — flag it
+      try { localStorage.setItem('_catch_storage_warn', '1'); } catch(ex) {}
+    }
   }
 }
 
 function addToHistory(run) {
   const runs = loadHistory();
-  runs.unshift(scrubRunPII(run)); // PII scrub before storage
+  // Scrub PII first, then trim long messages before writing to storage
+  runs.unshift(_trimRunForStorage(scrubRunPII(run)));
   if (runs.length > 200) runs.splice(200); // cap at 200 runs
   saveHistory(runs);
+  // Surface a warning banner if storage had to trim runs
+  _checkStorageWarning();
+}
+
+function _checkStorageWarning() {
+  try {
+    if (!localStorage.getItem('_catch_storage_warn')) return;
+  } catch(e) { return; }
+  var existing = document.getElementById('storage-warn-banner');
+  if (existing) return;
+  var banner = document.createElement('div');
+  banner.id = 'storage-warn-banner';
+  banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#3a1a00;border-top:1px solid var(--orange);color:var(--orange);font-family:var(--mono);font-size:10px;padding:7px 16px;display:flex;align-items:center;gap:10px;';
+  banner.innerHTML = '<span>⚠ Browser storage is nearly full — oldest validation runs were dropped to make room. Export your history now to avoid losing data.</span>'
+    + '<button onclick="exportCSV()" style="background:var(--orange);color:#000;border:none;padding:3px 10px;border-radius:3px;font-family:var(--mono);font-size:10px;cursor:pointer;flex-shrink:0;">↓ Export History</button>'
+    + '<button onclick="this.parentNode.remove();try{localStorage.removeItem(\'_catch_storage_warn\');}catch(e){}" style="background:none;border:1px solid var(--orange);color:var(--orange);padding:3px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;cursor:pointer;flex-shrink:0;">Dismiss</button>';
+  document.body.appendChild(banner);
 }
 
 function clearHistory() {
@@ -3711,6 +3782,7 @@ function renderHistory() {
         <span class="history-stat" style="margin-left:4px">${run.entityCount} entities · ${escHtml(run.publisher || '—')} · ${escHtml(run.eventType || '—')}</span>
         <button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportRunCSV(${idx})">XLSX</button>
         <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportRunJSON(${idx})">JSON</button>
+        <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px;border-color:var(--cyan);color:var(--cyan);" onclick="exportELTReportFromRun(${idx})" title="Export ELT validation report for this run">ELT</button>
       </div>
       ${run.errorCount > 0 ? `<div id="${runId}-errors" class="history-errors">${errorRows}</div>` : ''}
     </div>`;
