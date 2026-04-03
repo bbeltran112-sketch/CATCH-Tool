@@ -3481,7 +3481,7 @@ function _buildELTWorkbook(p, now) {
   XLSX.writeFile(wb, 'CATCH_ELT_Report_' + safeEnv + now.toISOString().slice(0,10) + '.xlsx');
 }
 
- (errors only / show all) ───────────────────────────────────
+// ── Result filter (errors only / show all) ─────────────────────────────────
 var _activeResultFilter = 'all';
 var _lastValidationResults = null;
 var _lastValidationParsed  = null;
