@@ -1164,7 +1164,6 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
   <!-- ── Error Association Tab ── -->
   <div class="panel" id="panel-assoc" style="display:none; overflow-y:auto; flex-direction:column;">
     <div style="padding:14px 20px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      <span style="font-size:12px;font-weight:600;color:var(--text);font-family:var(--sans);">Error Catalog</span>
       <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">Deduplicated view of every unique error pattern across all validation runs — grouped by field and error type, with occurrence counts, affected publishers, bad values, and fix ownership. Use this to identify systemic issues and hand off to developers or a PM tracker.</span>
       <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <input id="catalog-search" class="envelope-input" placeholder="Filter by field, message, publisher, entity type…" oninput="filterCatalog()" style="width:260px;font-size:10.5px;" />
@@ -1186,14 +1185,15 @@ wrong field names, enum violations, OCA error cross-refs'></textarea>
 
     <!-- HISTORY PANEL -->
   <div class="panel history-panel" id="panel-history" style="display:none;">
-    <div class="history-toolbar">
-      <div class="history-stat">Runs: <span id="hist-run-count">0</span></div>
-      <div class="history-stat" style="margin-left:8px" title="Total errors across all stored runs">Errors (all runs): <span id="hist-err-count">0</span></div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+    <div class="history-toolbar history-toolbar-primary">
+      <div class="history-summary-cluster">
+        <div class="history-stat">Runs: <span id="hist-run-count">0</span></div>
+        <div class="history-stat" style="margin-left:8px" title="Total errors across all stored runs">Errors (all runs): <span id="hist-err-count">0</span></div>
+      </div>
+      <div class="history-actions">
         <button class="export-btn" onclick="exportCSV()">↓ XLSX</button>
         <button class="export-btn" onclick="exportJSON()">↓ JSON</button>
         <button class="export-btn" onclick="exportELTReport()" title="Export full ELT validation report as Excel workbook" style="background:var(--bg3);border-color:var(--cyan);color:var(--cyan);">↓ ELT Report</button>
-        <div style="width:1px;height:14px;background:var(--border2);margin:0 2px;"></div>
         <button class="export-btn" onclick="saveAllHistory()">💾 Save</button>
         <button class="export-btn" onclick="document.getElementById('import-input').click()">↑ Import</button>
         <button class="clear-btn" onclick="clearHistory()">✕ Clear</button>
@@ -2778,6 +2778,18 @@ function _runValidationCore() {
     sb.style.display = 'none';
     rc.textContent = '';
     if (copyBtn) copyBtn.style.display = 'none';
+    try {
+      const heroEventType = document.getElementById('hero-event-type');
+      const heroSubmittedAt = document.getElementById('hero-submitted-at');
+      const heroAnalysedAt = document.getElementById('hero-analysed-at');
+      const heroRunSummary = document.getElementById('hero-run-summary');
+      const heroRunMeta = document.getElementById('hero-run-meta');
+      if (heroEventType) heroEventType.textContent = 'Invalid JSON';
+      if (heroSubmittedAt) heroSubmittedAt.textContent = 'Not available';
+      if (heroAnalysedAt) heroAnalysedAt.textContent = 'Not available';
+      if (heroRunSummary) heroRunSummary.textContent = '0 entities / parse error';
+      if (heroRunMeta) heroRunMeta.textContent = 'Fix JSON structure to validate this payload.';
+    } catch(e) {}
     return;
   }
 
@@ -2832,6 +2844,19 @@ function _runValidationCore() {
   sb.innerHTML = sbHtml;
   rc.textContent = '';
 
+  try {
+    const heroEventType = document.getElementById('hero-event-type');
+    const heroSubmittedAt = document.getElementById('hero-submitted-at');
+    const heroAnalysedAt = document.getElementById('hero-analysed-at');
+    const heroRunSummary = document.getElementById('hero-run-summary');
+    const heroRunMeta = document.getElementById('hero-run-meta');
+    if (heroEventType) heroEventType.textContent = parsed.eventType || 'Single entity / custom payload';
+    if (heroSubmittedAt) heroSubmittedAt.textContent = submittedAt || 'Not provided';
+    if (heroAnalysedAt) heroAnalysedAt.textContent = analysedAt;
+    if (heroRunSummary) heroRunSummary.textContent = `${results.length} entities · ${totalErr} error${totalErr === 1 ? '' : 's'}`;
+    if (heroRunMeta) heroRunMeta.textContent = totalErr === 0 ? 'Filter: all findings' : `Filter: all findings · ${validN} passed`;
+  } catch(e) {}
+
   // Record this run in history — wrapped in try/catch so storage failure never blocks validation
   try {
     const overrideEl = document.getElementById('envelope-override');
@@ -2878,7 +2903,37 @@ function _runValidationCore() {
   }
 
   try {
-  ra.innerHTML = results.map(r => {
+  const totalEntities = results.length;
+  const invalidEntities = results.filter(r => !r.valid).length;
+  const totalErrors = results.reduce((sum, r) => sum + (r.errors ? r.errors.length : 0), 0);
+  const topFieldMap = {};
+  const ownerMap = {};
+  results.forEach(r => {
+    (r.errors || []).forEach(err => {
+      topFieldMap[err.field] = (topFieldMap[err.field] || 0) + 1;
+      const translation = getTranslation(err.field, err.msg, r) || '';
+      const owner = _extractFixOwner(translation) || 'Unassigned';
+      ownerMap[owner] = (ownerMap[owner] || 0) + 1;
+    });
+  });
+  const topField = Object.keys(topFieldMap).sort((a, b) => topFieldMap[b] - topFieldMap[a])[0] || 'None';
+  const topOwner = Object.keys(ownerMap).sort((a, b) => ownerMap[b] - ownerMap[a])[0] || 'None';
+  const resultsHero = `<div class="results-toolbar">
+    <div>
+      <div class="results-toolbar-label">Findings filter</div>
+      <div class="results-toolbar-copy">Switch between all findings and error-only review without losing the current validation run.</div>
+    </div>
+    <div class="results-filter-group">
+      <button class="results-filter-btn active" id="results-filter-all" onclick="applyResultFilter('all')">All findings</button>
+      <button class="results-filter-btn ${totalErrors === 0 ? 'disabled' : ''}" id="results-filter-errors" onclick="applyResultFilter('errors')" ${totalErrors === 0 ? 'disabled' : ''}>Errors only</button>
+    </div>
+  </div><div class="results-hero-strip">
+    <div class="results-kpi"><span class="results-kpi-label">Total issues</span><strong class="results-kpi-value">${totalErrors}</strong></div>
+    <div class="results-kpi"><span class="results-kpi-label">Affected entities</span><strong class="results-kpi-value">${invalidEntities}/${totalEntities}</strong></div>
+    <div class="results-kpi"><span class="results-kpi-label">Top repeated field</span><strong class="results-kpi-value results-kpi-text">${escHtml(topField)}</strong></div>
+    <div class="results-kpi"><span class="results-kpi-label">Top fix owner</span><strong class="results-kpi-value results-kpi-text">${escHtml(topOwner)}</strong></div>
+  </div>`;
+  ra.innerHTML = resultsHero + results.map(r => {
     const cls = r.valid ? 'valid' : 'invalid';
     let html = `<div class="result-card ${cls}">
       <div class="result-header">
@@ -2907,8 +2962,17 @@ function _runValidationCore() {
             ${err.ref ? `<span class="oca-ref">${escHtml(err.ref)}</span>` : ''}
             <span style="font-size:8px;color:var(--text3);margin-left:auto;padding-left:8px;opacity:0.7;letter-spacing:0.03em;">↖ jump</span>
           </div>
-          <div class="error-msg">${escHtml(err.msg)}</div>
-          ${translation ? `<div class="error-translation">${escHtml(translation)}</div>` : ''}
+          <div class="finding-columns">
+            <div class="finding-panel finding-panel-technical">
+              <div class="finding-label">Technical error</div>
+              <div class="error-msg">${escHtml(err.msg)}</div>
+            </div>
+            <div class="finding-panel finding-panel-plain">
+              <div class="finding-label">Plain English</div>
+              ${translation ? `<div class="error-translation">${escHtml(translation)}</div>` : `<div class="error-translation error-translation-empty">No plain-English translation was matched for this issue yet.</div>`}
+              <button class="refine-error-btn" type="button" onclick='openRefineErrorModal(${JSON.stringify(JSON.stringify({ source:"finding", entityType:r.entityType, field:err.field, message:err.msg, translation:translation || "", fixOwner:_extractFixOwner(translation) || "Odyssey", action:"", ref:err.ref || "", matchValue:"", matchType:"contains" }))})'>Refine this error</button>
+            </div>
+          </div>
         </div>`;
       });
       html += `</div>`;
@@ -2929,7 +2993,7 @@ function _runValidationCore() {
 function exportELTReport() {
   // Try to use current session data first (full entity details available)
   if (_lastValidationResults && _lastValidationParsed) {
-    confirmExport('CATCH ELT Validation Report (.xlsx) — current session').then(function(confirmed) {
+    confirmExport('CATCH Validation Health Report (.xlsx) — current session').then(function(confirmed) {
       if (!confirmed) return;
       try { _buildAndDownloadELTReport(); }
       catch(e) { console.error('ELT export failed:', e); }
@@ -2946,7 +3010,7 @@ function exportELTReport() {
 
   const run = runs[0];
   const label = 'most recent run — ' + (run.envelopeId ? run.envelopeId.slice(0,16) + '…' : 'no envelope ID') + ' · ' + (run.timestamp || '');
-  confirmExport('CATCH ELT Validation Report (.xlsx)\nUsing ' + label + '\n\nℹ To export a specific run, use the ELT button on its history card.').then(function(confirmed) {
+  confirmExport('CATCH Validation Health Report (.xlsx)\nUsing ' + label + '\n\nℹ To export a specific run, use the Health button on its history card.').then(function(confirmed) {
     if (!confirmed) return;
     try { _buildAndDownloadELTReportFromHistory(run); }
     catch(e) { console.error('ELT export from history failed:', e); }
@@ -2958,7 +3022,7 @@ function exportELTReportFromRun(idx) {
   const run = runs[idx];
   if (!run) { alert('Run not found.'); return; }
   const label = (run.envelopeId ? run.envelopeId.slice(0,16) + '… ' : '') + '(' + (run.timestamp || '') + ')';
-  confirmExport('CATCH ELT Validation Report (.xlsx)\nRun: ' + label).then(function(confirmed) {
+  confirmExport('CATCH Validation Health Report (.xlsx)\nRun: ' + label).then(function(confirmed) {
     if (!confirmed) return;
     try { _buildAndDownloadELTReportFromHistory(run); }
     catch(e) { console.error('ELT export from run failed:', e); }
@@ -3124,7 +3188,7 @@ function _buildELTWorkbook(p, now) {
   var r = 0;
 
   // ── A: Title ───────────────────────────────────────────────────────────────
-  s1(r,0, mkCell('CATCH · ELT Validation Report — TX OCA Community Pipeline',
+  s1(r,0, mkCell('CATCH · Validation Health Report — TX OCA Community Pipeline',
     { bold:true, fill:'1F3864', color:'FFFFFF', sz:13, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   s1(r,0, mkCell('Tyler Technologies · BIS' + (p.isFromHistory ? '   (exported from history)' : ''),
@@ -3529,6 +3593,22 @@ function applyResultFilter(type) {
     if (type === 'errors') clrBtn.classList.add('visible');
     else clrBtn.classList.remove('visible');
   }
+
+  var heroRunMeta = document.getElementById('hero-run-meta');
+  if (heroRunMeta) {
+    heroRunMeta.textContent = type === 'errors' ? 'Filter: errors only' : 'Filter: all findings';
+  }
+
+  var allBtn = document.getElementById('results-filter-all');
+  var errBtnModern = document.getElementById('results-filter-errors');
+  if (allBtn) {
+    if (type === 'all') allBtn.classList.add('active');
+    else allBtn.classList.remove('active');
+  }
+  if (errBtnModern) {
+    if (type === 'errors') errBtnModern.classList.add('active');
+    else errBtnModern.classList.remove('active');
+  }
 }
 
 // ── Format + Copy ────────────────────────────────────────────────────────────
@@ -3772,18 +3852,26 @@ function renderHistory() {
     ).join('');
 
     return `<div class="history-run">
-      <div class="history-run-header">
-        <span style="font-size:10px;color:var(--text3)">#${runs.length - idx}</span>
+      <div class="history-run-top">
+        <div class="history-run-main">
+          <div class="history-run-header">
+        <span class="history-run-index">#${runs.length - idx}</span>
         <span class="history-envelope">${escHtml(run.envelopeId || 'No EnvelopeId')}</span>
         ${badge}
-        ${run.market && run.market !== 'TX' ? `<span style="font-size:9px;background:#0d1f3d;color:var(--cyan);border:1px solid #1a3a6e;padding:1px 6px;border-radius:3px;flex-shrink:0;">${escHtml(run.market)}</span>` : ''}
-        ${run.envelopeSubmittedAt ? `<span title="Envelope OriginalTimestamp — when the AEP received the submission" style="font-size:9px;color:var(--orange);background:var(--orange-bg);border:1px solid #3a2a00;padding:1px 6px;border-radius:3px;flex-shrink:0;">⬆ submitted ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
-        <span title="When CATCH analysed this envelope" class="history-ts" style="color:var(--purple)">⚡ analysed ${escHtml(run.timestamp)}</span>
-        <span class="history-stat" style="margin-left:4px">${run.entityCount} entities · ${escHtml(run.publisher || '—')} · ${escHtml(run.eventType || '—')}</span>
-        <button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportRunCSV(${idx})">XLSX</button>
-        <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportRunJSON(${idx})">JSON</button>
-        <button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px;border-color:var(--cyan);color:var(--cyan);" onclick="exportELTReportFromRun(${idx})" title="Export ELT validation report for this run">ELT</button>
+          </div>
+          <div class="history-run-subline">
+            ${run.market && run.market !== 'TX' ? `<span class="history-chip market">${escHtml(run.market)}</span>` : ''}
+            ${run.envelopeSubmittedAt ? `<span class="history-chip submitted" title="Envelope OriginalTimestamp — when the AEP received the submission">AEP submission ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
+            <span class="history-chip analysed" title="When CATCH analysed this envelope">CATCH analysed ${escHtml(run.timestamp)}</span>
+            <span class="history-run-meta"><strong>${run.entityCount}</strong> entities <span class="history-run-dot">·</span> ${escHtml(run.publisher || '—')} <span class="history-run-dot">·</span> ${escHtml(run.eventType || '—')}</span>
+          </div>
+        </div>
+        <div class="history-run-actions">
+          <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunCSV(${idx})">Workbook</button>
+        <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunJSON(${idx})">JSON</button>
+        <button class="export-btn history-health-btn" style="padding:2px 10px;font-size:10px;" onclick="exportELTReportFromRun(${idx})" title="Export validation health report for this run">Health</button>
       </div>
+        </div>
       ${run.errorCount > 0 ? `<div id="${runId}-errors" class="history-errors">${errorRows}</div>` : ''}
     </div>`;
   }).join('');
@@ -4636,6 +4724,7 @@ try { loadSchemaOverrides(); } catch(e) {}
 const LIB_KEY = 'catch_error_library_v1';
 const FIX_OWNERS = ['Odyssey','Publisher','D&I','BIS TPM','OCA'];
 const MATCH_TYPES = ['field_value','field_name','contains'];
+const TRUST_STATUSES = ['draft','reviewed','trusted'];
 
 // Seed library with the known BIS errors (OCA-006 through OCA-011)
 const DEFAULT_LIBRARY = [
@@ -4650,9 +4739,23 @@ const DEFAULT_LIBRARY = [
 function loadLibrary() {
   try {
     const raw = localStorage.getItem(LIB_KEY);
-    if (raw) return JSON.parse(raw);
-    return JSON.parse(JSON.stringify(DEFAULT_LIBRARY));
-  } catch(e) { return JSON.parse(JSON.stringify(DEFAULT_LIBRARY)); }
+    const base = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_LIBRARY));
+    return base.map(function(entry) {
+      return Object.assign({
+        trustStatus: 'trusted',
+        notes: ''
+      }, entry, {
+        trustStatus: entry.trustStatus || 'trusted',
+        notes: entry.notes || ''
+      });
+    });
+  } catch(e) {
+    return JSON.parse(JSON.stringify(DEFAULT_LIBRARY)).map(function(entry) {
+      entry.trustStatus = entry.trustStatus || 'trusted';
+      entry.notes = entry.notes || '';
+      return entry;
+    });
+  }
 }
 
 function saveLibrary(entries) {
@@ -4675,7 +4778,7 @@ function renderLibrary() {
   const allEntries = loadLibrary();
   const q = (document.getElementById('lib-search') ? (document.getElementById('lib-search').value || '').toLowerCase() : '');
   const entries = q ? allEntries.filter(function(e) {
-    return [e.field||'', e.translation||'', e.entityType||'', e.fixOwner||'', e.matchValue||'', e.action||'', e.id||''].join(' ').toLowerCase().includes(q);
+    return [e.field||'', e.translation||'', e.entityType||'', e.fixOwner||'', e.matchValue||'', e.action||'', e.id||'', e.trustStatus||'', e.notes||''].join(' ').toLowerCase().includes(q);
   }) : allEntries;
   if (allEntries.length === 0) {
     list.innerHTML = '<div class="lib-empty">No entries yet. Click + New Entry to add one.</div>';
@@ -4689,11 +4792,13 @@ function renderLibrary() {
   list.innerHTML = (q ? '<div style="font-size:9.5px;color:var(--text3);margin-bottom:6px;">Showing ' + entries.length + ' of ' + allEntries.length + ' entries</div>' : '') + entries.map(function(entry, idx) {
   const realIdx = allEntries.indexOf(entry);
     const ownColor = { 'Odyssey':'var(--orange)', 'Publisher':'var(--cyan)', 'D&I':'var(--purple)', 'BIS TPM':'var(--blue)', 'OCA':'var(--green)' }[entry.fixOwner] || 'var(--text2)';
+    const trustLabel = (entry.trustStatus || 'trusted').toUpperCase();
     return '<div class="lib-entry" id="lib-entry-' + idx + '">' +
       '<div class="lib-entry-header" onclick="toggleLibEntry(' + idx + ')">' +
         '<span class="lib-entry-id">' + (entry.id||'') + '</span>' +
         '<span class="lib-match-badge">' + (entry.matchType||'') + '</span>' +
         '<span class="lib-entry-field">' + (entry.field||'') + (entry.matchValue ? ' = "' + entry.matchValue + '"' : '') + '</span>' +
+        '<span class="lib-match-badge">' + trustLabel + '</span>' +
         '<span class="lib-entry-owner" style="color:' + ownColor + ';border-color:' + ownColor + '">' + (entry.fixOwner||'') + '</span>' +
       '</div>' +
       '<div class="lib-entry-body" id="lib-body-' + realIdx + '">' +
@@ -4709,9 +4814,13 @@ function renderLibrary() {
           '<div class="lib-form-row"><div class="lib-form-label">Match Type</div><select class="lib-form-select" id="lib-' + realIdx + '-match">' + MATCH_TYPES.map(function(m) { return '<option' + (m===entry.matchType?' selected':'') + '>' + m + '</option>'; }).join('') + '</select></div>' +
           '<div class="lib-form-row"><div class="lib-form-label">Match Value (leave blank for field_name)</div><input class="lib-form-input" id="lib-' + realIdx + '-val" value="' + esc(entry.matchValue||'') + '" /></div>' +
         '</div>' +
+        '<div class="lib-form-row-2">' +
+          '<div class="lib-form-row"><div class="lib-form-label">Trust Status</div><select class="lib-form-select" id="lib-' + realIdx + '-trust">' + TRUST_STATUSES.map(function(t) { return '<option' + (t===entry.trustStatus?' selected':'') + '>' + t + '</option>'; }).join('') + '</select></div>' +
+          '<div class="lib-form-row"><div class="lib-form-label">Reference (e.g. OCA-010)</div><input class="lib-form-input" id="lib-' + realIdx + '-ref" value="' + esc(entry.ref||'') + '" /></div>' +
+        '</div>' +
         '<div class="lib-form-row"><div class="lib-form-label">Plain-English Translation</div><textarea class="lib-form-textarea" id="lib-' + realIdx + '-trans">' + esc(entry.translation) + '</textarea></div>' +
         '<div class="lib-form-row"><div class="lib-form-label">Recommended Action</div><textarea class="lib-form-textarea" id="lib-' + realIdx + '-action">' + esc(entry.action) + '</textarea></div>' +
-        '<div class="lib-form-row"><div class="lib-form-label">Reference (e.g. OCA-010)</div><input class="lib-form-input" id="lib-' + realIdx + '-ref" value="' + esc(entry.ref||'') + '" /></div>' +
+        '<div class="lib-form-row"><div class="lib-form-label">Notes</div><textarea class="lib-form-textarea" id="lib-' + realIdx + '-notes">' + esc(entry.notes||'') + '</textarea></div>' +
         '<div class="lib-entry-actions">' +
           '<button class="lib-save-btn" onclick="saveLibEntry(' + realIdx + ')">Save</button>' +
           '<button class="lib-delete-btn" onclick="deleteLibEntry(' + realIdx + ')">Delete</button>' +
@@ -4732,7 +4841,7 @@ function toggleLibEntry(idx) {
 
 function addLibraryEntry() {
   const entries = loadLibrary();
-  entries.push({ id: generateLibId(), entityType:'All', field:'', matchType:'field_value', matchValue:'', translation:'', fixOwner:'Odyssey', action:'', ref:'' });
+  entries.push({ id: generateLibId(), entityType:'All', field:'', matchType:'field_value', matchValue:'', translation:'', fixOwner:'Odyssey', action:'', ref:'', trustStatus:'draft', notes:'' });
   saveLibrary(entries);
   renderLibrary();
   // Open the new entry
@@ -4748,10 +4857,12 @@ function saveLibEntry(idx) {
     field:       document.getElementById('lib-' + idx + '-field').value.trim(),
     matchType:   document.getElementById('lib-' + idx + '-match').value,
     matchValue:  document.getElementById('lib-' + idx + '-val').value.trim(),
+    trustStatus: document.getElementById('lib-' + idx + '-trust').value,
     translation: document.getElementById('lib-' + idx + '-trans').value.trim(),
     fixOwner:    document.getElementById('lib-' + idx + '-owner').value,
     action:      document.getElementById('lib-' + idx + '-action').value.trim(),
-    ref:         document.getElementById('lib-' + idx + '-ref').value.trim()
+    ref:         document.getElementById('lib-' + idx + '-ref').value.trim(),
+    notes:       document.getElementById('lib-' + idx + '-notes').value.trim()
   };
   saveLibrary(entries);
   renderLibrary();
@@ -4954,6 +5065,7 @@ function renderCatalog() {
   _catalogData = buildCatalogData();
   _catalogFiltered = _catalogData;
   _renderCatalogStats();
+  if (typeof updateTrendsSpotlights === 'function') updateTrendsSpotlights();
   _applyFilterAndRender();
 }
 
@@ -4964,10 +5076,22 @@ function filterCatalog() {
 
   _catalogFiltered = _catalogData.filter(e => {
     const matchMkt = !mkt || e.markets.includes(mkt);
-    const matchQ = !q || [e.field, e.msg, e.entityType, ...e.publishers].join(' ').toLowerCase().includes(q);
+    const matchQ = !q || [
+      e.field,
+      e.msg,
+      e.entityType,
+      ...(e.publishers || []),
+      ...(e.envelopeIds || []),
+      ...(e.badValues || []),
+      ...(e.entityTypes || []),
+      e.errorCategory,
+      e.firstSeen,
+      e.submittedAt
+    ].join(' ').toLowerCase().includes(q);
     return matchMkt && matchQ;
   });
 
+  if (typeof updateTrendsSpotlights === 'function') updateTrendsSpotlights();
   _applyFilterAndRender();
 }
 
@@ -4982,17 +5106,17 @@ function _renderCatalogStats() {
   _catalogData.forEach(e => { cats[e.errorCategory] = (cats[e.errorCategory] || 0) + e.count; });
   const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
 
-  const stat = (label, val, color) => `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:7px 14px;">
-    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;">${label}</div>
-    <div style="font-size:18px;font-weight:700;color:${color};margin-top:1px;">${val}</div>
+  const stat = (label, val, colorClass) => `<div class="trends-kpi-card">
+    <span class="trends-kpi-label">${label}</span>
+    <span class="trends-kpi-value ${colorClass || ''}">${val}</span>
   </div>`;
 
   statsEl.innerHTML =
-    stat('Unique Errors', _catalogData.length.toLocaleString(), 'var(--cyan)') +
-    stat('Total Occurrences', totalOccurrences.toLocaleString(), 'var(--red)') +
-    stat('Publishers', uniquePublishers, 'var(--text)') +
-    stat('Fields Affected', uniqueFields, 'var(--text)') +
-    (topCat ? stat('Most Common Type', topCat[0], 'var(--orange)') : '');
+    stat('Unique Errors', _catalogData.length.toLocaleString(), '') +
+    stat('Total Occurrences', totalOccurrences.toLocaleString(), '') +
+    stat('Publishers', uniquePublishers, '') +
+    stat('Fields Affected', uniqueFields, '') +
+    (topCat ? stat('Most Common Type', topCat[0], 'emphasis') : '');
 }
 
 const CAT_COLORS = {
@@ -5009,17 +5133,32 @@ function _applyFilterAndRender() {
   const container = document.getElementById('catalog-table-container');
   if (!container) return;
 
+  let html = `<div class="trends-table-toolbar">
+    <div class="trends-table-title">Trend table</div>
+    <div class="trends-table-tools">
+      <input id="catalog-search-inline" class="envelope-input" placeholder="Search field, message, publisher, envelope, entity…" value="${escHtml(document.getElementById('catalog-search') ? document.getElementById('catalog-search').value : '')}" oninput="document.getElementById('catalog-search').value=this.value;filterCatalog()" style="width:360px;font-size:10.5px;" />
+      <select id="catalog-market-filter-inline" onchange="document.getElementById('catalog-market-filter').value=this.value;filterCatalog()" style="background:var(--bg2);border:1px solid var(--border2);color:var(--text2);font-size:10.5px;padding:4px 8px;border-radius:4px;font-family:var(--sans);">
+        <option value="" ${!(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value) ? 'selected' : ''}>All Markets</option>
+        <option value="TX" ${(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value === 'TX') ? 'selected' : ''}>TX</option>
+        <option value="IL" ${(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value === 'IL') ? 'selected' : ''}>IL</option>
+      </select>
+      <button class="export-btn" onclick="exportCatalogCSV()">↓ Export CSV</button>
+      <button class="export-btn" onclick="renderCatalog()">↺ Refresh</button>
+    </div>
+  </div>
+  <div style="padding:12px 20px 0;font-size:10px;color:var(--text3);">Showing ${_catalogFiltered.length.toLocaleString()} of ${_catalogData.length.toLocaleString()} unique errors</div>`;
+
   if (!_catalogFiltered.length) {
-    container.innerHTML = '<div style="color:var(--text3);padding:12px 0;">No errors match the current filter.</div>';
+    html += `<div style="padding:20px;font-size:11px;color:var(--text3);">No errors match the current filter.</div>`;
+    container.innerHTML = html;
     return;
   }
 
-  let html = `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Showing ${_catalogFiltered.length.toLocaleString()} of ${_catalogData.length.toLocaleString()} unique errors</div>`;
-
-  html += `<div style="overflow-x:auto;">
+  html += `<div style="overflow-x:auto;padding:12px 20px 0;">
   <table style="width:100%;border-collapse:collapse;font-size:10.5px;">
     <thead>
       <tr style="background:var(--bg3);border-bottom:2px solid var(--border2);position:sticky;top:0;z-index:1;">
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);white-space:nowrap;min-width:84px;">Details</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);white-space:nowrap;min-width:140px;">Field</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:160px;">Publisher</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:90px;">Category</th>
@@ -5028,8 +5167,8 @@ function _applyFilterAndRender() {
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:100px;">Entity Type</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:140px;">Fix Owner</th>
         <th style="text-align:right;padding:7px 10px;font-weight:600;color:var(--text3);">Count</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);">OCA Ref</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--orange);white-space:nowrap;">⬆ Submitted</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);white-space:nowrap;">First Seen</th>
+        <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--orange);white-space:nowrap;">Submitted</th>
         <th style="text-align:left;padding:7px 10px;font-weight:600;color:var(--text3);min-width:100px;">Envelopes</th>
       </tr>
     </thead>
@@ -5052,7 +5191,7 @@ function _applyFilterAndRender() {
     // Publisher + market combined pill
     const pubMarket = e.publishers.map((p, pi) => {
       const mkt = e.markets[pi] || e.markets[0] || '';
-      return `<span style="display:inline-block;background:var(--bg3);color:var(--cyan);border:1px solid var(--border2);border-radius:10px;padding:1px 7px;font-size:9px;margin:1px 2px 1px 0;white-space:nowrap;">${escHtml(p)}${mkt ? ' <span style=\'color:var(--text3);\'>&middot; ' + escHtml(mkt) + '</span>' : ''}</span>`;
+      return `<span style="display:inline-block;background:rgba(69,123,157,0.10);color:var(--text);border:1px solid rgba(69,123,157,0.16);border-radius:999px;padding:4px 10px;font-size:9px;margin:1px 6px 1px 0;white-space:nowrap;font-weight:700;">${escHtml(p)}${mkt ? ' <span style=\'color:var(--text2);font-weight:600;\'>&middot; ' + escHtml(mkt) + '</span>' : ''}</span>`;
     }).join('');
 
     const etDisplay = e.entityType;
@@ -5071,10 +5210,10 @@ function _applyFilterAndRender() {
     const envDisplay = envIds.length === 0 ? '<span style="color:var(--text3);font-size:9px;">—</span>'
       : `<span style="font-size:9px;color:var(--text2);font-family:var(--mono);" title="${escHtml(envIds.join('\n'))}">${escHtml(envIds[0].slice(0,8))}…${envIds.length > 1 ? ' <span style=\'color:var(--text3);\'>+' + (envIds.length - 1) + '</span>' : ''}</span>`;
 
-    // OCA ref badge
-    const refDisplay = e.ref ? `<span style="font-size:9px;background:var(--orange-bg);color:var(--orange);border:1px solid #3a2a00;padding:1px 5px;border-radius:3px;">${escHtml(e.ref)}</span>` : '';
-
     html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);" title="${escHtml(rawMsg)}">
+      <td style="padding:7px 10px;vertical-align:top;">
+        <button class="trends-detail-btn" type="button" onclick="openTrendDetail(${idx})">View</button>
+      </td>
       <td style="padding:7px 10px;font-family:var(--mono);color:var(--cyan);font-size:10px;vertical-align:top;white-space:nowrap;">${escHtml(e.field)}</td>
       <td style="padding:7px 10px;vertical-align:top;">${pubMarket}</td>
       <td style="padding:7px 10px;vertical-align:top;"><span style="display:inline-block;background:${catColor}22;color:${catColor};border:1px solid ${catColor}44;border-radius:3px;padding:2px 7px;font-size:9px;white-space:nowrap;">${escHtml(e.errorCategory)}</span></td>
@@ -5087,7 +5226,7 @@ function _applyFilterAndRender() {
       </td>
       <td style="padding:7px 10px;color:var(--text2);font-size:9.5px;vertical-align:top;max-width:160px;">${escHtml(fixOwner)}</td>
       <td style="padding:7px 10px;text-align:right;font-weight:700;color:${e.count >= 500 ? 'var(--red)' : e.count >= 100 ? 'var(--orange)' : 'var(--text2)'};vertical-align:top;white-space:nowrap;">${e.count.toLocaleString()}</td>
-      <td style="padding:7px 10px;vertical-align:top;">${refDisplay}</td>
+      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;color:var(--text2);">${escHtml(e.firstSeen || '—')}</td>
       <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;">${e.submittedAt ? `<span style='color:var(--orange);'>⬆ ${escHtml(e.submittedAt)}</span>` : `<span style='color:var(--text3);'>${escHtml(e.firstSeen)}</span>`}</td>
       <td style="padding:7px 10px;vertical-align:top;">${envDisplay}</td>
     </tr>`;
@@ -5233,6 +5372,95 @@ function exportCatalogCSV() {
   dlFile(new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'}), 'CATCH_Error_Catalog' + suffix + '_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
+function buildTrendDetailText(entry) {
+  if (!entry) return '';
+  const lines = [
+    'Field: ' + (entry.field || '—'),
+    'Category: ' + (entry.errorCategory || '—'),
+    'Occurrences: ' + (entry.count != null ? entry.count : '—'),
+    'Publishers: ' + ((entry.publishers || []).join(', ') || '—'),
+    'Markets: ' + ((entry.markets || []).join(', ') || '—'),
+    'Entity Types: ' + ((entry.entityTypes || []).join(', ') || entry.entityType || '—'),
+    'Bad Values: ' + ((entry.badValues || []).join(', ') || '—'),
+    'Fix Owner: ' + (((entry.translation || '').match(/[Ff]ix owner[:\s]+([^.]+)/) || [])[1] || '—'),
+    'OCA Ref: ' + (entry.ref || '—'),
+    'Submitted: ' + (entry.submittedAt || entry.firstSeen || '—'),
+    'Envelopes: ' + ((entry.envelopeIds || []).join(', ') || '—'),
+    '',
+    'Description:',
+    (entry.msg || '').replace('<BAD_VALUE>', (entry.badValues && entry.badValues.length) ? '"' + entry.badValues[0] + '"' : '<value>'),
+    '',
+    'Plain English / Translation:',
+    entry.translation || 'No plain-English translation is currently stored for this trend.'
+  ];
+  return lines.join('\n');
+}
+
+window.openTrendDetail = function (idx) {
+  var entry = _catalogFiltered && _catalogFiltered[idx];
+  var modal = document.getElementById('trend-detail-modal');
+  var backdrop = document.getElementById('trend-detail-backdrop');
+  var title = document.getElementById('trend-detail-title');
+  var body = document.getElementById('trend-detail-body');
+  if (!entry || !modal || !backdrop || !title || !body) return;
+
+  var fixOwnerMatch = (entry.translation || '').match(/[Ff]ix owner[:\s]+([^.]+)/);
+  var fixOwner = fixOwnerMatch ? fixOwnerMatch[1].trim().replace(/\.$/, '') : 'Not specified';
+  var detailText = buildTrendDetailText(entry);
+  var refinePayload = JSON.stringify({
+    source: "trend",
+    entityType: ((entry.entityTypes || [entry.entityType])[0]) || "All",
+    field: entry.field || "",
+    message: (entry.msg || '').replace('<BAD_VALUE>', (entry.badValues && entry.badValues.length) ? '"' + entry.badValues[0] + '"' : '<value>'),
+    translation: entry.translation || "",
+    fixOwner: fixOwner === 'Not specified' ? 'Odyssey' : fixOwner,
+    action: "",
+    ref: entry.ref || "",
+    matchValue: (entry.badValues && entry.badValues[0]) ? String(entry.badValues[0]) : "",
+    matchType: (entry.badValues && entry.badValues.length) ? "field_value" : "contains"
+  });
+  window.__trendDetailClipboard = detailText;
+
+  title.textContent = (entry.field || 'Trend detail') + ' trend detail';
+  body.innerHTML = `
+    <div class="trend-detail-actions">
+      <button class="trend-detail-copy-btn" type="button" onclick="copyTrendDetail()">Copy to clipboard</button>
+      <button class="trend-detail-copy-btn" type="button" onclick='openRefineErrorModal(${JSON.stringify(refinePayload)})'>Refine in library</button>
+    </div>
+    <div class="trend-detail-grid">
+      <div class="trend-detail-block">
+        <span class="trend-detail-label">Summary</span>
+        <div class="trend-detail-value">${escHtml((entry.msg || '').replace('<BAD_VALUE>', (entry.badValues && entry.badValues.length) ? '"' + entry.badValues[0] + '"' : '<value>'))}</div>
+      </div>
+      <div class="trend-detail-block">
+        <span class="trend-detail-label">Plain English</span>
+        <div class="trend-detail-value">${escHtml(entry.translation || 'No plain-English translation is currently stored for this trend.')}</div>
+      </div>
+      <div class="trend-detail-block">
+        <span class="trend-detail-label">Signals</span>
+        <div class="trend-detail-value">Category: ${escHtml(entry.errorCategory || '—')}<br>Occurrences: ${escHtml(String(entry.count != null ? entry.count : '—'))}<br>Fix owner: ${escHtml(fixOwner)}<br>OCA reference: ${escHtml(entry.ref || '—')}</div>
+      </div>
+      <div class="trend-detail-block">
+        <span class="trend-detail-label">Coverage</span>
+        <div class="trend-detail-value">Publishers: ${escHtml(((entry.publishers || []).join(', ')) || '—')}<br>Markets: ${escHtml(((entry.markets || []).join(', ')) || '—')}<br>Entity types: ${escHtml(((entry.entityTypes || []).join(', ')) || entry.entityType || '—')}<br>Envelopes: ${escHtml(((entry.envelopeIds || []).join(', ')) || '—')}</div>
+      </div>
+      <div class="trend-detail-block">
+        <span class="trend-detail-label">Clipboard preview</span>
+        <pre class="trend-detail-code">${escHtml(detailText)}</pre>
+      </div>
+    </div>
+  `;
+  modal.classList.add('open');
+  backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.copyTrendDetail = function () {
+  var text = window.__trendDetailClipboard || '';
+  if (!text || !navigator.clipboard) return;
+  navigator.clipboard.writeText(text);
+};
+
 </script>
 <!-- Settings backdrop -->
 <style>
@@ -5292,6 +5520,9 @@ function exportCatalogCSV() {
     </div>
 
     <!-- Error Library -->
+    <div class="settings-section" id="workspace-settings-anchor"></div>
+
+    <!-- Error Library -->
     <div class="settings-section">
       <div class="settings-section-title">Error Library</div>
       <div style="font-size:10px;color:var(--text2);margin-bottom:10px;">
@@ -5339,5 +5570,3368 @@ function exportCatalogCSV() {
   </div><!-- /.settings-body -->
 </div><!-- /.settings-overlay -->
 
+<div class="reader-modal-backdrop" id="reader-modal-backdrop"></div>
+<div class="reader-modal" id="reader-modal">
+  <div class="reader-modal-header">
+    <div class="reader-modal-title" id="reader-modal-title">Reader</div>
+    <button class="reader-modal-close" id="reader-modal-close" type="button">×</button>
+  </div>
+  <div class="reader-modal-body" id="reader-modal-body"></div>
+</div>
+
+<style>
+  :root {
+    --bg: #f4efe8;
+    --bg1: rgba(255, 255, 255, 0.76);
+    --bg2: rgba(255, 255, 255, 0.56);
+    --bg3: #1f2a44;
+    --border: rgba(31, 42, 68, 0.12);
+    --border2: rgba(31, 42, 68, 0.22);
+    --text: #162033;
+    --text2: #526074;
+    --text3: #758197;
+    --blue: #eb5e28;
+    --green: #2a9d8f;
+    --red: #c44536;
+    --red-bg: rgba(196, 69, 54, 0.09);
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.12);
+    --yellow: #c68a10;
+    --purple: #457b9d;
+    --cyan: #1d6b7d;
+  }
+
+  html, body {
+    background:
+      radial-gradient(circle at top left, rgba(233, 196, 106, 0.35), transparent 24%),
+      radial-gradient(circle at bottom right, rgba(42, 157, 143, 0.18), transparent 22%),
+      linear-gradient(135deg, #f8f3ed 0%, #efe5da 38%, #edf4f1 100%);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    height: auto;
+    overflow: auto;
+  }
+
+  body {
+    display: block;
+  }
+
+  .content,
+  .panel {
+    overflow: visible;
+  }
+
+  .content {
+    flex: none;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent 86%);
+  }
+
+  .header,
+  .tabs,
+  .pane-header,
+  .pane-footer,
+  .summary-bar,
+  .history-toolbar,
+  .settings-header {
+    backdrop-filter: blur(18px);
+  }
+
+  .header {
+    margin: 18px 18px 10px;
+    padding: 10px 18px;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at left center, rgba(235, 94, 40, 0.1), transparent 24%),
+      linear-gradient(135deg, rgba(20, 28, 44, 0.98), rgba(35, 46, 68, 0.94));
+    color: #fff;
+    box-shadow: 0 24px 56px rgba(22, 32, 51, 0.18);
+  }
+
+  .header-title,
+  .header-sub,
+  .header-version,
+  #session-only-label {
+    font-family: var(--sans);
+  }
+
+  .header-title {
+    font-size: 16px;
+    letter-spacing: -0.03em;
+  }
+
+  .catch-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .catch-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 208px;
+    height: 74px;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+      radial-gradient(circle at 28% 20%, rgba(255,255,255,0.08), transparent 34%),
+      linear-gradient(180deg, rgba(18,24,35,0.78), rgba(18,24,35,0.54));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 12px 24px rgba(11, 17, 30, 0.2);
+  }
+
+  .catch-logo img {
+    display: block;
+    width: 228px;
+    max-width: none;
+    height: auto;
+    object-fit: cover;
+    transform: translate(0, -8px);
+    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.18));
+  }
+
+  .catch-brand-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding-left: 0;
+    border-left: 0;
+    min-width: 0;
+  }
+
+  .catch-wordmark {
+    font-size: 28px;
+    line-height: 0.95;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: #f4f7fb;
+    text-transform: uppercase;
+  }
+
+  .catch-tagline {
+    font-size: 12px;
+    line-height: 1.2;
+    color: rgba(244, 248, 255, 0.9);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .catch-pill {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    color: rgba(226, 232, 240, 0.66);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: nowrap;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  .workspace-settings-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .workspace-settings-card {
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.54);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+  }
+
+  .settings-link-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .settings-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(255,255,255,0.76);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+
+  .settings-link-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(235, 94, 40, 0.06);
+    border-color: rgba(235, 94, 40, 0.18);
+  }
+
+  .settings-link-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+  }
+
+  .reader-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 28, 45, 0.32);
+    backdrop-filter: blur(8px);
+    z-index: 1200;
+  }
+
+  .reader-modal-backdrop.open {
+    display: block;
+  }
+
+  .reader-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(860px, calc(100vw - 40px));
+    max-height: calc(100vh - 80px);
+    background: rgba(250, 246, 240, 0.98);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 28px;
+    box-shadow: 0 28px 90px rgba(22, 32, 51, 0.22);
+    z-index: 1201;
+    overflow: hidden;
+  }
+
+  .reader-modal.open {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .reader-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(255,255,255,0.72);
+  }
+
+  .reader-modal-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.03em;
+  }
+
+  .reader-modal-close {
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    border-radius: 999px;
+    background: rgba(31, 42, 68, 0.05);
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  .reader-modal-body {
+    overflow: auto;
+    padding: 24px;
+  }
+
+  .workspace-settings-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .settings-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .settings-switch-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .settings-switch-note {
+    font-size: 11px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  .workspace-hero {
+    display: grid;
+    grid-template-columns: 1.02fr 1fr;
+    gap: 18px;
+    margin: 0 0 18px;
+    align-items: stretch;
+  }
+
+  .hero-card,
+  .hero-stat-card {
+    border: 1px solid rgba(255,255,255,0.48);
+    border-radius: 28px;
+    background: rgba(255,255,255,0.68);
+    box-shadow: 0 22px 60px rgba(22, 32, 51, 0.1);
+    backdrop-filter: blur(18px);
+  }
+
+  .hero-card {
+    padding: 28px;
+    min-width: 0;
+  }
+
+  .hero-eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #758197;
+    margin-bottom: 8px;
+  }
+
+  .hero-title {
+    font-size: 26px;
+    line-height: 1.12;
+    letter-spacing: -0.05em;
+    font-weight: 800;
+    color: #162033;
+    margin-bottom: 12px;
+  }
+
+  .hero-market-display {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 6px;
+  }
+
+  .hero-market-code {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 92px;
+    padding: 14px 18px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(247,241,234,0.92));
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.06);
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: -0.06em;
+    font-weight: 800;
+    color: #162033;
+  }
+
+  .hero-market-name {
+    font-size: 16px;
+    line-height: 1.3;
+    color: #526074;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    max-width: 240px;
+  }
+
+  .hero-market-meta {
+    margin-top: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #758197;
+    max-width: 380px;
+  }
+
+  .hero-copy {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #526074;
+    max-width: 560px;
+  }
+
+  .hero-context-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .hero-context-pill {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(31, 42, 68, 0.06);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    color: #556274;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .hero-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .hero-stat-card {
+    padding: 20px;
+  }
+
+  .hero-stat-label {
+    font-size: 11px;
+    color: #758197;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 800;
+    margin-bottom: 10px;
+  }
+
+  .hero-stat-value {
+    font-size: 28px;
+    color: #162033;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    font-family: var(--sans);
+    margin-bottom: 6px;
+  }
+
+  .hero-stat-copy {
+    font-size: 12px;
+    color: #526074;
+    line-height: 1.5;
+  }
+
+  .tabs {
+    margin: 0 18px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.45);
+    border-radius: 24px;
+    background: rgba(255,255,255,0.58);
+    box-shadow: 0 18px 40px rgba(22, 32, 51, 0.06);
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: sticky;
+    top: 10px;
+    z-index: 40;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 10px 18px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: #556274;
+    background: transparent;
+    transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  }
+
+  .tab.active {
+    background: #1f2a44;
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(31, 42, 68, 0.18);
+  }
+
+  .tab:hover {
+    background: rgba(31, 42, 68, 0.06);
+    border-color: rgba(31, 42, 68, 0.08);
+    color: #162033;
+    transform: translateY(-1px);
+  }
+
+  .content {
+    padding: 0 18px 18px;
+  }
+
+  .validate-panel {
+    gap: 18px;
+    align-items: stretch;
+    margin-top: 8px;
+  }
+
+  .pane-left,
+  .pane-right,
+  .ref-panel,
+  .log-panel,
+  .history-panel,
+  #panel-about,
+  #panel-assoc,
+  #panel-release {
+    border: 1px solid rgba(255,255,255,0.48);
+    border-radius: 28px;
+    background: rgba(255,255,255,0.68);
+    box-shadow: 0 22px 60px rgba(22, 32, 51, 0.1);
+    overflow: hidden;
+  }
+
+  #panel-history,
+  #panel-assoc {
+    overflow: visible;
+    margin-top: 8px;
+  }
+
+  .pane-left {
+    flex: 1.02;
+  }
+
+  .pane-right {
+    flex: 1;
+  }
+
+  .pane-left {
+    border-right: 1px solid rgba(255,255,255,0.48);
+  }
+
+  .pane-header,
+  .pane-footer,
+  .summary-bar,
+  .history-toolbar {
+    background: rgba(255,255,255,0.5);
+    border-color: var(--border);
+  }
+
+  .pane-label,
+  .pane-action,
+  .sum-neutral,
+  .sum-filter-clear,
+  .history-stat,
+  .rule-label,
+  .lib-form-label,
+  .settings-section-title {
+    color: var(--text3);
+  }
+
+  textarea,
+  .envelope-input,
+  .lib-form-input,
+  .lib-form-select,
+  .lib-form-textarea,
+  .market-select {
+    background: rgba(255,255,255,0.9) !important;
+    color: #193047 !important;
+    border: 1px solid rgba(69, 123, 157, 0.16) !important;
+    border-radius: 18px;
+    font-family: var(--mono);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  textarea {
+    padding: 20px;
+    font-size: 12px;
+    line-height: 1.75;
+    caret-color: #eb5e28;
+    overscroll-behavior: contain;
+  }
+
+  textarea::placeholder,
+  .envelope-input::placeholder,
+  .lib-form-input::placeholder,
+  .lib-form-textarea::placeholder {
+    color: #7e8a9b !important;
+  }
+
+  #state-select,
+  #settings-btn,
+  .export-btn,
+  .clear-btn {
+    background: rgba(255,255,255,0.12) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    border-radius: 999px !important;
+    padding: 8px 14px !important;
+    font-family: var(--sans) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+  }
+
+  #state-select {
+    padding-right: 34px !important;
+  }
+
+  #settings-btn {
+    position: relative;
+    padding-left: 42px !important;
+    background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.06)) !important;
+  }
+
+  #settings-btn::before {
+    content: " ";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  }
+
+  #settings-btn::after {
+    content: "\2699";
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-54%);
+    font-size: 11px;
+    color: #fff;
+    opacity: 0.95;
+  }
+
+  #session-only-toggle {
+    width: 18px;
+    height: 18px;
+  }
+
+  .settings-body #state-select,
+  .settings-body .export-btn,
+  .settings-body .clear-btn {
+    background: rgba(255,255,255,0.88) !important;
+    color: var(--text) !important;
+    border: 1px solid rgba(31,42,68,0.12) !important;
+  }
+
+  .export-btn,
+  .clear-btn {
+    background: rgba(255,255,255,0.88) !important;
+    color: var(--text) !important;
+    border: 1px solid rgba(31,42,68,0.12) !important;
+    box-shadow: 0 8px 20px rgba(22, 32, 51, 0.05);
+  }
+
+  .export-btn:hover,
+  .clear-btn:hover {
+    background: rgba(235, 94, 40, 0.08) !important;
+    color: var(--text) !important;
+    border-color: rgba(235, 94, 40, 0.18) !important;
+  }
+
+  #settings-btn span {
+    color: inherit !important;
+  }
+
+  .header-badge {
+    background: rgba(235, 94, 40, 0.08);
+    color: var(--blue);
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .pane-label {
+    color: #556274;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .pane-action {
+    color: #5c6c7d;
+    font-weight: 700;
+    font-family: var(--sans);
+  }
+
+  .results-area,
+  .ref-panel,
+  .log-panel,
+  .history-panel,
+  #panel-about,
+  #panel-assoc,
+  #panel-release,
+  .settings-body {
+    background: transparent;
+  }
+
+  .pane-footer > div:last-child {
+    align-items: stretch;
+  }
+
+  .pane-footer .run-btn {
+    min-height: 48px;
+  }
+
+  .pane-footer [onclick="formatInput()"] {
+    display: none !important;
+  }
+
+  .summary-bar {
+    display: none !important;
+  }
+
+  .results-area {
+    padding: 18px;
+    overflow-y: auto;
+    min-height: 0;
+    overscroll-behavior: contain;
+  }
+
+  .results-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(31, 42, 68, 0.09);
+    box-shadow: 0 12px 28px rgba(22, 32, 51, 0.06);
+  }
+
+  .results-toolbar-label,
+  .history-action-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .results-toolbar-copy {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: var(--sans);
+  }
+
+  .results-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .results-filter-btn {
+    border: 1px solid rgba(31, 42, 68, 0.09);
+    border-radius: 999px;
+    padding: 10px 14px;
+    background: rgba(248,243,237,0.88);
+    color: var(--text2);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .results-filter-btn:hover {
+    background: rgba(235, 94, 40, 0.08);
+    color: var(--text);
+    border-color: rgba(235, 94, 40, 0.18);
+    transform: translateY(-1px);
+  }
+
+  .results-filter-btn.active {
+    background: linear-gradient(135deg, #eb5e28, #ff8b5d);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 14px 24px rgba(235, 94, 40, 0.22);
+  }
+
+  .results-filter-btn.disabled,
+  .results-filter-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .results-hero-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .results-kpi {
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(31, 42, 68, 0.09);
+    box-shadow: 0 12px 28px rgba(22, 32, 51, 0.06);
+  }
+
+  .results-kpi-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .results-kpi-value {
+    display: block;
+    font-size: 24px;
+    line-height: 1.1;
+    color: #162033;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+
+  .results-kpi-text {
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-stat-card.clickable-card {
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  .hero-stat-card.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 34px rgba(22, 32, 51, 0.1);
+    border-color: rgba(29, 107, 125, 0.18);
+  }
+
+  .hero-stat-card.clickable-card:focus-visible {
+    outline: 2px solid rgba(29, 107, 125, 0.25);
+    outline-offset: 3px;
+  }
+
+  .validate-panel {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .pane-left,
+  .pane-right {
+    min-height: 0;
+  }
+
+  .pane-right {
+    height: min(74vh, calc(100vh - 250px));
+  }
+
+  .result-card {
+    margin-bottom: 14px;
+  }
+
+  .result-header {
+    padding: 12px 14px;
+  }
+
+  .result-meta {
+    padding: 12px 14px 6px;
+  }
+
+  .error-list {
+    padding: 8px 14px 14px;
+  }
+
+  .error-item {
+    border-top: 1px solid rgba(196, 69, 54, 0.12);
+    padding: 12px 0 4px;
+  }
+
+  .error-field-row {
+    margin-bottom: 8px;
+  }
+
+  .finding-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .finding-panel {
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+  }
+
+  .finding-panel-technical {
+    background: rgba(196, 69, 54, 0.05);
+  }
+
+  .finding-panel-plain {
+    background: rgba(29, 107, 125, 0.07);
+  }
+
+  .finding-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .error-item:hover {
+    background: rgba(235,94,40,0.06) !important;
+    border-radius: 14px;
+    margin: 0 -8px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .results-empty {
+    padding: 28px 6px;
+    font-size: 13px;
+  }
+
+  .history-panel {
+    padding: 18px;
+    gap: 14px;
+    background: transparent;
+  }
+
+  #history-feed-intro,
+  #history-list {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  #history-list {
+    display: grid;
+    gap: 14px;
+    align-content: start;
+    min-width: 0;
+  }
+
+  .history-toolbar {
+    margin-bottom: 6px;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    border-radius: 22px;
+    padding: 14px 16px;
+  }
+
+  .history-toolbar-primary {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .history-summary-cluster {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .history-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(300px, 1fr));
+    gap: 12px;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .history-action-cluster {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.76);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.05);
+  }
+
+  .history-action-label {
+    margin-bottom: 0;
+    margin-right: 10px;
+    min-width: 128px;
+    flex: 0 0 auto;
+  }
+
+  .history-action-cluster .export-btn,
+  .history-action-cluster .clear-btn {
+    margin-left: 0 !important;
+  }
+
+  .history-health-btn {
+    border-color: rgba(29, 107, 125, 0.16) !important;
+    color: #1d6b7d !important;
+    background: rgba(29, 107, 125, 0.08) !important;
+  }
+
+  .history-health-btn:hover {
+    border-color: rgba(29, 107, 125, 0.24) !important;
+    background: rgba(29, 107, 125, 0.12) !important;
+    color: #144f5d !important;
+  }
+
+  .history-run {
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    border-radius: 22px;
+    background: rgba(255,255,255,0.76);
+    box-shadow: 0 14px 34px rgba(22, 32, 51, 0.06);
+    padding: 14px 16px;
+    margin-bottom: 0;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .history-run-header {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .history-run-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .history-run-main {
+    min-width: 0;
+    flex: 1 1 560px;
+  }
+
+  .history-run-subline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: var(--text2);
+    font-size: 12px;
+    line-height: 1.6;
+    min-width: 0;
+  }
+
+  .history-run-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    flex: 0 1 auto;
+  }
+
+  .history-run-actions .export-btn {
+    margin-left: 0 !important;
+  }
+
+  .history-run-index {
+    font-size: 11px;
+    font-weight: 800;
+    color: #758197;
+    letter-spacing: 0.04em;
+  }
+
+  .history-envelope {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(69, 123, 157, 0.08);
+    border: 1px solid rgba(69, 123, 157, 0.16);
+    color: #274b63;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .history-badge-ok,
+  .history-badge-err {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .history-badge-ok {
+    background: rgba(42, 157, 143, 0.1);
+    color: #1b7167;
+    border: 1px solid rgba(42, 157, 143, 0.18);
+  }
+
+  .history-badge-err {
+    background: rgba(196, 69, 54, 0.08);
+    color: #c44536;
+    border: 1px solid rgba(196, 69, 54, 0.18);
+  }
+
+  .history-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(248,243,237,0.9);
+    color: #5f6f82;
+  }
+
+  .history-chip.market {
+    background: rgba(69, 123, 157, 0.1);
+    color: #2d5e78;
+    border-color: rgba(69, 123, 157, 0.14);
+  }
+
+  .history-chip.submitted {
+    background: rgba(235, 94, 40, 0.08);
+    color: #c25524;
+    border-color: rgba(235, 94, 40, 0.16);
+  }
+
+  .history-chip.analysed {
+    background: rgba(69, 123, 157, 0.1);
+    color: #2d5e78;
+    border-color: rgba(69, 123, 157, 0.14);
+  }
+
+  .history-run-meta {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 18px;
+    background: rgba(248,243,237,0.86);
+    border: 1px solid rgba(31, 42, 68, 0.06);
+    color: #556274;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .history-run-dot {
+    color: #9aa6b2;
+  }
+
+  .history-errors {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  #panel-history {
+    min-height: 0;
+  }
+
+  #history-list {
+    flex: 1 1 auto;
+    overflow-y: auto !important;
+    max-height: min(58vh, calc(100vh - 420px));
+    padding-right: 4px;
+  }
+
+  .schema-review-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .schema-review-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .schema-review-stat {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(248,243,237,0.9);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+  }
+
+  .schema-review-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .schema-review-stat-value {
+    font-size: 15px;
+    color: #162033;
+    font-weight: 800;
+    word-break: break-word;
+  }
+
+  .schema-review-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .schema-review-row {
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.05);
+  }
+
+  .schema-review-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .schema-review-entity {
+    font-size: 14px;
+    font-weight: 800;
+    color: #162033;
+    word-break: break-word;
+  }
+
+  .schema-review-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .schema-review-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+  }
+
+  .schema-review-badge.payload {
+    background: rgba(235, 94, 40, 0.08);
+    color: #c25524;
+    border-color: rgba(235, 94, 40, 0.16);
+  }
+
+  .schema-review-badge.uploaded {
+    background: rgba(42, 157, 143, 0.1);
+    color: #1b7167;
+    border-color: rgba(42, 157, 143, 0.16);
+  }
+
+  .schema-review-badge.builtin {
+    background: rgba(69, 123, 157, 0.1);
+    color: #2d5e78;
+    border-color: rgba(69, 123, 157, 0.14);
+  }
+
+  .schema-review-copy {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text2);
+    font-family: var(--sans);
+  }
+
+  .schema-review-block {
+    padding: 18px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.05);
+  }
+
+  .schema-review-block + .schema-review-block {
+    margin-top: 14px;
+  }
+
+  .schema-review-block-copy {
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text2);
+    margin-top: 10px;
+    font-family: var(--sans);
+  }
+
+  .schema-review-json {
+    margin-top: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(69, 123, 157, 0.16);
+    background: rgba(247, 249, 252, 0.96);
+    overflow: hidden;
+  }
+
+  .schema-review-json-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(69, 123, 157, 0.12);
+    background: rgba(255,255,255,0.8);
+  }
+
+  .schema-review-json-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5f6f82;
+  }
+
+  .schema-review-json-meta {
+    font-size: 11px;
+    color: #758197;
+    font-weight: 700;
+  }
+
+  .schema-review-pre {
+    margin: 0;
+    padding: 16px 18px;
+    max-height: 340px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.75;
+    color: #193047;
+  }
+
+  .schema-review-toggle {
+    margin-top: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(69, 123, 157, 0.16);
+    background: rgba(247, 249, 252, 0.96);
+    overflow: hidden;
+  }
+
+  .schema-review-toggle > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(255,255,255,0.82);
+  }
+
+  .schema-review-toggle > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .schema-review-toggle-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .schema-review-toggle-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5f6f82;
+  }
+
+  .schema-review-toggle-copy {
+    font-size: 12px;
+    color: #758197;
+    font-weight: 600;
+  }
+
+  .schema-review-toggle-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 114px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(69, 123, 157, 0.08);
+    border: 1px solid rgba(69, 123, 157, 0.14);
+    color: #2d5e78;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .schema-review-toggle[open] .schema-review-toggle-action::before {
+    content: "Hide schema";
+  }
+
+  .schema-review-toggle:not([open]) .schema-review-toggle-action::before {
+    content: "View full schema";
+  }
+
+  .schema-review-matrix {
+    margin-top: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(255,255,255,0.86);
+    overflow: hidden;
+  }
+
+  .schema-review-matrix-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(248,243,237,0.72);
+  }
+
+  .schema-review-matrix-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #5f6f82;
+  }
+
+  .schema-review-matrix-copy {
+    font-size: 12px;
+    color: #758197;
+    font-weight: 600;
+  }
+
+  .schema-review-table-wrap {
+    overflow: auto;
+    max-height: 320px;
+  }
+
+  .schema-review-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    font-family: var(--sans);
+  }
+
+  .schema-review-table th,
+  .schema-review-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(31, 42, 68, 0.07);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .schema-review-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: rgba(255,255,255,0.96);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6d7b8e;
+  }
+
+  .schema-review-table td {
+    font-size: 12px;
+    color: #243247;
+  }
+
+  .schema-review-field {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #1d6b7d;
+    word-break: break-word;
+  }
+
+  .schema-review-type {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #384b61;
+  }
+
+  .schema-review-required {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .schema-review-required.yes {
+    background: rgba(235, 94, 40, 0.08);
+    color: #c25524;
+    border: 1px solid rgba(235, 94, 40, 0.16);
+  }
+
+  .schema-review-required.no {
+    background: rgba(31, 42, 68, 0.05);
+    color: #66758a;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+  }
+
+  .schema-review-constraint {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .schema-review-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(69, 123, 157, 0.08);
+    color: #2d5e78;
+  }
+
+  .schema-review-note {
+    font-size: 11px;
+    line-height: 1.5;
+    color: #607086;
+    min-width: 220px;
+  }
+
+  .history-error-row {
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: rgba(196, 69, 54, 0.06);
+    color: #7d3128;
+  }
+
+  #panel-assoc {
+    padding: 18px !important;
+    gap: 14px;
+  }
+
+  .trends-hero {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .trends-card {
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.76);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 14px 34px rgba(22, 32, 51, 0.06);
+  }
+
+  .trends-title {
+    font-size: 18px;
+    line-height: 1.15;
+    letter-spacing: -0.04em;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .trends-copy {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text2);
+  }
+
+  .trends-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .trends-mini {
+    padding: 14px;
+    border-radius: 22px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.05);
+  }
+
+  .trends-mini-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .trends-mini-value {
+    display: block;
+    font-size: 18px;
+    line-height: 1.2;
+    color: var(--text);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .trends-mini-copy {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text2);
+  }
+
+  .trends-spotlights {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .trends-overview {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .trends-secondary-row {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+  .trends-compact-card {
+    padding: 18px 20px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.76);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 14px 34px rgba(22, 32, 51, 0.06);
+  }
+
+  .trends-overview-top {
+    display: grid;
+    grid-template-columns: 1.3fr 0.7fr;
+    gap: 16px;
+  }
+
+  .trends-kpi-panel,
+  .trends-chart-card {
+    padding: 18px 20px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.76);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 14px 34px rgba(22, 32, 51, 0.06);
+  }
+
+  .trends-chart-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .trends-chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .trends-chart-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+  }
+
+  .trends-chart-copy {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text2);
+    max-width: 220px;
+  }
+
+  .trends-chart-shell {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .trends-pie {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: conic-gradient(#dbe3ef 0deg 360deg);
+    box-shadow: inset 0 0 0 18px rgba(255,255,255,0.76), 0 18px 36px rgba(22, 32, 51, 0.08);
+    position: relative;
+  }
+
+  .trends-pie::after {
+    content: "";
+    position: absolute;
+    inset: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    box-shadow: inset 0 0 0 1px rgba(31, 42, 68, 0.06);
+  }
+
+  .trends-pie-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 1;
+    text-align: center;
+  }
+
+  .trends-pie-value {
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 800;
+    color: #162033;
+    letter-spacing: -0.04em;
+  }
+
+  .trends-pie-label {
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+  }
+
+  .trends-legend {
+    display: grid;
+    gap: 8px;
+  }
+
+  .trends-legend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: rgba(248,243,237,0.8);
+    border: 1px solid rgba(31, 42, 68, 0.06);
+  }
+
+  .trends-legend-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #193047;
+    font-weight: 700;
+  }
+
+  .trends-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    flex: 0 0 auto;
+  }
+
+  .trends-legend-value {
+    font-size: 12px;
+    color: #5f6f82;
+    font-weight: 700;
+  }
+
+  .trends-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .trends-kpi-card {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(248,243,237,0.8);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+  }
+
+  .trends-kpi-card .trends-kpi-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .trends-kpi-card .trends-kpi-value {
+    display: block;
+    font-size: 16px;
+    line-height: 1.25;
+    color: #162033;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .trends-kpi-card .trends-kpi-value.emphasis {
+    color: #d96b15;
+  }
+
+  .trends-spotlight {
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.76);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.05);
+  }
+
+  .trends-spotlight-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 10px;
+  }
+
+  .trends-spotlight-value {
+    display: block;
+    font-size: 17px;
+    line-height: 1.3;
+    color: var(--text);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    word-break: break-word;
+  }
+
+  .trends-spotlight-copy {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text2);
+  }
+
+  .trends-table-shell {
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(255,255,255,0.72);
+    box-shadow: 0 14px 34px rgba(22, 32, 51, 0.06);
+  }
+
+  .trends-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(31, 42, 68, 0.08);
+    background: rgba(255,255,255,0.58);
+  }
+
+  .trends-table-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #758197;
+  }
+
+  .trends-table-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  #catalog-table-container table {
+    background: transparent;
+  }
+
+  #catalog-table-container thead tr {
+    background: rgba(31, 42, 68, 0.06) !important;
+  }
+
+  #catalog-table-container tbody tr {
+    border-bottom-color: rgba(31, 42, 68, 0.08) !important;
+  }
+
+  #catalog-table-container tbody tr:hover {
+    background: rgba(235, 94, 40, 0.04) !important;
+  }
+
+  .trends-detail-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(69, 123, 157, 0.16);
+    background: rgba(69, 123, 157, 0.08);
+    color: #2d5e78;
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  }
+
+  .trends-detail-btn:hover {
+    background: rgba(69, 123, 157, 0.12);
+    border-color: rgba(69, 123, 157, 0.24);
+    color: #1e485d;
+  }
+
+  .trend-detail-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14px;
+  }
+
+  .trend-detail-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(29, 107, 125, 0.16);
+    background: rgba(29, 107, 125, 0.08);
+    color: #1d6b7d;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 10px 16px;
+    cursor: pointer;
+  }
+
+  .refine-error-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(29, 107, 125, 0.16);
+    background: rgba(29, 107, 125, 0.08);
+    color: #1d6b7d;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+
+  .refine-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .refine-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .refine-help {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text2);
+    margin-bottom: 12px;
+  }
+
+  .trend-detail-grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .trend-detail-block {
+    padding: 18px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    box-shadow: 0 12px 24px rgba(22, 32, 51, 0.05);
+  }
+
+  .trend-detail-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #758197;
+    font-weight: 800;
+    margin-bottom: 10px;
+  }
+
+  .trend-detail-value {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #193047;
+    font-family: var(--sans);
+    word-break: break-word;
+  }
+
+  .trend-detail-code {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.75;
+    color: #193047;
+    font-family: var(--mono);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .run-btn,
+  .upload-btn,
+  .export-btn,
+  .clear-btn,
+  .rollback-btn,
+  .reset-btn,
+  .lib-save-btn,
+  .lib-delete-btn {
+    border-radius: 999px;
+    font-family: var(--sans);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .run-btn,
+  .upload-btn,
+  .lib-save-btn {
+    background: linear-gradient(135deg, #eb5e28, #ff8b5d);
+    box-shadow: 0 16px 28px rgba(235, 94, 40, 0.22);
+  }
+
+  .result-card,
+  .rule-card,
+  .log-card,
+  .lib-entry {
+    border-radius: 22px;
+    border-color: var(--border);
+    background: rgba(255,255,255,0.78);
+  }
+
+  .result-card.valid {
+    background: rgba(42, 157, 143, 0.09);
+    border-color: rgba(42, 157, 143, 0.28);
+  }
+
+  .result-card.invalid {
+    background: rgba(196, 69, 54, 0.08);
+    border-color: rgba(196, 69, 54, 0.24);
+  }
+
+  .result-card.valid .result-header,
+  .result-card.invalid .result-header,
+  .lib-entry-header {
+    background: rgba(255,255,255,0.72);
+    border-color: var(--border);
+  }
+
+  .summary-bar,
+  .history-toolbar,
+  .schema-inventory,
+  .settings-section,
+  .log-card,
+  .rule-card,
+  .lib-entry-body,
+  .history-run {
+    color: var(--text);
+  }
+
+  .history-run:hover,
+  .lib-entry-header:hover {
+    background: rgba(255,255,255,0.72);
+  }
+
+  .status-valid,
+  .meta-val,
+  .history-entity-id,
+  .schema-inv-entity {
+    color: var(--green);
+  }
+
+  .status-invalid,
+  .error-field,
+  .error-count {
+    color: var(--red);
+  }
+
+  .error-msg {
+    color: #7d3128;
+    font-family: var(--sans);
+    font-size: 11px;
+  }
+
+  .error-translation {
+    margin-top: 0;
+    padding: 0;
+    border-top: none;
+    border-radius: 0;
+    background: transparent;
+    color: #1d4f5c;
+    font-size: 10.5px;
+  }
+
+  .error-translation::before {
+    content: none;
+  }
+
+  .error-translation-empty {
+    color: #6b7a8e;
+    font-style: italic;
+  }
+
+  .results-area,
+  .ref-panel,
+  .log-panel,
+  .history-panel,
+  #panel-about,
+  #panel-assoc,
+  #panel-release,
+  .settings-body {
+    font-family: var(--sans);
+  }
+
+  .results-empty,
+  .log-intro,
+  .rule-note,
+  .history-empty {
+    color: var(--text2);
+  }
+
+  .settings-overlay {
+    background: rgba(249, 244, 238, 0.94);
+    border-left: 1px solid rgba(255,255,255,0.55);
+    backdrop-filter: blur(22px);
+  }
+
+  .settings-header {
+    background: rgba(255,255,255,0.74);
+  }
+
+  .settings-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .settings-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: rgba(31, 42, 68, 0.06);
+    border: 1px solid rgba(31, 42, 68, 0.08);
+    display: grid;
+    place-items: center;
+  }
+
+  .settings-close:hover {
+    background: rgba(235, 94, 40, 0.08);
+    color: var(--blue);
+    border-color: rgba(235, 94, 40, 0.2);
+  }
+
+  .drop-zone {
+    background: rgba(255,255,255,0.52);
+    border-color: rgba(31, 42, 68, 0.18);
+  }
+
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    background: rgba(235, 94, 40, 0.08);
+    border-color: #eb5e28;
+  }
+
+  @media (max-width: 980px) {
+    .workspace-hero,
+    .hero-stat-grid,
+    .results-hero-strip,
+    .schema-review-summary,
+    .finding-columns,
+    .validate-panel,
+    .trends-hero,
+    .trends-mini-grid {
+      grid-template-columns: 1fr;
+    }
+
+    html, body {
+      height: auto;
+      overflow: auto;
+    }
+
+    .validate-panel {
+      flex-direction: column;
+    }
+
+    .pane-right {
+      height: auto;
+    }
+
+    .results-toolbar,
+    .schema-review-row-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .history-run-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .history-run-actions {
+      justify-content: flex-start;
+    }
+
+    .history-toolbar-primary,
+    .history-actions,
+    .history-action-cluster,
+    .trends-spotlights {
+      width: 100%;
+    }
+
+    .history-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .trends-overview-top,
+    .trends-secondary-row,
+    .trends-kpi-grid,
+    .trends-chart-shell,
+    .refine-grid-2 {
+      grid-template-columns: 1fr;
+    }
+
+    .trends-spotlights {
+      grid-template-columns: 1fr;
+    }
+
+    .header,
+    .tabs {
+      margin-left: 12px;
+      margin-right: 12px;
+    }
+
+    .content {
+      padding: 0 12px 12px;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    document.title = "CATCH Modern";
+
+    var headerLeft = document.querySelector(".header-left");
+    if (headerLeft) {
+      headerLeft.innerHTML = `
+        <div class="catch-brand">
+          <div class="catch-brand-copy">
+            <div class="catch-wordmark">CATCH</div>
+            <div class="catch-tagline">Stop guessing. Start catching.</div>
+            <div class="catch-pill">Version 3.0</div>
+          </div>
+        </div>
+      `;
+    }
+
+    var header = document.querySelector(".header");
+    var stateSelect = document.getElementById("state-select");
+    var settingsBtn = document.getElementById("settings-btn");
+    var sessionToggle = document.getElementById("session-only-toggle");
+    var sessionLabel = document.getElementById("session-only-label");
+    var sessionContainer = sessionToggle ? sessionToggle.closest("div[title]") : null;
+
+    if (header && settingsBtn) {
+      settingsBtn.textContent = "Settings";
+      header.appendChild(settingsBtn);
+    }
+
+    if (stateSelect && sessionToggle && sessionLabel) {
+      var workspaceAnchor = document.getElementById("workspace-settings-anchor");
+      if (workspaceAnchor && !document.getElementById("workspace-settings-panel")) {
+        workspaceAnchor.innerHTML = `
+          <div class="settings-section-title">Workspace Preferences</div>
+          <div class="workspace-settings-grid" id="workspace-settings-panel"></div>
+        `;
+
+        var panel = document.getElementById("workspace-settings-panel");
+
+        var marketCard = document.createElement("div");
+        marketCard.className = "workspace-settings-card";
+        marketCard.innerHTML = `<label class="workspace-settings-label">Validation Market</label>`;
+        marketCard.appendChild(stateSelect);
+
+        var privacyCard = document.createElement("div");
+        privacyCard.className = "workspace-settings-card";
+        privacyCard.innerHTML = `
+          <div class="workspace-settings-label">Privacy Mode</div>
+          <div class="settings-switch-row">
+            <label class="settings-switch-label"></label>
+            <div class="settings-switch-note">Keep history only for the current browser session.</div>
+          </div>
+        `;
+        var switchLabel = privacyCard.querySelector(".settings-switch-label");
+        switchLabel.appendChild(sessionToggle);
+        var switchText = document.createElement("span");
+        switchText.textContent = "Session Only";
+        switchLabel.appendChild(switchText);
+        privacyCard.querySelector(".settings-switch-note").appendChild(sessionLabel);
+
+        panel.appendChild(marketCard);
+        panel.appendChild(privacyCard);
+      }
+    }
+
+    var infoPanel = document.getElementById("panel-about");
+    var releasePanel = document.getElementById("panel-release");
+    var settingsBody = document.querySelector(".settings-body");
+    if (settingsBody && !document.getElementById("settings-support-section")) {
+      var supportSection = document.createElement("div");
+      supportSection.id = "settings-support-section";
+      supportSection.className = "settings-section";
+      supportSection.innerHTML = `
+        <div class="settings-section-title">Support Content</div>
+        <div class="settings-link-list">
+          <button class="settings-link-btn" id="open-about-from-settings">
+            <span>
+              About CATCH
+              <span class="settings-link-meta">Reference overview, product context, and guidance.</span>
+            </span>
+            <span>Open</span>
+          </button>
+          <button class="settings-link-btn" id="open-release-from-settings">
+            <span>
+              Product Updates
+              <span class="settings-link-meta">Release notes and recent changes to the validator experience.</span>
+            </span>
+            <span>Open</span>
+          </button>
+        </div>
+      `;
+      settingsBody.appendChild(supportSection);
+
+      var openAbout = document.getElementById("open-about-from-settings");
+      var openRelease = document.getElementById("open-release-from-settings");
+
+      var readerModal = document.getElementById("reader-modal");
+      var readerBackdrop = document.getElementById("reader-modal-backdrop");
+      var readerTitle = document.getElementById("reader-modal-title");
+      var readerBody = document.getElementById("reader-modal-body");
+      var readerClose = document.getElementById("reader-modal-close");
+
+      function openReader(title, panel) {
+        if (!readerModal || !readerBackdrop || !readerTitle || !readerBody || !panel) return;
+        readerTitle.textContent = title;
+        readerBody.innerHTML = panel.innerHTML;
+        readerModal.classList.add("open");
+        readerBackdrop.classList.add("open");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeReader() {
+        if (!readerModal || !readerBackdrop || !readerBody) return;
+        readerModal.classList.remove("open");
+        readerBackdrop.classList.remove("open");
+        readerBody.innerHTML = "";
+        document.body.style.overflow = "";
+      }
+
+      if (readerClose) {
+        readerClose.addEventListener("click", closeReader);
+      }
+      if (readerBackdrop) {
+        readerBackdrop.addEventListener("click", closeReader);
+      }
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeReader();
+      });
+
+      if (openAbout && infoPanel) {
+        openAbout.addEventListener("click", function () {
+          if (typeof toggleSettings === "function") toggleSettings();
+          openReader("About CATCH", infoPanel);
+        });
+      }
+
+      if (openRelease && releasePanel) {
+        openRelease.addEventListener("click", function () {
+          if (typeof toggleSettings === "function") toggleSettings();
+          openReader("Product Updates", releasePanel);
+        });
+      }
+    }
+
+    if (sessionContainer) {
+      sessionContainer.remove();
+    }
+
+    var preview = document.getElementById("entity-preview");
+    if (preview) {
+      preview.textContent = "Capture validation errors with plain-English explanations";
+    }
+
+    var content = document.querySelector(".content");
+    if (content && !document.getElementById("workspace-hero")) {
+      var hero = document.createElement("section");
+      hero.id = "workspace-hero";
+      hero.className = "workspace-hero";
+      hero.innerHTML = `
+        <article class="hero-card">
+          <div class="hero-eyebrow">Validation market</div>
+          <div class="hero-market-display">
+            <div class="hero-market-code" id="hero-market-code">TX</div>
+            <div class="hero-market-name" id="hero-market-name">OCA</div>
+          </div>
+          <div class="hero-market-meta">Schemas and findings resolve against this market.</div>
+        </article>
+        <div class="hero-stat-grid">
+          <article class="hero-stat-card">
+            <div class="hero-stat-label">Event type</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-event-type">Awaiting payload</div>
+            <div class="hero-stat-copy">The detected event type for the current payload.</div>
+          </article>
+          <article class="hero-stat-card">
+            <div class="hero-stat-label">AEP submission</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-submitted-at">—</div>
+            <div class="hero-stat-copy">When the AEP received the envelope, when available.</div>
+          </article>
+          <article class="hero-stat-card">
+            <div class="hero-stat-label">CATCH submission</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-analysed-at">—</div>
+            <div class="hero-stat-copy">The time this payload was last validated in CATCH.</div>
+          </article>
+          <article class="hero-stat-card">
+            <div class="hero-stat-label">Run summary</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-run-summary">0 entities · 0 errors</div>
+            <div class="hero-stat-copy" id="hero-run-meta">Filter: all findings</div>
+          </article>
+        </div>
+      `;
+      content.insertBefore(hero, content.firstChild);
+    }
+
+    var resultEmpty = document.querySelector(".results-empty");
+    if (resultEmpty) {
+      resultEmpty.textContent = "Paste a payload and run validation to see technical issues and plain-English translations side by side.";
+    }
+
+    var schemaBackdrop = document.createElement("div");
+    schemaBackdrop.id = "schema-modal-backdrop";
+    schemaBackdrop.className = "reader-modal-backdrop";
+    var schemaModal = document.createElement("div");
+    schemaModal.id = "schema-modal";
+    schemaModal.className = "reader-modal";
+    schemaModal.innerHTML = `
+      <div class="reader-modal-header">
+        <div>
+          <div class="hero-eyebrow">Schema review</div>
+          <div class="reader-modal-title" id="schema-modal-title">Current event schema</div>
+        </div>
+        <button class="reader-modal-close" id="schema-modal-close" aria-label="Close schema review">x</button>
+      </div>
+      <div class="reader-modal-body" id="schema-modal-body"></div>
+    `;
+    document.body.appendChild(schemaBackdrop);
+    document.body.appendChild(schemaModal);
+
+    var trendDetailBackdrop = document.createElement("div");
+    trendDetailBackdrop.id = "trend-detail-backdrop";
+    trendDetailBackdrop.className = "reader-modal-backdrop";
+    var trendDetailModal = document.createElement("div");
+    trendDetailModal.id = "trend-detail-modal";
+    trendDetailModal.className = "reader-modal";
+    trendDetailModal.innerHTML = `
+      <div class="reader-modal-header">
+        <div>
+          <div class="hero-eyebrow">Trend detail</div>
+          <div class="reader-modal-title" id="trend-detail-title">Trend detail</div>
+        </div>
+        <button class="reader-modal-close" id="trend-detail-close" aria-label="Close trend detail">x</button>
+      </div>
+      <div class="reader-modal-body" id="trend-detail-body"></div>
+    `;
+    document.body.appendChild(trendDetailBackdrop);
+    document.body.appendChild(trendDetailModal);
+
+    var refineBackdrop = document.createElement("div");
+    refineBackdrop.id = "refine-error-backdrop";
+    refineBackdrop.className = "reader-modal-backdrop";
+    var refineModal = document.createElement("div");
+    refineModal.id = "refine-error-modal";
+    refineModal.className = "reader-modal";
+    refineModal.innerHTML = `
+      <div class="reader-modal-header">
+        <div>
+          <div class="hero-eyebrow">Error refinement</div>
+          <div class="reader-modal-title" id="refine-error-title">Refine this error</div>
+        </div>
+        <button class="reader-modal-close" id="refine-error-close" aria-label="Close refinement">x</button>
+      </div>
+      <div class="reader-modal-body" id="refine-error-body"></div>
+    `;
+    document.body.appendChild(refineBackdrop);
+    document.body.appendChild(refineModal);
+
+    function closeSchemaModal() {
+      schemaModal.classList.remove("open");
+      schemaBackdrop.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+
+    function closeTrendDetail() {
+      trendDetailModal.classList.remove("open");
+      trendDetailBackdrop.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+
+    function closeRefineErrorModal() {
+      refineModal.classList.remove("open");
+      refineBackdrop.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+    window.closeRefineErrorModal = closeRefineErrorModal;
+
+    window.openRefineErrorModal = function (payload) {
+      var parsedPayload = payload;
+      while (typeof parsedPayload === "string") {
+        try { parsedPayload = JSON.parse(parsedPayload); } catch (err) { parsedPayload = {}; break; }
+      }
+      var body = document.getElementById("refine-error-body");
+      var title = document.getElementById("refine-error-title");
+      if (!body || !title) return;
+      title.textContent = "Refine this error";
+      body.innerHTML = `
+        <div class="refine-help">Convert a raw validator issue into a reusable translation-library entry. This will keep future findings more human-readable and easier to triage.</div>
+        <div class="refine-grid">
+          <div class="refine-grid-2">
+            <div class="lib-form-row"><div class="lib-form-label">Entity Type</div><input class="lib-form-input" id="refine-entity-type" value="${escHtml(parsedPayload.entityType || 'All')}" /></div>
+            <div class="lib-form-row"><div class="lib-form-label">Field</div><input class="lib-form-input" id="refine-field" value="${escHtml(parsedPayload.field || '')}" /></div>
+          </div>
+          <div class="refine-grid-2">
+            <div class="lib-form-row"><div class="lib-form-label">Match Type</div><select class="lib-form-select" id="refine-match-type">${MATCH_TYPES.map(function(m){ return '<option' + ((parsedPayload.matchType || 'contains') === m ? ' selected' : '') + '>' + m + '</option>'; }).join('')}</select></div>
+            <div class="lib-form-row"><div class="lib-form-label">Match Value</div><input class="lib-form-input" id="refine-match-value" value="${escHtml(parsedPayload.matchValue || '')}" placeholder="Leave blank for field_name" /></div>
+          </div>
+          <div class="refine-grid-2">
+            <div class="lib-form-row"><div class="lib-form-label">Fix Owner</div><select class="lib-form-select" id="refine-fix-owner">${FIX_OWNERS.map(function(o){ return '<option' + ((parsedPayload.fixOwner || 'Odyssey') === o ? ' selected' : '') + '>' + o + '</option>'; }).join('')}</select></div>
+            <div class="lib-form-row"><div class="lib-form-label">Trust Status</div><select class="lib-form-select" id="refine-trust-status">${TRUST_STATUSES.map(function(t){ return '<option' + ((parsedPayload.trustStatus || 'draft') === t ? ' selected' : '') + '>' + t + '</option>'; }).join('')}</select></div>
+          </div>
+          <div class="lib-form-row"><div class="lib-form-label">Technical Error</div><textarea class="lib-form-textarea" id="refine-technical" readonly>${escHtml(parsedPayload.message || '')}</textarea></div>
+          <div class="lib-form-row"><div class="lib-form-label">Plain-English Translation</div><textarea class="lib-form-textarea" id="refine-translation">${escHtml(parsedPayload.translation || '')}</textarea></div>
+          <div class="lib-form-row"><div class="lib-form-label">Recommended Action</div><textarea class="lib-form-textarea" id="refine-action">${escHtml(parsedPayload.action || '')}</textarea></div>
+          <div class="refine-grid-2">
+            <div class="lib-form-row"><div class="lib-form-label">Reference</div><input class="lib-form-input" id="refine-ref" value="${escHtml(parsedPayload.ref || '')}" /></div>
+            <div class="lib-form-row"><div class="lib-form-label">Notes</div><input class="lib-form-input" id="refine-notes" value="${escHtml(parsedPayload.notes || '')}" placeholder="Optional review notes" /></div>
+          </div>
+          <div class="lib-entry-actions">
+            <button class="lib-save-btn" type="button" onclick="saveRefinedError()">Save to library</button>
+            <button class="lib-delete-btn" type="button" onclick="closeRefineErrorModal()">Cancel</button>
+          </div>
+        </div>
+      `;
+      refineModal.classList.add("open");
+      refineBackdrop.classList.add("open");
+      document.body.style.overflow = "hidden";
+    };
+
+    window.saveRefinedError = function () {
+      var entries = loadLibrary();
+      entries.push({
+        id: generateLibId(),
+        entityType: (document.getElementById("refine-entity-type").value || 'All').trim() || 'All',
+        field: (document.getElementById("refine-field").value || '').trim(),
+        matchType: document.getElementById("refine-match-type").value,
+        matchValue: (document.getElementById("refine-match-value").value || '').trim(),
+        translation: (document.getElementById("refine-translation").value || '').trim(),
+        fixOwner: document.getElementById("refine-fix-owner").value,
+        action: (document.getElementById("refine-action").value || '').trim(),
+        ref: (document.getElementById("refine-ref").value || '').trim(),
+        trustStatus: document.getElementById("refine-trust-status").value,
+        notes: (document.getElementById("refine-notes").value || '').trim()
+      });
+      saveLibrary(entries);
+      try { renderLibrary(); } catch (err) {}
+      closeRefineErrorModal();
+    };
+
+    function schemaVersionForEntity(entityType, market) {
+      var overrides = (typeof schemaOverrides !== "undefined" && schemaOverrides[market]) ? schemaOverrides[market] : {};
+      if (overrides[entityType]) {
+        return (overrides[entityType].version && overrides[entityType].version.const) || "custom";
+      }
+      if (market === "IL") return "v3.1.0";
+      return (typeof VALID_V3 !== "undefined" && VALID_V3.includes(entityType)) ? "v3.0.0" : "v0.1";
+    }
+
+    function schemaObjectForEntity(entityType, market) {
+      var overrides = (typeof schemaOverrides !== "undefined" && schemaOverrides[market]) ? schemaOverrides[market] : {};
+      if (overrides[entityType]) return overrides[entityType];
+      if (market === "IL" && typeof IL_ENTITY_RULES !== "undefined") return IL_ENTITY_RULES[entityType] || null;
+      if (typeof ENTITY_RULES !== "undefined") return ENTITY_RULES[entityType] || null;
+      return null;
+    }
+
+    function schemaFieldRowsForEntity(entityType, market) {
+      var schemaObject = schemaObjectForEntity(entityType, market) || {};
+      var allowedFields = (typeof ALLOWED_FIELDS !== "undefined" && ALLOWED_FIELDS[entityType]) ? Array.from(ALLOWED_FIELDS[entityType]) : [];
+      var rules = schemaObject;
+      var requiredSet = new Set();
+      var rows = [];
+
+      if (schemaObject && Array.isArray(schemaObject.required)) {
+        schemaObject.required.forEach(function (field) { requiredSet.add(field); });
+      } else if (schemaObject && schemaObject.required && typeof schemaObject.required.forEach === "function") {
+        schemaObject.required.forEach(function (field) { requiredSet.add(field); });
+      }
+
+      function normalizeType(def, field) {
+        if (!def) {
+          if (rules.numOrNull && rules.numOrNull.includes(field)) return "number | null";
+          if (rules.dateFields && rules.dateFields.includes(field)) return "date string";
+          if (rules.enums && rules.enums[field]) return "string enum";
+          return "contract field";
+        }
+        if (Array.isArray(def.type)) return def.type.join(" | ");
+        if (def.type) return String(def.type);
+        if (Array.isArray(def.enum) && def.enum.length) return typeof def.enum[0] === "number" ? "number enum" : "string enum";
+        if (Array.isArray(def.anyOf) && def.anyOf.length) {
+          return def.anyOf.map(function (entry) { return entry.type || "value"; }).filter(Boolean).join(" | ");
+        }
+        if (Array.isArray(def.oneOf) && def.oneOf.length) {
+          return def.oneOf.map(function (entry) { return entry.type || "value"; }).filter(Boolean).join(" | ");
+        }
+        return "contract field";
+      }
+
+      function buildConstraintBits(field, def) {
+        var bits = [];
+        var enumValues = def && Array.isArray(def.enum) ? def.enum : ((rules.enums && rules.enums[field]) || null);
+        if (enumValues && enumValues.length) bits.push("Enum (" + enumValues.length + " values)");
+        if (rules.numOrNull && rules.numOrNull.includes(field)) bits.push("Number or null");
+        if (rules.dateFields && rules.dateFields.includes(field)) bits.push("Date field");
+        if (def && def.format) bits.push("Format: " + def.format);
+        if (def && typeof def.maxLength === "number") bits.push("Max length " + def.maxLength);
+        if (def && typeof def.minLength === "number") bits.push("Min length " + def.minLength);
+        return bits;
+      }
+
+      function buildNotes(field, def) {
+        var enumValues = def && Array.isArray(def.enum) ? def.enum : ((rules.enums && rules.enums[field]) || null);
+        if (enumValues && enumValues.length) {
+          return enumValues.slice(0, 5).join(", ") + (enumValues.length > 5 ? " +" + (enumValues.length - 5) + " more" : "");
+        }
+        if (def && def.description) return def.description;
+        if (rules.badFields && rules.badFields[field]) return "Preferred field: " + rules.badFields[field];
+        if (rules.refs && rules.refs[field]) return "Reference: " + rules.refs[field];
+        return "No additional notes";
+      }
+
+      if (schemaObject && schemaObject.properties && typeof schemaObject.properties === "object") {
+        Object.keys(schemaObject.properties).sort().forEach(function (field) {
+          var def = schemaObject.properties[field] || {};
+          rows.push({
+            field: field,
+            type: normalizeType(def, field),
+            required: requiredSet.has(field),
+            constraints: buildConstraintBits(field, def),
+            note: buildNotes(field, def)
+          });
+        });
+        return {
+          rows: rows,
+          source: "Full schema properties"
+        };
+      }
+
+      var fields = Array.from(new Set([]
+        .concat(allowedFields)
+        .concat(rules.enums ? Object.keys(rules.enums) : [])
+        .concat(rules.numOrNull || [])
+        .concat(rules.dateFields || [])
+        .concat(Array.from(requiredSet))
+      )).sort();
+
+      fields.forEach(function (field) {
+        rows.push({
+          field: field,
+          type: normalizeType(null, field),
+          required: requiredSet.has(field),
+          constraints: buildConstraintBits(field, null),
+          note: buildNotes(field, null)
+        });
+      });
+
+      return {
+        rows: rows,
+        source: allowedFields.length ? "Built-in contract rules + field inventory" : "Built-in contract rules"
+      };
+    }
+
+    function buildSchemaSpreadsheet(entityType, market) {
+      var schemaSheet = schemaFieldRowsForEntity(entityType, market);
+      if (!schemaSheet.rows.length) {
+        return `
+          <div class="schema-review-matrix">
+            <div class="schema-review-matrix-header">
+              <div class="schema-review-matrix-title">Field schema guide</div>
+              <div class="schema-review-matrix-copy">No spreadsheet-style field data is available for this entity in the current file.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      var body = schemaSheet.rows.map(function (row) {
+        var constraintMarkup = row.constraints.length
+          ? `<div class="schema-review-constraint">${row.constraints.map(function (item) { return `<span class="schema-review-chip">${item}</span>`; }).join("")}</div>`
+          : `<span class="schema-review-note">No special constraints</span>`;
+
+        return `
+          <tr>
+            <td><div class="schema-review-field">${row.field}</div></td>
+            <td><div class="schema-review-type">${row.type}</div></td>
+            <td><span class="schema-review-required ${row.required ? "yes" : "no"}">${row.required ? "Required" : "Optional"}</span></td>
+            <td>${constraintMarkup}</td>
+            <td><div class="schema-review-note">${row.note}</div></td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <div class="schema-review-matrix">
+          <div class="schema-review-matrix-header">
+            <div class="schema-review-matrix-title">Field schema guide</div>
+            <div class="schema-review-matrix-copy">${schemaSheet.rows.length} fields from ${schemaSheet.source}</div>
+          </div>
+          <div class="schema-review-table-wrap">
+            <table class="schema-review-table">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Expected type</th>
+                  <th>Required</th>
+                  <th>Constraints</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function buildSchemaModalMarkup() {
+      var parsed = (typeof _lastValidationParsed !== "undefined" && _lastValidationParsed) ? _lastValidationParsed : null;
+      var market = parsed && parsed.market ? parsed.market : ((stateSelect && stateSelect.value) || "TX");
+      var eventType = parsed && parsed.eventType ? parsed.eventType : "No event selected";
+      var payloadEntities = parsed && parsed.entities
+        ? Array.from(new Set(parsed.entities.map(function (entity) { return entity.entityType; }).filter(Boolean)))
+        : [];
+      var marketSchemas = market === "IL"
+        ? ((typeof IL_VALID_ENTITY_TYPES !== "undefined") ? IL_VALID_ENTITY_TYPES.slice() : [])
+        : ((typeof ALL_VALID !== "undefined") ? ALL_VALID.slice() : []);
+      var rows = (payloadEntities.length ? payloadEntities : marketSchemas).map(function (entityType) {
+        var overrides = (typeof schemaOverrides !== "undefined" && schemaOverrides[market]) ? schemaOverrides[market] : {};
+        var isUploaded = !!overrides[entityType];
+        var inPayload = payloadEntities.includes(entityType);
+        var version = schemaVersionForEntity(entityType, market);
+        var sourceLabel = isUploaded ? "Uploaded override" : "Built-in";
+        var payloadLabel = inPayload ? `<span class="schema-review-badge payload">In current payload</span>` : "";
+        var schemaObject = schemaObjectForEntity(entityType, market);
+        var schemaJson = schemaObject ? JSON.stringify(schemaObject, null, 2) : "Schema not available for this entity type.";
+        return `
+          <div class="schema-review-block">
+            <div class="schema-review-row-top">
+              <div class="schema-review-entity">${entityType}</div>
+              <div class="schema-review-badges">
+                ${payloadLabel}
+                <span class="schema-review-badge ${isUploaded ? "uploaded" : "builtin"}">${sourceLabel}</span>
+                <span class="schema-review-badge builtin">${version}</span>
+              </div>
+            </div>
+            <div class="schema-review-block-copy">
+              ${inPayload
+                ? "This entity type is active in the currently loaded payload and is part of the validation run in focus."
+                : "This schema is currently available for the selected market, even if it is not present in the active payload."}
+            </div>
+            ${buildSchemaSpreadsheet(entityType, market)}
+            <details class="schema-review-toggle">
+              <summary>
+                <span class="schema-review-toggle-title">
+                  <span class="schema-review-toggle-label">Full schema</span>
+                  <span class="schema-review-toggle-copy">Open the full contract only when you need the raw structure.</span>
+                </span>
+                <span class="schema-review-toggle-action"></span>
+              </summary>
+              <div class="schema-review-json">
+              <div class="schema-review-json-header">
+                <span class="schema-review-json-label">Raw schema JSON</span>
+                <span class="schema-review-json-meta">${sourceLabel} · ${version}</span>
+              </div>
+              <pre class="schema-review-pre">${schemaJson.replace(/[&<>]/g, function (char) {
+                return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char];
+              })}</pre>
+              </div>
+            </details>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div class="schema-review-shell">
+          <div class="schema-review-summary">
+            <div class="schema-review-stat">
+              <div class="schema-review-stat-label">Event type</div>
+              <div class="schema-review-stat-value">${eventType}</div>
+            </div>
+            <div class="schema-review-stat">
+              <div class="schema-review-stat-label">Market</div>
+              <div class="schema-review-stat-value">${market}</div>
+            </div>
+            <div class="schema-review-stat">
+              <div class="schema-review-stat-label">Schema focus</div>
+              <div class="schema-review-stat-value">${payloadEntities.length ? payloadEntities.length + " entity types in this payload" : "All active schemas for this market"}</div>
+            </div>
+          </div>
+          <div class="schema-review-copy">
+            ${payloadEntities.length
+              ? "These are the active entity schemas CATCH used for the current validation run. Uploaded overrides are surfaced alongside built-in contracts."
+              : "Run a validation to narrow this view to the specific entity schemas used by the current event type. Until then, this view shows the active schema inventory for the selected market."}
+          </div>
+          <div class="schema-review-grid">${rows}</div>
+        </div>
+      `;
+    }
+
+    function openSchemaModal() {
+      var title = document.getElementById("schema-modal-title");
+      var body = document.getElementById("schema-modal-body");
+      if (title) title.textContent = "Current event schema";
+      if (body) body.innerHTML = buildSchemaModalMarkup();
+      schemaModal.classList.add("open");
+      schemaBackdrop.classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+
+    var schemaClose = document.getElementById("schema-modal-close");
+    if (schemaClose) schemaClose.addEventListener("click", closeSchemaModal);
+    schemaBackdrop.addEventListener("click", closeSchemaModal);
+    var trendDetailClose = document.getElementById("trend-detail-close");
+    if (trendDetailClose) trendDetailClose.addEventListener("click", closeTrendDetail);
+    trendDetailBackdrop.addEventListener("click", closeTrendDetail);
+    var refineClose = document.getElementById("refine-error-close");
+    if (refineClose) refineClose.addEventListener("click", closeRefineErrorModal);
+    refineBackdrop.addEventListener("click", closeRefineErrorModal);
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") closeSchemaModal();
+      if (event.key === "Escape") closeTrendDetail();
+      if (event.key === "Escape") closeRefineErrorModal();
+    });
+
+    var eventCard = document.getElementById("hero-event-type");
+    if (eventCard && eventCard.closest(".hero-stat-card")) {
+      var eventCardContainer = eventCard.closest(".hero-stat-card");
+      eventCardContainer.classList.add("clickable-card");
+      eventCardContainer.setAttribute("tabindex", "0");
+      var eventCardCopy = eventCardContainer.querySelector(".hero-stat-copy");
+      if (eventCardCopy) eventCardCopy.textContent = "Click to review the active schemas behind this event type.";
+      eventCardContainer.addEventListener("click", openSchemaModal);
+      eventCardContainer.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openSchemaModal();
+        }
+      });
+    }
+
+    var tabs = document.querySelectorAll(".tab");
+    if (tabs[0]) tabs[0].textContent = "Validate + Translate";
+    if (tabs[2]) tabs[2].childNodes[0].textContent = "History";
+    if (tabs[3]) tabs[3].childNodes[0].textContent = "Trends";
+    if (tabs[4]) tabs[4].style.display = "none";
+    if (tabs[5]) tabs[5].style.display = "none";
+
+    var runBtn = document.getElementById("run-btn");
+    if (runBtn) {
+      runBtn.textContent = "Run Validation";
+    }
+
+    var copyBtn = document.getElementById("copy-results-btn");
+    if (copyBtn) {
+      copyBtn.textContent = "Copy Findings";
+    }
+
+    var paneLabels = document.querySelectorAll(".pane-label");
+    if (paneLabels[0]) paneLabels[0].textContent = "Payload input";
+    if (paneLabels[1]) paneLabels[1].textContent = "Validation findings";
+
+    var historyPanel = document.getElementById("panel-history");
+    if (historyPanel && !document.getElementById("history-feed-intro")) {
+      var historyIntro = document.createElement("div");
+      historyIntro.id = "history-feed-intro";
+      historyIntro.className = "hero-card";
+      historyIntro.style.padding = "18px 20px";
+      historyIntro.style.marginBottom = "14px";
+      historyIntro.innerHTML = `
+        <div class="hero-eyebrow">Run history</div>
+        <div class="hero-title" style="font-size:22px;">Review previous validation sessions as a feed</div>
+        <div class="hero-copy" style="font-size:13px;max-width:none;">
+          Each run is presented as a readable activity card so teams can revisit what failed, when it happened, and what remediation guidance was surfaced.
+        </div>
+      `;
+      historyPanel.insertBefore(historyIntro, historyPanel.firstChild);
+    }
+
+    var historyExplainer = historyPanel ? historyPanel.querySelector('div[style*="max-width:900px"]') : null;
+    if (historyExplainer) {
+      historyExplainer.innerHTML = 'Every validation run saved in this session — one card per envelope, showing which entities failed and why. Use this to debug a specific submission. For a cross-run summary of recurring issues, see the <span style="color:var(--text2);cursor:pointer;text-decoration:underline;" onclick="switchTab(\'assoc\')">Trends</span>. Export runs individually or in bulk using the buttons above.';
+    }
+
+    var historyPrimaryToolbar = historyPanel ? historyPanel.querySelector(".history-toolbar-primary") : null;
+    if (historyPrimaryToolbar && !historyPrimaryToolbar.getAttribute("data-modernized")) {
+      var exportWorkbookBtn = historyPrimaryToolbar.querySelector('button[onclick="exportCSV()"]');
+      var exportJsonBtn = historyPrimaryToolbar.querySelector('button[onclick="exportJSON()"]');
+      var healthBtn = historyPrimaryToolbar.querySelector('button[onclick="exportELTReport()"]');
+      var backupBtn = historyPrimaryToolbar.querySelector('button[onclick="saveAllHistory()"]');
+      var restoreBtn = historyPrimaryToolbar.querySelector('button[onclick*="import-input"]');
+      var clearBtn = historyPrimaryToolbar.querySelector('button[onclick="clearHistory()"]');
+      var existingActions = historyPrimaryToolbar.querySelector(".history-actions");
+
+      if (existingActions && exportWorkbookBtn && exportJsonBtn && healthBtn && backupBtn && restoreBtn && clearBtn) {
+        existingActions.innerHTML = "";
+
+        exportWorkbookBtn.textContent = "Workbook";
+        exportJsonBtn.textContent = "JSON";
+        healthBtn.textContent = "Health Report";
+        healthBtn.classList.add("history-health-btn");
+        healthBtn.removeAttribute("style");
+
+        backupBtn.textContent = "Backup";
+        restoreBtn.textContent = "Restore";
+        clearBtn.textContent = "Clear";
+
+        var exportCluster = document.createElement("div");
+        exportCluster.className = "history-action-cluster";
+        exportCluster.innerHTML = `<span class="history-action-label">Exports</span>`;
+        exportCluster.appendChild(exportWorkbookBtn);
+        exportCluster.appendChild(exportJsonBtn);
+        exportCluster.appendChild(healthBtn);
+
+        var backupCluster = document.createElement("div");
+        backupCluster.className = "history-action-cluster";
+        backupCluster.innerHTML = `<span class="history-action-label">Browser backup</span>`;
+        backupCluster.appendChild(backupBtn);
+        backupCluster.appendChild(restoreBtn);
+        backupCluster.appendChild(clearBtn);
+
+        existingActions.appendChild(exportCluster);
+        existingActions.appendChild(backupCluster);
+        historyPrimaryToolbar.setAttribute("data-modernized", "true");
+      }
+    }
+
+    var trendsPanel = document.getElementById("panel-assoc");
+    if (trendsPanel && !document.getElementById("trends-hero")) {
+      var trendsHero = document.createElement("section");
+      trendsHero.id = "trends-hero";
+      trendsHero.className = "trends-hero";
+      trendsHero.innerHTML = `
+        <article class="trends-card">
+          <div class="hero-eyebrow">Issue trends</div>
+          <div class="trends-title">Recurring validation patterns</div>
+          <div class="trends-copy">
+            Use this view to spot what is repeating and where upstream fixes will have the biggest payoff.
+          </div>
+        </article>
+        <div class="trends-mini-grid">
+          <article class="trends-mini">
+            <span class="trends-mini-label">Trend health score</span>
+            <span class="trends-mini-value" id="trends-health-score">100</span>
+            <span class="trends-mini-copy" id="trends-health-copy">A lightweight internal score that drops as recurring issue volume concentrates across history.</span>
+          </article>
+          <article class="trends-mini">
+            <span class="trends-mini-label">Current posture</span>
+            <span class="trends-mini-value" id="trends-health-posture">Healthy</span>
+            <span class="trends-mini-copy" id="trends-health-posture-copy">Use the spotlight cards and row details below to decide what should be fixed upstream first.</span>
+          </article>
+        </div>
+      `;
+      trendsPanel.insertBefore(trendsHero, trendsPanel.firstChild);
+    }
+
+    var trendsHeaderBar = trendsPanel ? trendsPanel.querySelector('div[style*="border-bottom:1px solid"]') : null;
+    if (trendsHeaderBar) {
+      var headerSpans = trendsHeaderBar.querySelectorAll("span");
+      if (headerSpans[0]) {
+        headerSpans[0].remove();
+      }
+      if (headerSpans[1]) headerSpans[1].remove();
+
+      trendsHeaderBar.style.display = "none";
+    }
+
+    if (trendsPanel && !document.getElementById("trends-spotlights")) {
+      var trendsSpotlights = document.createElement("section");
+      trendsSpotlights.id = "trends-spotlights";
+      trendsSpotlights.className = "trends-spotlights";
+      trendsSpotlights.innerHTML = `
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Top repeated field</span>
+          <span class="trends-spotlight-value" id="trends-top-field">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-field-copy">Run validations to surface which field repeats most across submissions.</span>
+        </article>
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Top publisher cluster</span>
+          <span class="trends-spotlight-value" id="trends-top-publisher">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-publisher-copy">This spot helps teams see where repeated issue volume is accumulating.</span>
+        </article>
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Top error category</span>
+          <span class="trends-spotlight-value" id="trends-top-category">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-category-copy">Use this to decide whether you are dealing with completeness, enum, or type quality problems.</span>
+        </article>
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Most affected entity</span>
+          <span class="trends-spotlight-value" id="trends-top-entity">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-entity-copy">High concentration here usually points to the best upstream cleanup opportunity.</span>
+        </article>
+      `;
+      trendsPanel.appendChild(trendsSpotlights);
+    }
+
+    var trendsStats = document.getElementById("catalog-stats");
+    if (trendsStats && !document.getElementById("trends-overview")) {
+      trendsStats.removeAttribute("style");
+      trendsStats.className = "trends-kpi-grid";
+
+      var trendsOverview = document.createElement("section");
+      trendsOverview.id = "trends-overview";
+      trendsOverview.className = "trends-overview";
+      trendsOverview.innerHTML = `
+        <div class="trends-overview-top">
+          <div class="trends-kpi-panel">
+            <div class="hero-eyebrow">Trend signals</div>
+            <div id="trends-kpi-host"></div>
+          </div>
+          <article class="trends-chart-card">
+            <div class="trends-chart-header">
+              <div>
+                <div class="trends-chart-title">Trend mix</div>
+                <div class="trends-chart-copy">A quick visual split of recurring issue categories across your current Trends view.</div>
+              </div>
+            </div>
+            <div class="trends-chart-shell">
+              <div class="trends-pie" id="trends-pie">
+                <div class="trends-pie-center">
+                  <div class="trends-pie-value" id="trends-pie-total">0</div>
+                  <div class="trends-pie-label">Occurrences</div>
+                </div>
+              </div>
+              <div class="trends-legend" id="trends-legend"></div>
+            </div>
+          </article>
+        </div>
+      `;
+      var trendsTableShellExisting = trendsPanel.querySelector(".trends-table-shell");
+      trendsPanel.insertBefore(trendsOverview, trendsTableShellExisting || trendsPanel.lastChild);
+      var kpiHost = document.getElementById("trends-kpi-host");
+      if (kpiHost) kpiHost.appendChild(trendsStats);
+    }
+
+    var trendsOverviewBlock = document.getElementById("trends-overview");
+    var trendsSpotlightsBlock = document.getElementById("trends-spotlights");
+    var trendsKpiHost = document.getElementById("trends-kpi-host");
+    var trendsChartCard = trendsOverviewBlock ? trendsOverviewBlock.querySelector(".trends-chart-card") : null;
+    if (trendsOverviewBlock && trendsSpotlightsBlock && trendsKpiHost && trendsChartCard && !document.getElementById("trends-secondary-row")) {
+      var secondaryRow = document.createElement("div");
+      secondaryRow.id = "trends-secondary-row";
+      secondaryRow.className = "trends-secondary-row";
+
+      var signalsCard = document.createElement("section");
+      signalsCard.className = "trends-compact-card";
+      signalsCard.innerHTML = `<div class="hero-eyebrow">Trend signals</div>`;
+      signalsCard.appendChild(trendsKpiHost);
+
+      trendsChartCard.classList.add("trends-compact-card");
+
+      secondaryRow.appendChild(signalsCard);
+      secondaryRow.appendChild(trendsChartCard);
+      trendsOverviewBlock.appendChild(secondaryRow);
+    }
+
+    window.updateTrendsSpotlights = function () {
+      var trendsHealthScore = document.getElementById("trends-health-score");
+      var trendsHealthCopy = document.getElementById("trends-health-copy");
+      var trendsHealthPosture = document.getElementById("trends-health-posture");
+      var trendsHealthPostureCopy = document.getElementById("trends-health-posture-copy");
+      var topField = document.getElementById("trends-top-field");
+      var topFieldCopy = document.getElementById("trends-top-field-copy");
+      var topPublisher = document.getElementById("trends-top-publisher");
+      var topPublisherCopy = document.getElementById("trends-top-publisher-copy");
+      var topCategory = document.getElementById("trends-top-category");
+      var topCategoryCopy = document.getElementById("trends-top-category-copy");
+      var topEntity = document.getElementById("trends-top-entity");
+      var topEntityCopy = document.getElementById("trends-top-entity-copy");
+      var trendsPie = document.getElementById("trends-pie");
+      var trendsPieTotal = document.getElementById("trends-pie-total");
+      var trendsLegend = document.getElementById("trends-legend");
+      if (!topField || !topPublisher || !topCategory || !topEntity) return;
+
+      var activeData = Array.isArray(_catalogFiltered) ? _catalogFiltered : [];
+      var hasTrendFilters = !!((document.getElementById("catalog-search") && document.getElementById("catalog-search").value) ||
+        (document.getElementById("catalog-market-filter") && document.getElementById("catalog-market-filter").value));
+      var sourceData = hasTrendFilters ? activeData : _catalogData;
+
+      if (!sourceData || !sourceData.length) {
+        if (trendsHealthScore) trendsHealthScore.textContent = "100";
+        if (trendsHealthCopy) trendsHealthCopy.textContent = "A lightweight internal score that drops as recurring issue volume concentrates across history.";
+        if (trendsHealthPosture) trendsHealthPosture.textContent = "Healthy";
+        if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = "Use the spotlight cards and row details below to decide what should be fixed upstream first.";
+        topField.textContent = "Awaiting history";
+        topPublisher.textContent = "Awaiting history";
+        topCategory.textContent = "Awaiting history";
+        topEntity.textContent = "Awaiting history";
+        if (topFieldCopy) topFieldCopy.textContent = "Run validations to surface which field repeats most across submissions.";
+        if (topPublisherCopy) topPublisherCopy.textContent = "This spot helps teams see where repeated issue volume is accumulating.";
+        if (topCategoryCopy) topCategoryCopy.textContent = "Use this to decide whether you are dealing with completeness, enum, or type quality problems.";
+        if (topEntityCopy) topEntityCopy.textContent = "High concentration here usually points to the best upstream cleanup opportunity.";
+        if (trendsPie) trendsPie.style.background = "conic-gradient(#dbe3ef 0deg 360deg)";
+        if (trendsPieTotal) trendsPieTotal.textContent = "0";
+        if (trendsLegend) trendsLegend.innerHTML = '<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:#dbe3ef"></span>No trend data yet</span><span class="trends-legend-value">0%</span></div>';
+        return;
+      }
+
+      var byPublisher = {};
+      var byCategory = {};
+      var byEntity = {};
+      var totalOccurrences = 0;
+      sourceData.forEach(function (entry) {
+        totalOccurrences += entry.count || 0;
+        (entry.publishers || []).forEach(function (publisher) {
+          byPublisher[publisher] = (byPublisher[publisher] || 0) + entry.count;
+        });
+        byCategory[entry.errorCategory] = (byCategory[entry.errorCategory] || 0) + entry.count;
+        (entry.entityTypes || [entry.entityType]).forEach(function (entityType) {
+          if (!entityType) return;
+          byEntity[entityType] = (byEntity[entityType] || 0) + entry.count;
+        });
+      });
+
+      var topFieldEntry = sourceData[0];
+      var topPublisherEntry = Object.entries(byPublisher).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var topCategoryEntry = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var topEntityEntry = Object.entries(byEntity).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var scorePenalty = Math.min(45, Math.floor(totalOccurrences / 8)) + Math.min(20, sourceData.length * 3);
+      var healthScore = Math.max(18, 100 - scorePenalty);
+      var posture = healthScore >= 80 ? "Healthy" : healthScore >= 60 ? "Watch" : healthScore >= 40 ? "Needs attention" : "At risk";
+
+      if (trendsHealthScore) trendsHealthScore.textContent = String(healthScore);
+      if (trendsHealthCopy) trendsHealthCopy.textContent = totalOccurrences + " recurring issue occurrences across " + sourceData.length + " distinct trends are influencing this score.";
+      if (trendsHealthPosture) trendsHealthPosture.textContent = posture;
+      if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = (topCategoryEntry ? topCategoryEntry[0] : "Recurring issues") + " is currently the strongest pressure point in history.";
+
+      topField.textContent = topFieldEntry ? topFieldEntry.field : "None yet";
+      topPublisher.textContent = topPublisherEntry ? topPublisherEntry[0] : "None yet";
+      topCategory.textContent = topCategoryEntry ? topCategoryEntry[0] : "None yet";
+      topEntity.textContent = topEntityEntry ? topEntityEntry[0] : "None yet";
+
+      if (topFieldCopy && topFieldEntry) topFieldCopy.textContent = topFieldEntry.count + " recurring issues across " + (topFieldEntry.envelopeIds ? topFieldEntry.envelopeIds.length : 0) + " envelopes.";
+      if (topPublisherCopy && topPublisherEntry) topPublisherCopy.textContent = topPublisherEntry[1] + " issue occurrences tied to this publisher across stored history.";
+      if (topCategoryCopy && topCategoryEntry) topCategoryCopy.textContent = topCategoryEntry[1] + " occurrences currently roll up into this category.";
+      if (topEntityCopy && topEntityEntry) topEntityCopy.textContent = topEntityEntry[1] + " issue occurrences currently map to this entity type.";
+
+      var palette = {
+        "Missing Field": "#d96b15",
+        "Enum / Invalid Value": "#2d5e78",
+        "Type Error": "#c44536",
+        "Extra Field": "#7b5cff",
+        "Wrong Field Name": "#1d6b7d",
+        "Invalid Entity Type": "#7f5539",
+        "Other": "#8d99ae"
+      };
+      var orderedCategories = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; });
+      var angle = 0;
+      var gradientParts = [];
+      var legendHtml = [];
+      orderedCategories.forEach(function (entry) {
+        var label = entry[0];
+        var value = entry[1];
+        var slice = totalOccurrences ? (value / totalOccurrences) * 360 : 0;
+        var nextAngle = angle + slice;
+        var color = palette[label] || palette.Other;
+        gradientParts.push(color + " " + angle + "deg " + nextAngle + "deg");
+        legendHtml.push('<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:' + color + '"></span>' + escHtml(label) + '</span><span class="trends-legend-value">' + Math.round((value / totalOccurrences) * 100) + '%</span></div>');
+        angle = nextAngle;
+      });
+      if (trendsPie) trendsPie.style.background = "conic-gradient(" + gradientParts.join(", ") + ")";
+      if (trendsPieTotal) trendsPieTotal.textContent = String(totalOccurrences);
+      if (trendsLegend) trendsLegend.innerHTML = legendHtml.join("");
+    };
+
+    var catalogContainer = document.getElementById("catalog-table-container");
+    if (catalogContainer && !catalogContainer.parentElement.classList.contains("trends-table-shell")) {
+      var tableShell = document.createElement("div");
+      tableShell.className = "trends-table-shell";
+      catalogContainer.parentNode.insertBefore(tableShell, catalogContainer);
+      tableShell.appendChild(catalogContainer);
+    }
+
+    var trendsSpotlightsPanel = document.getElementById("trends-spotlights");
+    var trendsTableShell = trendsPanel ? trendsPanel.querySelector(".trends-table-shell") : null;
+    if (trendsPanel && trendsSpotlightsPanel && trendsTableShell) {
+      trendsPanel.insertBefore(trendsSpotlightsPanel, trendsTableShell);
+    }
+
+    var paneHeaders = document.querySelectorAll(".pane-header");
+    if (paneHeaders[0] && !paneHeaders[0].querySelector(".hero-eyebrow")) {
+      paneHeaders[0].style.padding = "16px 18px";
+    }
+    if (paneHeaders[1]) {
+      paneHeaders[1].style.padding = "16px 18px";
+    }
+
+    var summaryBar = document.getElementById("summary-bar");
+    if (summaryBar) {
+      summaryBar.setAttribute("data-modernized", "true");
+    }
+
+    stateSelect = document.getElementById("state-select");
+    if (stateSelect) {
+      stateSelect.style.minWidth = "180px";
+    }
+
+    var settingsTitles = document.querySelectorAll(".settings-section-title");
+    settingsTitles.forEach(function (node) {
+      if (node.textContent.indexOf("Error Library") !== -1) {
+        node.textContent = "Error Translation Library";
+      }
+    });
+
+    var settingsTitle = document.querySelector(".settings-title");
+    if (settingsTitle) {
+      settingsTitle.textContent = "Workspace Settings";
+    }
+
+    if (typeof window.onStateChange === "function" && !window.__modernStateWrapped) {
+      var originalOnStateChange = window.onStateChange;
+      window.onStateChange = function () {
+        originalOnStateChange();
+        var select = document.getElementById("state-select");
+        var heroMarket = null;
+        var heroMarketCode = document.getElementById("hero-market-code");
+        var heroMarketName = document.getElementById("hero-market-name");
+        if (select && heroMarket) {
+          var label = select.options[select.selectedIndex].dataset.label || select.value;
+          heroMarket.textContent = label.replace(/·/g, "").replace(/\s{2,}/g, " ").trim();
+        }
+        if (select && heroMarketCode && heroMarketName) {
+          var marketLabel = (select.options[select.selectedIndex].dataset.label || select.value).replace(/Â·/g, "").replace(/\s{2,}/g, " ").trim();
+          marketLabel = marketLabel.replace(/[^A-Za-z0-9 ]/g, " ").replace(/\s{2,}/g, " ").trim();
+          var parts = marketLabel.split(" ");
+          heroMarketCode.textContent = parts[0] || select.value;
+          heroMarketName.textContent = parts.slice(1).join(" ") || "Active market";
+        }
+      };
+      window.__modernStateWrapped = true;
+    }
+
+    if (typeof window.onStateChange === "function") {
+      window.onStateChange();
+    }
+
+    if (typeof window.updateTrendsSpotlights === "function") {
+      window.updateTrendsSpotlights();
+    }
+
+    function enableScrollHandoff(element) {
+      if (!element || element.getAttribute("data-scroll-handoff") === "true") return;
+      element.addEventListener("wheel", function (event) {
+        var delta = event.deltaY;
+        if (!delta) return;
+        var atTop = element.scrollTop <= 0;
+        var atBottom = Math.ceil(element.scrollTop + element.clientHeight) >= element.scrollHeight;
+        if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
+          event.preventDefault();
+          window.scrollBy({ top: delta, behavior: "auto" });
+        }
+      }, { passive: false });
+      element.setAttribute("data-scroll-handoff", "true");
+    }
+
+    enableScrollHandoff(document.getElementById("input-area"));
+    enableScrollHandoff(document.getElementById("results-area"));
+    enableScrollHandoff(document.getElementById("history-list"));
+  })();
+</script>
 </body>
 </html>
