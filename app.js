@@ -17,6 +17,129 @@ function escHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+function hasMojibake(str) {
+  return /[ÃÂâï]/.test(String(str || ''));
+}
+
+function removeDuplicateIdNodes(id) {
+  var nodes = Array.prototype.slice.call(document.querySelectorAll('#' + id));
+  if (nodes.length < 2) return;
+  var keep = nodes.find(function(node) {
+    return !hasMojibake(node.textContent) &&
+      !hasMojibake(node.getAttribute('placeholder')) &&
+      !hasMojibake(node.getAttribute('title'));
+  }) || nodes[0];
+  nodes.forEach(function(node) {
+    if (node !== keep) node.remove();
+  });
+}
+
+function removeCorruptedAdjacentDuplicates(selector) {
+  Array.prototype.slice.call(document.querySelectorAll(selector)).forEach(function(node) {
+    var next = node.nextElementSibling;
+    if (!next) return;
+    if (next.tagName !== node.tagName) return;
+    if ((next.id || '') !== (node.id || '')) return;
+    if (!hasMojibake(next.textContent) &&
+        !hasMojibake(next.getAttribute('placeholder')) &&
+        !hasMojibake(next.getAttribute('title'))) return;
+    next.remove();
+  });
+}
+
+function setNodeText(selector, value) {
+  var node = document.querySelector(selector);
+  if (node) node.textContent = value;
+}
+
+function setNodeHtml(selector, value) {
+  var node = document.querySelector(selector);
+  if (node) node.innerHTML = value;
+}
+
+function setNodeAttr(selector, attr, value) {
+  var node = document.querySelector(selector);
+  if (node) node.setAttribute(attr, value);
+}
+
+function normalizeCorruptedUiShell() {
+  [
+    'settings-btn',
+    'settings-cap-badge',
+    'envelope-override',
+    'run-btn',
+    'log-search',
+    'catalog-search',
+    'history-filter',
+    'history-filter-clear',
+    'reader-modal-close'
+  ].forEach(removeDuplicateIdNodes);
+
+  [
+    '#settings-btn',
+    '#envelope-override',
+    '#run-btn',
+    '#log-search',
+    '#catalog-search',
+    '#reader-modal-close'
+  ].forEach(removeCorruptedAdjacentDuplicates);
+
+  document.title = 'CATCH / TX OCA';
+
+  setNodeHtml(
+    '#main-title',
+    'CATCH / TX OCA <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:6px;">v3.0</span>'
+  );
+
+  Array.prototype.slice.call(document.querySelectorAll('#state-select option')).forEach(function(option) {
+    var val = option.value || '';
+    if (val === 'TX') option.textContent = 'TX / OCA Community';
+    if (val === 'IL') option.textContent = 'IL / AOIC';
+  });
+
+  setNodeAttr('#settings-btn', 'title', 'Settings - Schema Manager, Error Log cap, Error Library');
+  setNodeHtml('#settings-btn', '&#9881; Settings<span id="settings-cap-badge" style="display:none;background:var(--orange);color:#000;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:2px;"></span>');
+  setNodeAttr(
+    '#input-area',
+    'placeholder',
+    [
+      'Paste one payload or envelope here...',
+      '',
+      'Accepts all formats:',
+      '',
+      '  - Full D&I envelope (Events[].Entities[].EntityData)',
+      '  - Simple envelope',
+      '  - Array of entities  [ {...}, {...} ]',
+      '  - Single entity  { "entityType": "...", "county": "...", ... }',
+      '',
+      'Validates: entityType, county enum, publisher enum,',
+      'required fields, type violations (string vs number|null),',
+      'wrong field names, enum violations, and contract mismatches'
+    ].join('\n')
+  );
+  setNodeAttr('#envelope-override', 'placeholder', 'Auto-detected from payload - override here');
+  setNodeText('#run-btn', 'Run Validation');
+  setNodeAttr('#log-search', 'placeholder', 'Search envelope ID, cause, field, county...');
+  setNodeAttr('#catalog-search', 'placeholder', 'Filter by field, message, publisher, entity type...');
+  setNodeAttr('#history-filter', 'placeholder', 'Filter by EnvelopeId, publisher, county, or entity type...');
+  setNodeText('#history-filter-clear', 'x');
+  setNodeText('#reader-modal-close', 'x');
+
+  Array.prototype.slice.call(document.querySelectorAll('[title], [placeholder]')).forEach(function(node) {
+    if (hasMojibake(node.getAttribute('title'))) node.removeAttribute('title');
+    if (hasMojibake(node.getAttribute('placeholder'))) node.removeAttribute('placeholder');
+  });
+
+  Array.prototype.slice.call(document.querySelectorAll('button, span, div, label, option')).forEach(function(node) {
+    if (!node.children.length && hasMojibake(node.textContent)) {
+      node.textContent = node.textContent
+        .replace(/[ÃÂâï][^ ]*/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+  });
+}
+
 // ── Feature 2: PII Scrubber ───────────────────────────────────────────────────
 // Strips likely PII from history/error-log entries before they touch localStorage.
 // Targets: SSN patterns, DOB-like dates embedded in field values, defendant names
@@ -1336,6 +1459,306 @@ function normalizeEntityIL(raw, eventType) {
   return flat;
 }
 
+function splitBatchDocuments(text) {
+  const src = String(text || '').trim();
+  if (!src) return [];
+
+  const docs = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      if (start === -1) start = i;
+      continue;
+    }
+    if (ch === '{' || ch === '[') {
+      if (depth === 0 && start === -1) start = i;
+      depth++;
+      continue;
+    }
+    if (ch === '}' || ch === ']') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        const candidate = src.slice(start, i + 1).trim();
+        if (candidate) docs.push(candidate);
+        start = -1;
+      }
+    }
+  }
+
+  if (docs.length) return docs;
+
+  return src.split(/\r?\n\s*\r?\n/g).map(function(part) {
+    return part.trim();
+  }).filter(Boolean);
+}
+
+function buildValidationRunFromText(text, options) {
+  options = options || {};
+  const parsed = parseInput(text);
+  if (parsed.error) return { sourceText: text, parsed: parsed, error: parsed.error };
+
+  const analysedDate = options.analysedDate instanceof Date ? options.analysedDate : new Date();
+  const analysedAt = analysedDate.toLocaleString('en-US', {
+    month:'2-digit',day:'2-digit',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'
+  });
+  const submittedAt = parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : null;
+  const historyTimestamp = analysedDate.toLocaleString('en-US', {
+    month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'
+  });
+
+  const results = parsed.entities.map(function(e, i) {
+    const errors = validateEntity(e);
+    const market = parsed.market || (IL_VALID_ENTITY_TYPES.includes(e.entityType || '') ? 'IL' : 'TX');
+    return {
+      i: i,
+      entityType: e.entityType || 'Unknown',
+      entityId: e.entityId || null,
+      recordid: e.recordid || '—',
+      county: e.county || '—',
+      instanceid: e.instanceid || '—',
+      localid: e.localid || '—',
+      market: market,
+      _name: e.name || '',
+      raw: e,
+      errors: errors,
+      valid: errors.length === 0
+    };
+  });
+
+  const totalErr = results.reduce(function(sum, row) { return sum + row.errors.length; }, 0);
+  const validN = results.filter(function(row) { return row.valid; }).length;
+  const invalidEntities = results.filter(function(row) { return !row.valid; }).length;
+  const topFieldMap = {};
+  const ownerMap = {};
+  const historyErrors = [];
+
+  results.forEach(function(row) {
+    row.errors.forEach(function(err) {
+      const translation = getTranslation(err.field, err.msg, row) || '';
+      topFieldMap[err.field] = (topFieldMap[err.field] || 0) + 1;
+      const owner = _extractFixOwner(translation) || 'Unassigned';
+      ownerMap[owner] = (ownerMap[owner] || 0) + 1;
+      historyErrors.push({
+        entityId: row.entityId,
+        recordid: row.recordid,
+        county: row.county,
+        entityType: row.entityType,
+        field: err.field,
+        ref: err.ref || '',
+        msg: err.msg,
+        translation: translation,
+        publisher: parsed.publisher || row._name || ''
+      });
+    });
+  });
+
+  const topField = Object.keys(topFieldMap).sort(function(a, b) { return topFieldMap[b] - topFieldMap[a]; })[0] || 'None';
+  const topOwner = Object.keys(ownerMap).sort(function(a, b) { return ownerMap[b] - ownerMap[a]; })[0] || 'None';
+  const envelopeId = (options.envelopeId || '').trim() || parsed.envelopeId || null;
+
+  return {
+    sourceText: text,
+    parsed: parsed,
+    sourceMode: options.sourceMode || 'single',
+    batchSessionId: options.batchSessionId || '',
+    results: results,
+    totalErr: totalErr,
+    validN: validN,
+    invalidEntities: invalidEntities,
+    totalEntities: results.length,
+    submittedAt: submittedAt,
+    analysedAt: analysedAt,
+    topField: topField,
+    topOwner: topOwner,
+    historyRun: {
+      timestamp: historyTimestamp,
+      analysedAt: analysedDate.toISOString(),
+      envelopeSubmittedAt: submittedAt,
+      originalTimestamp: parsed.originalTimestamp || null,
+      envelopeId: envelopeId,
+      sourceMode: options.sourceMode || 'single',
+      batchSessionId: options.batchSessionId || '',
+      eventType: parsed.eventType || '',
+      publisher: parsed.publisher || '',
+      market: parsed.market || 'TX',
+      entityCount: results.length,
+      errorCount: totalErr,
+      errors: historyErrors
+    }
+  };
+}
+
+function persistValidationRun(validationRun, options) {
+  options = options || {};
+  if (!validationRun || validationRun.error || options.saveHistory === false) return;
+  try { addToHistory(validationRun.historyRun); } catch(e) {}
+  if ((validationRun.parsed.market || 'TX') === 'TX') {
+    try {
+      autoLogRunToErrorLog(
+        validationRun.parsed,
+        validationRun.results,
+        validationRun.historyRun.envelopeId,
+        validationRun.parsed.originalTimestamp || null
+      );
+    } catch(e) {}
+  }
+}
+
+function renderSingleValidationRun(validationRun) {
+  const ra = document.getElementById('results-area');
+  const sb = document.getElementById('summary-bar');
+  const rc = document.getElementById('result-count');
+  const copyBtn = document.getElementById('copy-results-btn');
+  if (!ra || !sb || !rc) return;
+
+  _activeResultFilter = 'all';
+  const prevErrBtn = document.getElementById('sb-err-btn');
+  const prevOkBtn = document.getElementById('sb-ok-btn');
+  const prevClrBtn = document.getElementById('sb-clear-btn');
+  if (prevErrBtn) prevErrBtn.classList.remove('active-filter');
+  if (prevOkBtn) prevOkBtn.classList.remove('active-filter');
+  if (prevClrBtn) prevClrBtn.classList.remove('visible');
+
+  if (!validationRun || validationRun.error) {
+    const msg = validationRun && validationRun.error ? validationRun.error : 'Unable to validate this payload.';
+    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">✕ JSON Parse Error</div><div class="parse-error-msg">${escHtml(msg)}</div></div>`;
+    sb.style.display = 'none';
+    rc.textContent = '';
+    if (copyBtn) copyBtn.style.display = 'none';
+    try {
+      const heroEventType = document.getElementById('hero-event-type');
+      const heroSubmittedAt = document.getElementById('hero-submitted-at');
+      const heroAnalysedAt = document.getElementById('hero-analysed-at');
+      const heroRunSummary = document.getElementById('hero-run-summary');
+      const heroRunMeta = document.getElementById('hero-run-meta');
+      if (heroEventType) heroEventType.textContent = 'Invalid JSON';
+      if (heroSubmittedAt) heroSubmittedAt.textContent = 'Not available';
+      if (heroAnalysedAt) heroAnalysedAt.textContent = 'Not available';
+      if (heroRunSummary) heroRunSummary.textContent = '0 entities / parse error';
+      if (heroRunMeta) heroRunMeta.textContent = 'Fix JSON structure to validate this payload.';
+    } catch(e) {}
+    return;
+  }
+
+  const parsed = validationRun.parsed;
+  const results = validationRun.results;
+  const totalErr = validationRun.totalErr;
+  const submittedAt = validationRun.submittedAt;
+  const analysedAt = validationRun.analysedAt;
+
+  sb.style.display = 'flex';
+  let sbHtml = '';
+  if (parsed.eventType) {
+    sbHtml += `<span class="sum-neutral">eventType:</span><span style="color:var(--cyan);margin-left:4px">${escHtml(parsed.eventType)}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  }
+  if (submittedAt) {
+    sbHtml += `<span class="sum-neutral">submitted:</span><span style="color:var(--orange);margin-left:4px" title="Envelope OriginalTimestamp: ${escHtml(parsed.originalTimestamp)}">${escHtml(submittedAt)}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  }
+  sbHtml += `<span class="sum-neutral">CATCH analysed:</span><span style="color:var(--purple);margin-left:4px">${escHtml(analysedAt)}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  sbHtml += `<span class="sum-neutral">entities:</span><span style="color:var(--text);margin-left:4px">${results.length}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  if (totalErr === 0) {
+    sbHtml += `<span class="sum-ok">✓ All valid</span>`;
+  } else {
+    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">✕ ${totalErr} error${totalErr>1?'s':''}</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">✕ clear filter</button>`;
+  }
+  sb.innerHTML = sbHtml;
+  rc.textContent = '';
+
+  try {
+    const heroEventType = document.getElementById('hero-event-type');
+    const heroSubmittedAt = document.getElementById('hero-submitted-at');
+    const heroAnalysedAt = document.getElementById('hero-analysed-at');
+    const heroRunSummary = document.getElementById('hero-run-summary');
+    const heroRunMeta = document.getElementById('hero-run-meta');
+    if (heroEventType) heroEventType.textContent = parsed.eventType || 'Single entity / custom payload';
+    if (heroSubmittedAt) heroSubmittedAt.textContent = submittedAt || 'Not provided';
+    if (heroAnalysedAt) heroAnalysedAt.textContent = analysedAt;
+    if (heroRunSummary) heroRunSummary.textContent = `${results.length} entities · ${totalErr} error${totalErr === 1 ? '' : 's'}`;
+    if (heroRunMeta) heroRunMeta.textContent = totalErr === 0 ? 'Filter: all findings' : `Filter: all findings · ${validationRun.validN} passed`;
+  } catch(e) {}
+
+  try {
+    const resultsHero = `<div class="results-toolbar">
+      <div>
+        <div class="results-toolbar-label">Findings filter</div>
+        <div class="results-toolbar-copy">Switch between all findings and error-only review without losing the current validation run.</div>
+      </div>
+      <div class="results-filter-group">
+        <button class="results-filter-btn active" id="results-filter-all" onclick="applyResultFilter('all')">All findings</button>
+        <button class="results-filter-btn ${totalErr === 0 ? 'disabled' : ''}" id="results-filter-errors" onclick="applyResultFilter('errors')" ${totalErr === 0 ? 'disabled' : ''}>Errors only</button>
+      </div>
+    </div><div class="results-hero-strip">
+      <div class="results-kpi"><span class="results-kpi-label">Total issues</span><strong class="results-kpi-value">${validationRun.totalErr}</strong></div>
+      <div class="results-kpi"><span class="results-kpi-label">Affected entities</span><strong class="results-kpi-value">${validationRun.invalidEntities}/${validationRun.totalEntities}</strong></div>
+      <div class="results-kpi"><span class="results-kpi-label">Top repeated field</span><strong class="results-kpi-value results-kpi-text">${escHtml(validationRun.topField)}</strong></div>
+      <div class="results-kpi"><span class="results-kpi-label">Top fix owner</span><strong class="results-kpi-value results-kpi-text">${escHtml(validationRun.topOwner)}</strong></div>
+    </div>`;
+    ra.innerHTML = resultsHero + results.map(r => {
+      const cls = r.valid ? 'valid' : 'invalid';
+      let html = `<div class="result-card ${cls}">
+        <div class="result-header">
+          <span class="${r.valid ? 'status-valid' : 'status-invalid'}">${r.valid ? '✓ VALID' : '✕ INVALID'} · Entity ${r.i + 1}</span>
+          <span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="${escHtml(r.entityType)}">${escHtml(r.entityType)}</span>
+          ${!r.valid ? `<span class="error-count">${r.errors.length} error${r.errors.length>1?'s':''}</span>` : ''}
+        </div>
+        <div class="result-meta">
+          <div class="meta-row"><span class="meta-key">entityType:</span><span class="meta-val">${escHtml(r.entityType)}</span></div>
+          ${r.entityId ? `<div class="meta-row"><span class="meta-key">entityId &nbsp;:</span><span class="meta-val">${escHtml(r.entityId)}</span></div>` : ''}
+          <div class="meta-row"><span class="meta-key">recordid &nbsp;:</span><span class="meta-val">${escHtml(r.recordid)}</span></div>
+          ${r.market === 'IL'
+            ? `<div class="meta-row"><span class="meta-key">instanceid:</span><span class="meta-val">${escHtml(r.instanceid||'—')}</span></div><div class="meta-row"><span class="meta-key">localid &nbsp; :</span><span class="meta-val">${escHtml(r.localid||'—')}</span></div>`
+            : `<div class="meta-row"><span class="meta-key">county &nbsp;&nbsp; :</span><span class="meta-val">${escHtml(r.county)}</span></div>`
+          }
+        </div>`;
+      if (r.valid) {
+        html += `<div style="padding:6px 12px 10px;color:var(--green);font-size:10.5px">All checks passed.</div>`;
+      } else {
+        html += `<div class="error-list">`;
+        r.errors.forEach(err => {
+          const translation = getTranslation(err.field, err.msg, r);
+          html += `<div class="error-item" style="cursor:pointer;" title="Click to jump to '${err.field.replace(/'/g,"\\'")}' in the payload" data-field="${escHtml(err.field)}" data-idx="${r.i}" onclick="jumpToField(this.dataset.field, parseInt(this.dataset.idx))">
+            <div class="error-field-row">
+              <span class="error-field">${escHtml(err.field)}</span>
+              <span style="font-size:8px;color:var(--text3);margin-left:auto;padding-left:8px;opacity:0.7;letter-spacing:0.03em;">↖ jump</span>
+            </div>
+            <div class="finding-columns">
+              <div class="finding-panel finding-panel-technical">
+                <div class="finding-label">Technical error</div>
+                <div class="error-msg">${escHtml(err.msg)}</div>
+              </div>
+              <div class="finding-panel finding-panel-plain">
+                <div class="finding-label">Plain English</div>
+                ${translation ? `<div class="error-translation">${escHtml(translation)}</div>` : `<div class="error-translation error-translation-empty">No plain-English translation was matched for this issue yet.</div>`}
+                <button class="refine-error-btn" type="button" onclick='openRefineErrorModal(${JSON.stringify(JSON.stringify({ source:"finding", entityType:r.entityType, field:err.field, message:err.msg, translation:translation || "", fixOwner:_extractFixOwner(translation) || "Odyssey", action:"", ref:err.ref || "", matchValue:"", matchType:"contains" }))})'>Refine this error</button>
+              </div>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+      return html;
+    }).join('');
+  } catch(renderErr) { console.error(renderErr); }
+
+  if (copyBtn) copyBtn.style.display = 'inline';
+  _lastValidationResults = results;
+  _lastValidationParsed = parsed;
+}
+
 
 function runValidation() {
   const text = document.getElementById('input-area').value.trim();
@@ -1349,6 +1772,24 @@ function _runValidationCore() {
   const text = document.getElementById('input-area').value.trim();
   const runBtn = document.getElementById('run-btn');
   function restoreBtn() { if (runBtn) { runBtn.disabled = false; runBtn.innerHTML = '▶&nbsp; Run Validation'; } }
+  if (!text) { restoreBtn(); return; }
+  const overrideElModern = document.getElementById('envelope-override');
+  const validationRunModern = buildValidationRunFromText(text, {
+    envelopeId: overrideElModern ? overrideElModern.value.trim() : ''
+  });
+  if (!validationRunModern.error) {
+    try {
+      if (overrideElModern && validationRunModern.parsed.envelopeId && !overrideElModern.dataset.manuallySet && !overrideElModern.value.trim()) {
+        overrideElModern.value = validationRunModern.parsed.envelopeId;
+        validationRunModern.historyRun.envelopeId = validationRunModern.historyRun.envelopeId || validationRunModern.parsed.envelopeId;
+      }
+    } catch(e) {}
+    persistValidationRun(validationRunModern);
+  }
+  renderSingleValidationRun(validationRunModern);
+  restoreBtn();
+  updateTabBadges();
+  return;
   if (!text) { restoreBtn(); return; }
   const ra = document.getElementById('results-area');
   const sb = document.getElementById('summary-bar');
@@ -2173,6 +2614,7 @@ function _buildELTWorkbook(p, now) {
 var _activeResultFilter = 'all';
 var _lastValidationResults = null;
 var _lastValidationParsed  = null;
+var _lastBatchRuns = [];
 
 function applyResultFilter(type) {
   _activeResultFilter = type;
@@ -2315,18 +2757,300 @@ function clearInput() {
 }
 
 function switchTab(tab) {
-  // Tab order must match the rendered nav exactly: Validate, Schema Reference, History/Export, Error Catalog, Info
-  const tabs = ['validate','reference','history','assoc','about','release'];
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', tabs[i] === tab));
+  document.querySelectorAll('.tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
   // All panels including hidden ones (errors panel kept for JS compatibility)
-  ['validate','reference','errors','history','assoc','about','release'].forEach(p => {
+  ['validate','batch','reference','errors','history','assoc','about','release'].forEach(p => {
     const el = document.getElementById('panel-' + p);
     if (!el) return;
-    if (p === tab) { el.style.display = 'flex'; el.classList.add('active'); }
+    const isActive = p === tab;
+    el.hidden = !isActive;
+    if (isActive) { el.style.display = 'flex'; el.classList.add('active'); }
     else { el.style.display = 'none'; el.classList.remove('active'); }
   });
   if (tab === 'history') renderHistory();
   if (tab === 'assoc') renderCatalog();
+  try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch(e) {}
+}
+
+function clearBatchInput() {
+  const input = document.getElementById('batch-input-area');
+  const output = document.getElementById('batch-results-area');
+  const count = document.getElementById('batch-result-count');
+  if (input) input.value = '';
+  if (output) output.innerHTML = '<div class="results-empty">Add two or more payloads to generate a batch summary, run cards, and quick links back into Single.</div>';
+  if (count) count.textContent = '';
+  _lastBatchRuns = [];
+}
+
+function loadBatchFiles(event) {
+  const files = Array.prototype.slice.call((event && event.target && event.target.files) || []);
+  if (!files.length) return;
+  Promise.all(files.map(function(file) {
+    return new Promise(function(resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function() { resolve(String(reader.result || '')); };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  })).then(function(contents) {
+    const input = document.getElementById('batch-input-area');
+    if (!input) return;
+    const merged = contents.map(function(part) { return String(part || '').trim(); }).filter(Boolean).join('\n\n');
+    input.value = [input.value.trim(), merged].filter(Boolean).join('\n\n');
+    if (event && event.target) event.target.value = '';
+  }).catch(function(err) {
+    console.error(err);
+    alert('One or more files could not be read. Please try again.');
+  });
+}
+
+function openBatchRunInValidate(index) {
+  const run = _lastBatchRuns[index];
+  if (!run) return;
+  if (run.error) {
+    openReaderContent('Batch payload detail', '<div class="schema-review-shell"><div class="schema-review-copy">This payload could not be parsed as valid JSON.</div><div class="rule-card"><div class="rule-row"><span class="rule-label" style="min-width:180px">Parse issue</span><span class="rule-note">' + escHtml(run.error) + '</span></div></div></div>');
+    return;
+  }
+  function buildBatchPayloadSnippet(sourceText, entityData, fieldName, technicalMessage) {
+    var entitySource = entityData && typeof entityData === 'object' ? JSON.stringify(entityData, null, 2) : '';
+    var fallbackSource = String(sourceText || '');
+    var raw = entitySource || fallbackSource;
+    if (!raw) return '';
+    var extractedValue = extractCurrentValueFromErrorMessage(technicalMessage);
+    var searchTargets = ['"' + String(fieldName || '') + '"'];
+    if (extractedValue !== undefined && extractedValue !== null && extractedValue !== '') {
+      searchTargets.push('"' + String(extractedValue) + '"');
+      searchTargets.push(': ' + String(extractedValue));
+    }
+    var targetIndex = -1;
+    for (var i = 0; i < searchTargets.length; i++) {
+      targetIndex = raw.indexOf(searchTargets[i]);
+      if (targetIndex !== -1) break;
+    }
+    if (targetIndex === -1 && entitySource && fallbackSource) {
+      raw = fallbackSource;
+      for (var j = 0; j < searchTargets.length; j++) {
+        targetIndex = raw.indexOf(searchTargets[j]);
+        if (targetIndex !== -1) break;
+      }
+    }
+    if (targetIndex === -1) return entitySource || '';
+    var lineStart = raw.lastIndexOf('\n', targetIndex);
+    lineStart = lineStart === -1 ? 0 : lineStart;
+    var snippetStart = Math.max(0, lineStart - 120);
+    var snippetEnd = raw.indexOf('\n', targetIndex);
+    var lines = 0;
+    while (snippetEnd !== -1 && lines < 5) {
+      snippetEnd = raw.indexOf('\n', snippetEnd + 1);
+      lines += 1;
+    }
+    if (snippetEnd === -1) snippetEnd = Math.min(raw.length, targetIndex + 320);
+    var snippet = raw.slice(snippetStart, snippetEnd).trim();
+    return snippet.length > 420 ? snippet.slice(0, 420).trim() + '\n...' : snippet;
+  }
+  var invalidResults = run.results.filter(function(result) { return !result.valid && Array.isArray(result.errors) && result.errors.length; });
+  var quickJumpItems = [];
+  invalidResults.forEach(function(result, resultIndex) {
+    result.errors.forEach(function(err, errIndex) {
+      quickJumpItems.push({
+        id: 'batch-detail-' + index + '-' + resultIndex + '-' + errIndex,
+        entityType: result.entityType,
+        field: err.field,
+        error: err.msg
+      });
+    });
+  });
+  var quickJumpHtml = quickJumpItems.length
+    ? '<div class="batch-detail-jump-shell">' +
+        '<div class="batch-detail-jump-copy">Jump directly to a surfaced issue.</div>' +
+        '<div class="batch-detail-jump-grid">' +
+          quickJumpItems.map(function(item) {
+            return '<button class="batch-detail-jump-chip" type="button" onclick=\'(function(){var el=document.getElementById("' + item.id + '");if(el){el.scrollIntoView({behavior:"smooth",block:"start"});}})()\'>' + escHtml(item.field) + '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>'
+    : '';
+
+  var findingsHtml = invalidResults.map(function(result, resultIndex) {
+    var summaryMeta = '<div class="meta-row"><span class="meta-key">entityType:</span><span class="meta-val">' + escHtml(result.entityType) + '</span></div>' +
+      (result.entityId ? '<div class="meta-row"><span class="meta-key">entityId:</span><span class="meta-val">' + escHtml(result.entityId) + '</span></div>' : '') +
+      '<div class="meta-row"><span class="meta-key">recordid:</span><span class="meta-val">' + escHtml(result.recordid) + '</span></div>' +
+      '<div class="meta-row"><span class="meta-key">' + (result.market === 'IL' ? 'instance:' : 'county:') + '</span><span class="meta-val">' + escHtml(result.market === 'IL' ? (result.instanceid || '-') : (result.county || '-')) + '</span></div>';
+
+    if (result.valid) {
+      return '<div class="result-card valid" style="margin-bottom:14px;">' +
+        '<div class="result-header"><span class="status-valid">✓ VALID · Entity ' + (resultIndex + 1) + '</span><span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="' + escHtml(result.entityType) + '">' + escHtml(result.entityType) + '</span></div>' +
+        '<div class="result-meta">' + summaryMeta + '</div>' +
+        '<div style="padding:6px 12px 12px;color:var(--green);font-size:10.5px">All checks passed.</div>' +
+      '</div>';
+    }
+
+    var issueHtml = result.errors.map(function(err, errIndex) {
+      var translation = getTranslation(err.field, err.msg, result) || 'No plain-English translation was matched for this issue yet.';
+      var issueId = 'batch-detail-' + index + '-' + resultIndex + '-' + errIndex;
+      var payloadSnippet = buildBatchPayloadSnippet(run.sourceText, result.raw, err.field, err.msg);
+      return '<div class="error-item" style="padding-top:10px;">' +
+        '<div id="' + issueId + '" class="error-field-row batch-detail-field-row"><span class="error-field">' + escHtml(err.field) + '</span></div>' +
+        '<div class="finding-columns">' +
+          '<div class="finding-panel finding-panel-technical">' +
+            '<div class="finding-label">Technical error</div>' +
+            '<div class="error-msg">' + escHtml(err.msg) + '</div>' +
+          '</div>' +
+          '<div class="finding-panel finding-panel-plain">' +
+            '<div class="finding-label">Plain English</div>' +
+            '<div class="error-translation">' + escHtml(translation) + '</div>' +
+          '</div>' +
+        '</div>' +
+        (payloadSnippet ? '<div class="batch-detail-snippet"><div class="finding-label">Payload snippet</div><pre class="batch-detail-snippet-code">' + escHtml(payloadSnippet) + '</pre></div>' : '') +
+      '</div>';
+    }).join('');
+
+    return '<div class="result-card invalid" style="margin-bottom:14px;">' +
+      '<div class="result-header"><span class="status-invalid">✕ INVALID · Entity ' + (resultIndex + 1) + '</span><span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="' + escHtml(result.entityType) + '">' + escHtml(result.entityType) + '</span><span class="error-count">' + result.errors.length + ' error' + (result.errors.length > 1 ? 's' : '') + '</span></div>' +
+      '<div class="result-meta">' + summaryMeta + '</div>' +
+      '<div class="error-list">' + issueHtml + '</div>' +
+    '</div>';
+  }).join('');
+
+  var html = '<div class="schema-review-shell batch-detail-shell">' +
+    '<div class="schema-review-copy">Review technical findings and plain-English translations without leaving Batch. The queue stays intact while you inspect this payload in more detail.</div>' +
+    '<div class="about-stat-grid" style="margin-bottom:18px;">' +
+      '<div class="about-stat-card"><div class="about-stat-label">Envelope</div><div class="about-stat-value" style="font-size:16px;">' + escHtml((run.historyRun && run.historyRun.envelopeId) || 'Custom payload') + '</div></div>' +
+      '<div class="about-stat-card"><div class="about-stat-label">Event type</div><div class="about-stat-value" style="font-size:16px;">' + escHtml(run.parsed.eventType || 'Single entity / custom payload') + '</div></div>' +
+      '<div class="about-stat-card"><div class="about-stat-label">Entities</div><div class="about-stat-value" style="font-size:16px;">' + run.totalEntities + '</div></div>' +
+      '<div class="about-stat-card"><div class="about-stat-label">Errors</div><div class="about-stat-value" style="font-size:16px;">' + run.totalErr + '</div></div>' +
+    '</div>' +
+    quickJumpHtml +
+    '<details class="rule-card" style="margin-bottom:16px;"><summary style="cursor:pointer;list-style:none;font-family:var(--sans);font-size:12px;font-weight:700;color:var(--text);">View full raw payload</summary><pre class="trend-detail-code" style="margin-top:14px;">' + escHtml(run.sourceText || '') + '</pre></details>' +
+    findingsHtml +
+  '</div>';
+  openReaderContent('Batch payload detail', html);
+}
+
+function renderBatchResults(batchRuns) {
+  const host = document.getElementById('batch-results-area');
+  const count = document.getElementById('batch-result-count');
+  if (!host || !count) return;
+
+  _lastBatchRuns = batchRuns.slice();
+  if (!batchRuns.length) {
+    count.textContent = '';
+    host.innerHTML = '<div class="results-empty">Add two or more payloads to generate a batch summary, run cards, and quick links back into Single.</div>';
+    return;
+  }
+
+  const successfulRuns = batchRuns.filter(function(run) { return !run.error; });
+  const parseFailures = batchRuns.length - successfulRuns.length;
+  const totalErrors = successfulRuns.reduce(function(sum, run) { return sum + run.totalErr; }, 0);
+  const passedRuns = successfulRuns.filter(function(run) { return run.totalErr === 0; }).length;
+  const publisherMap = {};
+  successfulRuns.forEach(function(run) {
+    const publisher = run.parsed.publisher || '(unknown)';
+    publisherMap[publisher] = (publisherMap[publisher] || 0) + run.totalErr;
+  });
+  const topPublisher = Object.keys(publisherMap).sort(function(a, b) { return publisherMap[b] - publisherMap[a]; })[0] || 'None';
+  const batchIdRun = batchRuns.find(function(run) {
+    return run && (run.batchSessionId || (run.historyRun && run.historyRun.batchSessionId));
+  });
+  const batchSessionLabel = batchIdRun
+    ? (batchIdRun.batchSessionId || (batchIdRun.historyRun && batchIdRun.historyRun.batchSessionId) || 'Not assigned')
+    : 'Not assigned';
+
+  count.textContent = batchRuns.length + ' payloads · ' + batchSessionLabel;
+
+  let summaryHtml = '<div class="batch-summary-grid">' +
+    '<div class="batch-summary-card"><span class="batch-summary-label">Payloads processed</span><div class="batch-summary-value">' + batchRuns.length + '</div><div class="batch-summary-note">' + passedRuns + ' passed cleanly' + (parseFailures ? ' · ' + parseFailures + ' parse issue' + (parseFailures > 1 ? 's' : '') : '') + '</div></div>' +
+    '<div class="batch-summary-card"><span class="batch-summary-label">Total errors</span><div class="batch-summary-value">' + totalErrors + '</div><div class="batch-summary-note">Rolled up across all validated payloads in this batch.</div></div>' +
+    '<div class="batch-summary-card"><span class="batch-summary-label">Most pressured publisher</span><div class="batch-summary-value" style="font-size:20px;line-height:1.1;">' + escHtml(topPublisher) + '</div><div class="batch-summary-note">Publisher with the highest current batch issue volume.</div></div>' +
+    '</div>';
+
+  count.textContent = batchRuns.length + ' payloads · ' + batchSessionLabel;
+  var batchSummaryIdCard = '<div class="batch-summary-card"><span class="batch-summary-label">Batch ID</span><div class="batch-summary-value" style="font-size:20px;line-height:1.1;">' + escHtml(batchSessionLabel) + '</div><div class="batch-summary-note">Use this ID to connect these payloads with related History entries.</div></div>';
+  summaryHtml = summaryHtml.replace('<div class="batch-summary-grid">', '<div class="batch-summary-grid">' + batchSummaryIdCard);
+  count.textContent = batchRuns.length + ' payloads · ' + batchSessionLabel;
+
+  const runsHtml = '<div class="batch-runs-list">' + batchRuns.map(function(run, index) {
+    if (run.error) {
+      return '<div class="batch-run-card">' +
+        '<div class="batch-run-top">' +
+          '<div>' +
+            '<div class="batch-run-header"><span class="batch-run-index">Payload ' + (index + 1) + '</span><span class="batch-run-badge invalid">Parse issue</span></div>' +
+            '<div class="batch-run-envelope">This payload could not be parsed as valid JSON.</div>' +
+            '<div class="batch-inline-note">' + escHtml(run.error) + '</div>' +
+          '</div>' +
+          '<div class="batch-run-actions"><button class="batch-open-btn" type="button" onclick="openBatchRunInValidate(' + index + ')">Review findings</button></div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    const firstIssue = run.results.reduce(function(found, row) {
+      if (found || row.valid || !row.errors.length) return found;
+      return row.errors[0];
+    }, null);
+    const statusClass = run.totalErr === 0 ? 'valid' : 'invalid';
+    const statusLabel = run.totalErr === 0 ? 'All valid' : run.totalErr + ' error' + (run.totalErr > 1 ? 's' : '');
+    return '<div class="batch-run-card">' +
+      '<div class="batch-run-top">' +
+        '<div style="flex:1 1 520px;min-width:0;">' +
+          '<div class="batch-run-header">' +
+            '<span class="batch-run-index">Payload ' + (index + 1) + '</span>' +
+            '<span class="batch-run-envelope">' + escHtml((run.historyRun && run.historyRun.envelopeId) || run.parsed.eventType || 'Custom payload') + '</span>' +
+            '<span class="batch-run-badge ' + statusClass + '">' + escHtml(statusLabel) + '</span>' +
+          '</div>' +
+          '<div class="batch-run-meta">' +
+            (run.parsed.market ? '<span class="batch-run-chip">' + escHtml(run.parsed.market) + '</span>' : '') +
+            (run.parsed.publisher ? '<span>' + escHtml(run.parsed.publisher) + '</span>' : '') +
+            (run.parsed.eventType ? '<span>· ' + escHtml(run.parsed.eventType) + '</span>' : '') +
+            '<span>· ' + run.totalEntities + ' entities</span>' +
+            (run.submittedAt ? '<span>· submitted ' + escHtml(run.submittedAt) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="batch-run-actions"><button class="batch-open-btn" type="button" onclick="openBatchRunInValidate(' + index + ')">Review findings</button></div>' +
+      '</div>' +
+      '<div class="batch-run-fields">' +
+        '<div class="batch-run-field"><span class="batch-run-field-label">Top repeated field</span><div class="batch-run-field-value">' + escHtml(run.topField) + '</div></div>' +
+        '<div class="batch-run-field"><span class="batch-run-field-label">Top fix owner</span><div class="batch-run-field-value">' + escHtml(run.topOwner) + '</div></div>' +
+        '<div class="batch-run-field"><span class="batch-run-field-label">First issue surfaced</span><div class="batch-run-field-value">' + (firstIssue ? escHtml(firstIssue.field + ': ' + firstIssue.msg) : 'No issues surfaced in this payload.') + '</div></div>' +
+        '<div class="batch-run-field"><span class="batch-run-field-label">Run timing</span><div class="batch-run-field-value">Analysed ' + escHtml(run.analysedAt) + (run.submittedAt ? '<br>Submitted ' + escHtml(run.submittedAt) : '') + '</div></div>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+
+  host.innerHTML = summaryHtml + runsHtml;
+}
+
+function runBatchValidation() {
+  const input = document.getElementById('batch-input-area');
+  const btn = document.getElementById('batch-run-btn');
+  if (!input || !btn) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  const docs = splitBatchDocuments(text);
+  if (!docs.length) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Running Batch Validation';
+  setTimeout(function() {
+    const saveHistory = !!(document.getElementById('batch-save-history') && document.getElementById('batch-save-history').checked);
+    const batchTimestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 12);
+    const batchNonce = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const batchSessionId = 'BATCH-' + batchTimestamp + '-' + batchNonce;
+    const runs = docs.map(function(doc) {
+      const run = buildValidationRunFromText(doc, {
+        sourceMode: 'batch',
+        batchSessionId: batchSessionId
+      });
+      if (!run.error) persistValidationRun(run, { saveHistory: saveHistory });
+      return run;
+    });
+    renderBatchResults(runs);
+    btn.disabled = false;
+    btn.textContent = 'Run Batch Validation';
+    updateTabBadges();
+  }, 10);
 }
 
 // ── History / Export ─────────────────────────────────────────────────────────
@@ -2446,6 +3170,8 @@ function renderHistory() {
 
   list.innerHTML = filtered.map((run, idx) => {
     const runId = 'hrun-' + idx;
+    const isBatchRun = run.sourceMode === 'batch' || !!run.batchSessionId;
+    const batchSessionLabel = isBatchRun && run.batchSessionId ? run.batchSessionId : '';
     const badge = run.errorCount === 0
       ? `<span class="history-badge-ok">✓ All valid</span>`
       : `<span class="history-badge-err" style="cursor:pointer;user-select:none;" title="Click to toggle error details" onclick="(function(){var el=document.getElementById('${runId}-errors');var tog=document.getElementById('${runId}-tog');if(el){var open=el.style.display!=='none';el.style.display=open?'none':'block';tog.textContent=open?'▶':'▼';}})()"><span id="${runId}-tog">▼</span> ✗ ${run.errorCount} error${run.errorCount>1?'s':''}</span>`;
@@ -2464,19 +3190,21 @@ function renderHistory() {
           <div class="history-run-header">
         <span class="history-run-index">#${runs.length - idx}</span>
         <span class="history-envelope">${escHtml(run.envelopeId || 'No EnvelopeId')}</span>
+        ${isBatchRun ? `<span class="history-badge-mode">Batch</span>` : ``}
         ${badge}
           </div>
           <div class="history-run-subline">
+            ${isBatchRun ? `<span class="history-chip batch">Batch run</span>` : ''}
             ${run.market && run.market !== 'TX' ? `<span class="history-chip market">${escHtml(run.market)}</span>` : ''}
             ${run.envelopeSubmittedAt ? `<span class="history-chip submitted" title="Envelope OriginalTimestamp — when the AEP received the submission">AEP submission ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
             <span class="history-chip analysed" title="When CATCH analysed this envelope">CATCH analysed ${escHtml(run.timestamp)}</span>
+            ${batchSessionLabel ? `<span class="history-chip batch-session" title="Shared batch session ID for runs validated together">${escHtml(batchSessionLabel)}</span>` : ''}
             <span class="history-run-meta"><strong>${run.entityCount}</strong> entities <span class="history-run-dot">·</span> ${escHtml(run.publisher || '—')} <span class="history-run-dot">·</span> ${escHtml(run.eventType || '—')}</span>
           </div>
         </div>
         <div class="history-run-actions">
           <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunCSV(${idx})">Workbook</button>
         <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunJSON(${idx})">JSON</button>
-        <button class="export-btn history-health-btn" style="padding:2px 10px;font-size:10px;" onclick="exportELTReportFromRun(${idx})" title="Export validation health report for this run">Health</button>
       </div>
         </div>
       ${run.errorCount > 0 ? `<div id="${runId}-errors" class="history-errors">${errorRows}</div>` : ''}
@@ -3739,6 +4467,10 @@ const CAT_COLORS = {
 function _applyFilterAndRender() {
   const container = document.getElementById('catalog-table-container');
   if (!container) return;
+  const activeEl = document.activeElement;
+  const activeId = activeEl && activeEl.id ? activeEl.id : '';
+  const selectionStart = activeEl && typeof activeEl.selectionStart === 'number' ? activeEl.selectionStart : null;
+  const selectionEnd = activeEl && typeof activeEl.selectionEnd === 'number' ? activeEl.selectionEnd : null;
 
   let html = `<div class="trends-table-toolbar">
     <div class="trends-table-title">Trend table</div>
@@ -3758,6 +4490,15 @@ function _applyFilterAndRender() {
   if (!_catalogFiltered.length) {
     html += `<div style="padding:20px;font-size:11px;color:var(--text3);">No errors match the current filter.</div>`;
     container.innerHTML = html;
+    if (activeId === 'catalog-search-inline' || activeId === 'catalog-search') {
+      const refreshedInlineInput = document.getElementById('catalog-search-inline');
+      if (refreshedInlineInput) {
+        refreshedInlineInput.focus();
+        if (selectionStart !== null && selectionEnd !== null) {
+          refreshedInlineInput.setSelectionRange(selectionStart, selectionEnd);
+        }
+      }
+    }
     return;
   }
 
@@ -3843,6 +4584,15 @@ function _applyFilterAndRender() {
   html += `<div style="margin-top:10px;font-size:9.5px;color:var(--text3);">${_catalogFiltered.length} issues · sorted by occurrence count · generated ${new Date().toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`;
 
   container.innerHTML = html;
+  if (activeId === 'catalog-search-inline' || activeId === 'catalog-search') {
+    const refreshedInlineInput = document.getElementById('catalog-search-inline');
+    if (refreshedInlineInput) {
+      refreshedInlineInput.focus();
+      if (selectionStart !== null && selectionEnd !== null) {
+        refreshedInlineInput.setSelectionRange(selectionStart, selectionEnd);
+      }
+    }
+  }
 }
 
 // ── Click-to-jump: error item → field in JSON textarea ───────────────────────
@@ -4198,6 +4948,7 @@ window.copyTrendDetail = function () {
     var sessionToggle = document.getElementById("session-only-toggle");
     var sessionLabel = document.getElementById("session-only-label");
     var sessionContainer = sessionToggle ? sessionToggle.closest("div[title]") : null;
+    var workspaceControlSource = document.getElementById("workspace-control-source");
 
     if (header && settingsBtn) {
       settingsBtn.textContent = "Settings";
@@ -4237,6 +4988,9 @@ window.copyTrendDetail = function () {
 
         panel.appendChild(marketCard);
         panel.appendChild(privacyCard);
+        if (workspaceControlSource) {
+          workspaceControlSource.remove();
+        }
       }
     }
 
@@ -4319,13 +5073,13 @@ window.copyTrendDetail = function () {
       }
     }
 
-    if (sessionContainer) {
+    if (sessionContainer && document.body.contains(sessionContainer)) {
       sessionContainer.remove();
     }
 
     var preview = document.getElementById("entity-preview");
     if (preview) {
-      preview.textContent = "Capture validation errors with plain-English explanations";
+      preview.textContent = "Validate one payload and review findings side by side";
     }
 
     var content = document.querySelector(".content");
@@ -4340,7 +5094,7 @@ window.copyTrendDetail = function () {
             <div class="hero-market-code" id="hero-market-code">TX</div>
             <div class="hero-market-name" id="hero-market-name">OCA</div>
           </div>
-          <div class="hero-market-meta">Schemas and findings resolve against this market.</div>
+          <div class="hero-market-meta">All schema review, validation logic, and findings align to this active market.</div>
         </article>
         <div class="hero-stat-grid">
           <article class="hero-stat-card">
@@ -4884,12 +5638,18 @@ window.copyTrendDetail = function () {
       });
     }
 
-    var tabs = document.querySelectorAll(".tab");
-    if (tabs[0]) tabs[0].textContent = "Validate + Translate";
-    if (tabs[2]) tabs[2].childNodes[0].textContent = "History";
-    if (tabs[3]) tabs[3].childNodes[0].textContent = "Trends";
-    if (tabs[4]) tabs[4].style.display = "none";
-    if (tabs[5]) tabs[5].style.display = "none";
+    var validateTab = document.querySelector('.tab[data-tab="validate"]');
+    var batchTab = document.querySelector('.tab[data-tab="batch"]');
+    var historyTab = document.querySelector('.tab[data-tab="history"]');
+    var trendsTab = document.querySelector('.tab[data-tab="assoc"]');
+    var aboutTab = document.querySelector('.tab[data-tab="about"]');
+    var releaseTab = document.querySelector('.tab[data-tab="release"]');
+    if (validateTab) validateTab.childNodes[0].textContent = "Single";
+    if (batchTab) batchTab.childNodes[0].textContent = "Batch";
+    if (historyTab) historyTab.childNodes[0].textContent = "History ";
+    if (trendsTab) trendsTab.childNodes[0].textContent = "Trends ";
+    if (aboutTab) aboutTab.style.display = "none";
+    if (releaseTab) releaseTab.style.display = "none";
 
     var runBtn = document.getElementById("run-btn");
     if (runBtn) {
@@ -4914,9 +5674,9 @@ window.copyTrendDetail = function () {
       historyIntro.style.marginBottom = "14px";
       historyIntro.innerHTML = `
         <div class="hero-eyebrow">Run history</div>
-        <div class="hero-title" style="font-size:22px;">Review previous validation sessions as a feed</div>
+        <div class="hero-title" style="font-size:22px;">Review previous validation sessions</div>
         <div class="hero-copy" style="font-size:13px;max-width:none;">
-          Each run is presented as a readable activity card so teams can revisit what failed, when it happened, and what remediation guidance was surfaced.
+          Each saved run is presented as a readable activity card so teams can revisit what failed, when it happened, and what should be reviewed next.
         </div>
       `;
       historyPanel.insertBefore(historyIntro, historyPanel.firstChild);
@@ -4937,7 +5697,13 @@ window.copyTrendDetail = function () {
       var clearBtn = historyPrimaryToolbar.querySelector('button[onclick="clearHistory()"]');
       var existingActions = historyPrimaryToolbar.querySelector(".history-actions");
 
-      if (existingActions && exportWorkbookBtn && exportJsonBtn && healthBtn && backupBtn && restoreBtn && clearBtn) {
+      if (!existingActions) {
+        existingActions = document.createElement("div");
+        existingActions.className = "history-actions";
+        historyPrimaryToolbar.appendChild(existingActions);
+      }
+
+      if (exportWorkbookBtn && exportJsonBtn && healthBtn && backupBtn && restoreBtn && clearBtn) {
         existingActions.innerHTML = "";
 
         exportWorkbookBtn.textContent = "Workbook";
@@ -4953,16 +5719,22 @@ window.copyTrendDetail = function () {
         var exportCluster = document.createElement("div");
         exportCluster.className = "history-action-cluster";
         exportCluster.innerHTML = `<span class="history-action-label">Exports</span>`;
-        exportCluster.appendChild(exportWorkbookBtn);
-        exportCluster.appendChild(exportJsonBtn);
-        exportCluster.appendChild(healthBtn);
+        var exportButtons = document.createElement("div");
+        exportButtons.className = "history-action-buttons";
+        exportButtons.appendChild(exportWorkbookBtn);
+        exportButtons.appendChild(exportJsonBtn);
+        exportButtons.appendChild(healthBtn);
+        exportCluster.appendChild(exportButtons);
 
         var backupCluster = document.createElement("div");
         backupCluster.className = "history-action-cluster";
         backupCluster.innerHTML = `<span class="history-action-label">Browser backup</span>`;
-        backupCluster.appendChild(backupBtn);
-        backupCluster.appendChild(restoreBtn);
-        backupCluster.appendChild(clearBtn);
+        var backupButtons = document.createElement("div");
+        backupButtons.className = "history-action-buttons";
+        backupButtons.appendChild(backupBtn);
+        backupButtons.appendChild(restoreBtn);
+        backupButtons.appendChild(clearBtn);
+        backupCluster.appendChild(backupButtons);
 
         existingActions.appendChild(exportCluster);
         existingActions.appendChild(backupCluster);
@@ -4978,11 +5750,11 @@ window.copyTrendDetail = function () {
       trendsHero.innerHTML = `
         <article class="trends-card">
           <div class="hero-eyebrow">Issue trends</div>
-          <div class="trends-title">Recurring validation patterns</div>
+          <div class="trends-title">Recurring validation patterns across runs</div>
           <div class="trends-copy">
-            Use this view to spot what is repeating and where upstream fixes will have the biggest payoff.
+            Use this view to spot where issue volume is concentrating, which publishers are driving it, and what should be addressed first.
           </div>
-          <div class="trends-summary-strip" id="trends-summary-strip">Recurring issues will summarize here as validation history grows.</div>
+          <div class="trends-summary-strip" id="trends-summary-strip">Trend summary will appear here as validation history grows.</div>
         </article>
         <div class="trends-mini-grid">
           <article class="trends-mini">
