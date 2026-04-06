@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<link rel="stylesheet" href="styles.css?v=20260405c">
+<link rel="stylesheet" href="styles.css?v=20260406ac">
 <title>CATCH / TX OCA</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -16,7 +16,7 @@
       <div class="catch-brand-copy">
         <div class="catch-wordmark">CATCH</div>
         <div class="catch-tagline">Stop guessing. Start catching.</div>
-        <div class="catch-pill">Version 3.0</div>
+        <div class="catch-pill">Version 3.1</div>
       </div>
     </div>
   </div>
@@ -44,6 +44,7 @@
   <div class="tab" data-tab="reference" onclick="switchTab('reference')" style="display:none">Schema Reference</div>
   <div class="tab" data-tab="history" onclick="switchTab('history')">History <span id="tab-badge-history" style="display:none;background:var(--blue);color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;"></span></div>
   <div class="tab" data-tab="assoc" onclick="switchTab('assoc')">Trends <span id="tab-badge-catalog" style="display:none;background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;"></span></div>
+  <div class="tab" data-tab="portfolio" onclick="switchTab('portfolio')">Portfolio</div>
   <div class="tab" data-tab="about" onclick="switchTab('about')" style="display:none">About CATCH</div>
   <div class="tab" data-tab="release" onclick="switchTab('release')" style="display:none">Product Updates</div>
 </div><div class="content">
@@ -67,12 +68,12 @@
         </article>
         <article class="hero-stat-card">
           <div class="hero-stat-label">AEP submission</div>
-          <div class="hero-stat-value results-kpi-text" id="hero-submitted-at">—</div>
+          <div class="hero-stat-value results-kpi-text" id="hero-submitted-at">-</div>
           <div class="hero-stat-copy">When the AEP received the envelope, when available.</div>
         </article>
         <article class="hero-stat-card">
           <div class="hero-stat-label">CATCH submission</div>
-          <div class="hero-stat-value results-kpi-text" id="hero-analysed-at">—</div>
+          <div class="hero-stat-value results-kpi-text" id="hero-analysed-at">-</div>
           <div class="hero-stat-copy">The time this payload was last validated in CATCH.</div>
         </article>
         <article class="hero-stat-card">
@@ -495,197 +496,86 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
 
   <!-- ABOUT PANEL -->
   <div class="panel" id="panel-about" style="display:none; overflow-y:auto; padding:24px; flex-direction:column;">
-    <div class="about-guide">
-      <div class="about-topline">
-        <div>
-          <div class="about-topline-title" id="about-title-premium">CATCH / TX OCA</div>
-          <div class="about-topline-meta">v3.0 / Built by BIS / Tyler Technologies Courts &amp; Justice / March 2026</div>
-        </div>
-        <div class="about-link-chip">In-app user guide</div>
-      </div>
-
-      <div style="margin-bottom:24px;">
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;" id="about-title">CATCH / TX OCA</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--sans);">v3.0 / Built by BIS / Tyler Technologies Courts &amp; Justice / March 2026</div>
-      </div>
-
-      <div class="about-hero">
-        <div class="about-kicker">User Guide</div>
-        <div class="about-hero-title">Review payload quality, understand errors, and confirm the contract in one place.</div>
-        <div class="about-hero-copy">
-          CATCH is designed to help teams validate a payload, translate the validator output into readable language, confirm the active schema, and track recurring issues over time. It supports both day-to-day triage and leadership reporting without changing the underlying validation engine.
-        </div>
-      </div>
-
-      <div class="about-stat-grid">
-        <div class="about-stat">
-          <div class="about-stat-label">Best For</div>
-          <div class="about-stat-value">Payload review</div>
-          <div class="about-stat-copy">Validate one submission, inspect each failing entity, and understand what the validator is saying.</div>
-        </div>
-        <div class="about-stat">
-          <div class="about-stat-label">Schema Source</div>
-          <div class="about-stat-value">Workbook + Contract</div>
-          <div class="about-stat-copy">Compare the approved workbook against the runtime contract using the schema toggle in the Event Type view.</div>
-        </div>
-        <div class="about-stat">
-          <div class="about-stat-label">Reporting</div>
-          <div class="about-stat-value">History + Trends</div>
-          <div class="about-stat-copy">Review saved runs, export results, and track recurring patterns across fields, publishers, and entity types.</div>
-        </div>
-        <div class="about-stat">
-          <div class="about-stat-label">Refinement</div>
-          <div class="about-stat-value">Library-driven</div>
-          <div class="about-stat-copy">Improve recurring plain-English translations over time by refining errors directly from findings and trend details.</div>
-        </div>
-      </div>
-
-      <div class="about-link-row">
-        <span class="about-link-chip">Single for one payload</span>
-        <span class="about-link-chip">History for saved envelopes</span>
-        <span class="about-link-chip">Trends for recurring patterns</span>
-        <span class="about-link-chip">Event Type for schema confirmation</span>
-      </div>
-
-      <div class="about-grid">
-        <div class="about-mini-card">
-          <div class="about-mini-title">Where To Start</div>
-          <div class="about-mini-copy">Paste one payload into <strong>Single</strong>, run validation, and read the technical error beside the plain-English translation. If you need to confirm what the field should look like, open the <strong>Event Type</strong> schema view.</div>
-        </div>
-        <div class="about-mini-card">
-          <div class="about-mini-title">Where To Go Next</div>
-          <div class="about-mini-copy">Use <strong>History</strong> when you need prior runs and exports. Use <strong>Trends</strong> when you want the recurring issue picture for project teams, TPMs, and leadership.</div>
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Most Common Path</div>
-        <div class="about-flow">
-          <div class="about-flow-card">
-            <div class="about-flow-step">1</div>
-            <div class="about-flow-title">Validate one payload</div>
-            <div class="about-flow-copy">Paste a submission into <strong>Single</strong> to see the technical validator output and the business-readable translation side by side.</div>
+    <div style="max-width:900px;">
+      <div class="about-guide">
+        <div class="about-topline">
+          <div>
+            <div class="about-topline-title">About CATCH</div>
+            <div class="about-topline-meta">Contract &amp; Schema Triage Hub for courts data validation, reporting, and recurring issue review</div>
           </div>
-          <div class="about-flow-card">
-            <div class="about-flow-step">2</div>
-            <div class="about-flow-title">Confirm the contract</div>
-            <div class="about-flow-copy">Open the <strong>Event Type</strong> schema popup and switch between <strong>Merged</strong>, <strong>Workbook</strong>, and <strong>Contract</strong> to confirm what the field should be.</div>
+          <div class="about-link-chip">Version 3.1</div>
+        </div>
+
+        <div class="about-hero" style="margin-bottom:22px;">
+          <div class="about-kicker">What it does</div>
+          <div class="about-hero-title">One validator, two audiences</div>
+          <div class="about-hero-copy">CATCH helps technical users diagnose a single failed submission and helps PMs monitor saved envelopes, recurring issues, and publisher pressure across the portfolio.</div>
+        </div>
+
+        <div class="about-stat-grid">
+          <div class="about-stat">
+            <div class="about-stat-label">Single</div>
+            <div class="about-stat-value">Payload review</div>
+            <div class="about-stat-copy">Best for validating one envelope and confirming exactly what failed.</div>
           </div>
-          <div class="about-flow-card">
-            <div class="about-flow-step">3</div>
-            <div class="about-flow-title">Escalate the pattern</div>
-            <div class="about-flow-copy">Move into <strong>History</strong> and <strong>Trends</strong> when you need reporting, exports, recurring issue analysis, and leadership-ready summaries.</div>
+          <div class="about-stat">
+            <div class="about-stat-label">Portfolio</div>
+            <div class="about-stat-value">PM queue</div>
+            <div class="about-stat-copy">Best for envelope-level review, prioritization, and ticket creation.</div>
+          </div>
+          <div class="about-stat">
+            <div class="about-stat-label">History</div>
+            <div class="about-stat-value">Technical archive</div>
+            <div class="about-stat-copy">Best for reopening saved runs, exporting, backup, and restore.</div>
+          </div>
+          <div class="about-stat">
+            <div class="about-stat-label">Trends</div>
+            <div class="about-stat-value">Pattern reporting</div>
+            <div class="about-stat-copy">Best for recurring issue analysis across publishers, fields, and entity types.</div>
+          </div>
+        </div>
+
+        <div class="ref-section">
+          <div class="ref-section-title">How Teams Use It</div>
+          <div class="rule-card">
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Project managers</span><span class="rule-note">Use <strong>Portfolio</strong> to identify which envelopes need tickets, which publishers are driving issues, and what was sent incorrectly.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Support and TPM teams</span><span class="rule-note">Use <strong>Single</strong>, <strong>History</strong>, and schema review to diagnose specific submissions and confirm contract expectations.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Leadership</span><span class="rule-note">Use <strong>Trends</strong> and the Health Report to monitor recurring issue pressure and publisher concentration over time.</span></div>
+          </div>
+        </div>
+
+        <div class="ref-section">
+          <div class="ref-section-title">What CATCH Flags</div>
+          <div class="rule-card">
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Missing fields</span><span class="rule-note">Required fields that were not included in the payload.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Type mismatches</span><span class="rule-note">Values sent in the wrong format, such as text where a number is expected.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Invalid values</span><span class="rule-note">Values that do not match approved contract enums or publisher scope.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Extra or wrong fields</span><span class="rule-note">Fields that do not belong on the entity or appear under the wrong field name.</span></div>
+          </div>
+        </div>
+
+        <div class="ref-section">
+          <div class="ref-section-title">Storage and Export</div>
+          <div class="rule-card">
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Browser storage</span><span class="rule-note">Saved history, trend data, and refinements live locally in the browser unless exported or cleared.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Health reporting</span><span class="rule-note">Use <strong>Health Report</strong> for portfolio-level workbook output and <strong>JSON</strong> for raw archive handoff.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Backup and restore</span><span class="rule-note">Use <strong>Backup</strong> and <strong>Import</strong> to preserve history across machines or browser resets.</span></div>
+          </div>
+        </div>
+
+        <div class="ref-section">
+          <div class="ref-section-title">Contact</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--sans);line-height:1.7;">
+            <strong>Tool owner:</strong> Bryce Beltran / TPM, Business Integration Services / Tyler Technologies Courts &amp; Justice<br>
+            <strong>BIS TPM inbox:</strong> BIS.TPM&#64;tylertech.com<br>
+            <strong>OCA technical issues:</strong> Submit a ticket to D&amp;I
           </div>
         </div>
       </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Where To Go</div>
-        <div class="about-directory">
-          <div class="about-directory-card">
-            <div class="about-directory-label">Use This When</div>
-            <div class="about-directory-title">You are reviewing one submission</div>
-            <div class="about-directory-copy">Start in <strong>Single</strong>. It is the fastest place to inspect one envelope, entity by entity, and understand exactly why a field failed.</div>
-          </div>
-          <div class="about-directory-card">
-            <div class="about-directory-label">Use This When</div>
-            <div class="about-directory-title">You need the contract answer</div>
-            <div class="about-directory-copy">Open the <strong>Event Type</strong> popup. That view is the right place to confirm expected types, required-field intent, approved values, and the raw contract.</div>
-          </div>
-          <div class="about-directory-card">
-            <div class="about-directory-label">Use This When</div>
-            <div class="about-directory-title">You need prior runs and exports</div>
-            <div class="about-directory-copy">Go to <strong>History</strong> for saved envelopes, export actions, browser backup, and one-run-at-a-time review across the current session.</div>
-          </div>
-          <div class="about-directory-card">
-            <div class="about-directory-label">Use This When</div>
-            <div class="about-directory-title">You need the recurring issue picture</div>
-            <div class="about-directory-copy">Go to <strong>Trends</strong> to monitor concentration, movement, aging, publisher pressure, and recurring issue mix across runs over time.</div>
-          </div>
-        </div>
-      </div>
-
-      
-      <div class="ref-section">
-        <div style="font-size:11px;color:var(--text2);font-family:var(--sans);line-height:1.75;">
-          CATCH validates CMS publisher payloads against active TX OCA and IL AOIC contract rules, then translates the validation results into clearer business language. It is designed to help project teams review a single payload, save those runs over time, and monitor recurring issues across publishers, fields, and entity types.
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Quick Start</div>
-        <div class="rule-card">
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">1. Validate a payload</span><span class="rule-note">Open <strong>Single</strong>, paste a payload, and review the technical errors and plain-English translations returned for each entity.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">2. Confirm the schema</span><span class="rule-note">Click the <strong>Event Type</strong> card to open schema review. Use the <strong>Merged</strong>, <strong>Workbook</strong>, or <strong>Contract</strong> toggle to compare views.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">3. Review saved runs</span><span class="rule-note">Open <strong>History</strong> to inspect prior envelopes, export results, or restore browser-backed history.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">4. Watch recurring issues</span><span class="rule-note">Open <strong>Trends</strong> to identify repeated validation patterns, publisher concentration, movement, and aging.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">5. Refine translations</span><span class="rule-note">Use <strong>Refine this error</strong> to improve plain-English messages and save them into the library for future runs.</span></div>
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Main Workspaces</div>
-        <div class="rule-card">
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Single</span><span class="rule-note">Best for one payload at a time. This is where users validate, review findings, inspect event type context, and refine translations.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Batch</span><span class="rule-note">Best for many payloads at once. Use this workspace to process a queue, review high-level results, and reopen any one payload back into Single for deeper inspection.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">History</span><span class="rule-note">Best for reviewing past runs. Use it to inspect saved envelopes, export results, and manage local browser backup and restore.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Trends</span><span class="rule-note">Best for recurring-pattern analysis. Use it to track repeat issues, publisher concentration, issue mix, health signals, and row-level drill-in.</span></div>
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Schema Review</div>
-        <div class="rule-card">
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Merged</span><span class="rule-note">Best general-use view. Combines the approved workbook metadata with active contract rules.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Workbook</span><span class="rule-note">Best for field definitions, required-field intent, workbook priority, and a spreadsheet-style schema reference.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Contract</span><span class="rule-note">Best for runtime structure and raw contract logic. Use this when you need the machine-facing view of the schema.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Full schema</span><span class="rule-note">Expand <strong>Full schema</strong> inside an entity card to inspect the raw JSON contract.</span></div>
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">What CATCH Flags</div>
-        <div class="rule-card">
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Missing fields</span><span class="rule-note">Required fields that were not included in the payload.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Type mismatches</span><span class="rule-note">Values sent in the wrong format, such as text in quotation marks where a number is expected.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Invalid values</span><span class="rule-note">Values that do not match the approved list for a contract field.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Extra fields</span><span class="rule-note">Fields that are not part of the contract for the entity type.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Wrong field names</span><span class="rule-note">Fields that appear to be close to a contract field but do not match the approved name.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Entity and publisher issues</span><span class="rule-note">Invalid entity types, publisher mismatches, county enum issues, and other market-level validation problems.</span></div>
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Data Storage and Export</div>
-        <div class="rule-card">
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Browser storage</span><span class="rule-note">History and refinement data are stored locally in the browser unless exported or cleared.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Exports</span><span class="rule-note">Use <strong>Workbook</strong>, <strong>JSON</strong>, and <strong>Health Report</strong> exports from History and Trends to share results outside the browser.</span></div>
-          <div class="rule-row"><span class="rule-label" style="min-width:220px">Backup and restore</span><span class="rule-note">Use <strong>Backup</strong> and <strong>Restore</strong> to preserve browser-stored history across machines or sessions.</span></div>
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Who Should Use This View</div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--sans);line-height:1.7;">
-          <strong>Project teams</strong> should use CATCH to validate a single payload, confirm the schema, and understand what failed.<br>
-          <strong>Senior leadership</strong> should use Trends and Health reporting to monitor recurring issue concentration, movement, and publisher pressure.<br>
-          <strong>Support and TPM teams</strong> should use refinement and schema review to improve translation quality and maintain reusable guidance over time.
-        </div>
-      </div>
-
-      <div class="ref-section">
-        <div class="ref-section-title">Contact</div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--sans);line-height:1.7;">
-          <strong>Tool owner:</strong> Bryce Beltran / TPM, Business Integration Services / Tyler Technologies Courts &amp; Justice<br>
-          <strong>BIS TPM inbox:</strong> BIS.TPM&#64;tylertech.com<br>
-          <strong>OCA technical issues:</strong> Submit a ticket to D&amp;I
-        </div>
-      </div>
-
     </div>
   </div>
 
-  <!-- ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Error Association Tab ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ -->
+  <!-- TRENDS PANEL -->
   <div class="panel" id="panel-assoc" style="display:none; overflow-y:auto; flex-direction:column;">
     <div style="padding:14px 20px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <span style="font-size:10px;color:var(--text3);font-family:var(--sans);">Recurring issue view across saved validation runs. Filter by field, publisher, market, or entity type to isolate patterns and reporting signals.</span>
@@ -696,11 +586,10 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
         <option value="IL">IL</option>
       </select>
       <button class="export-btn" onclick="exportCatalogCSV()">Export CSV</button>
-      <button class="export-btn" onclick="renderCatalog()">Refresh</button>
     </div>
     <div id="catalog-stats" style="padding:10px 20px 8px;border-bottom:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap;"></div>
     <div id="catalog-table-container" style="padding:12px 20px; font-family:var(--sans); font-size:11px;">
-      <div style="color:var(--text3);">Click Refresh or switch to this tab to build the catalog from your stored history.</div>
+      <div style="color:var(--text3);">Switch to this tab to build the catalog from your stored history.</div>
     </div>
   </div>
 
@@ -726,67 +615,108 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
       <input class="envelope-input" id="history-filter" placeholder="Filter by EnvelopeId, publisher, county, or entity type..." oninput="renderHistory();updateHistoryFilterClear()" style="flex:1;" />
       <button id="history-filter-clear" onclick="clearHistoryFilter()" style="display:none;background:none;border:1px solid var(--border2);border-radius:3px;color:var(--text3);font-family:var(--mono);font-size:10px;padding:2px 8px;cursor:pointer;flex-shrink:0;" title="Clear filter">x</button>
     </div>
-    <div style="padding:0 20px 10px;color:var(--text3);font-size:10px;font-family:var(--sans);line-height:1.6;">
-      Every validation run saved in this session appears as one card per envelope, showing which entities failed and why. Use this to debug a specific submission. For a cross-run summary of recurring issues, see <span style="color:var(--text2);cursor:pointer;text-decoration:underline;" onclick="switchTab('assoc')">Trends</span>.
-    </div>
 
     <div id="history-list" style="flex:1;overflow-y:auto;"></div>
   </div>
 
+  <!-- PORTFOLIO PANEL -->
+  <div class="panel portfolio-panel" id="panel-portfolio" style="display:none;">
+    <div class="portfolio-shell">
+      <section class="portfolio-hero-card">
+        <div>
+          <div class="portfolio-title">Portfolio Command Center</div>
+          <div class="portfolio-copy">Portfolio-wide envelope queue for PM review.</div>
+        </div>
+        <div class="portfolio-toolbar">
+          <input id="portfolio-search" class="envelope-input" placeholder="Search envelope, publisher, field, or issue..." oninput="renderPortfolio()" />
+          <select id="portfolio-publisher-filter" onchange="renderPortfolio()"><option value="">All publishers</option></select>
+          <select id="portfolio-profile-filter" onchange="renderPortfolio()">
+            <option value="">All profiles</option>
+            <option value="Clean">Clean</option>
+            <option value="Single issue">Single issue</option>
+            <option value="Multi-issue">Multi-issue</option>
+            <option value="High volume">High volume</option>
+          </select>
+          <select id="portfolio-sort" onchange="renderPortfolio()">
+            <option value="submitted_desc">Newest AEP first</option>
+            <option value="submitted_asc">Oldest AEP first</option>
+            <option value="errors_desc">Most errors first</option>
+            <option value="pass_asc">Lowest pass rate first</option>
+          </select>
+          <button class="export-btn" type="button" onclick="exportPortfolioViewCSV()">Export View</button>
+        </div>
+      </section>
+      <div id="portfolio-summary"></div>
+      <section class="portfolio-grid-2">
+        <article class="portfolio-card">
+          <div class="portfolio-card-header">
+            <div class="portfolio-card-title">Envelope Queue</div>
+            <div class="portfolio-card-copy">Primary PM queue. One row per envelope.</div>
+          </div>
+          <div id="portfolio-envelope-table"></div>
+        </article>
+        <div class="portfolio-side-stack">
+          <article class="portfolio-card">
+            <div class="portfolio-card-header">
+              <div class="portfolio-card-title">Top Publishers</div>
+              <div class="portfolio-card-copy">Publishers contributing the most visible issues in the current slice.</div>
+            </div>
+            <div id="portfolio-top-publishers"></div>
+          </article>
+          <article class="portfolio-card">
+            <div class="portfolio-card-header">
+              <div class="portfolio-card-title">Top Issues</div>
+              <div class="portfolio-card-copy">Recurring issue patterns across the active slice.</div>
+            </div>
+            <div id="portfolio-top-issues"></div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </div>
+
   <!-- RELEASE NOTES PANEL -->
   <div class="panel" id="panel-release" style="display:none; overflow-y:auto; padding:24px; flex-direction:column;">
-    <div style="max-width:760px;">
+    <div style="max-width:820px;">
       <div class="about-guide">
         <div class="about-topline">
           <div>
-            <div class="about-topline-title">Product Updates</div>
-            <div class="about-topline-meta">Latest validated changes to the CATCH workspace and reporting experience</div>
+            <div class="about-topline-title">Release Notes</div>
+            <div class="about-topline-meta">What changed in the current CATCH workspace</div>
           </div>
-          <div class="about-link-chip">Release notes</div>
+          <div class="about-link-chip">Version 3.1</div>
         </div>
 
         <div class="about-hero" style="margin-bottom:22px;">
           <div class="about-kicker">Current release</div>
-          <div class="about-hero-title">Version 3.0</div>
-          <div class="about-hero-copy">
-            This release focused on modernizing the validator experience while preserving the underlying validation engine, history model, and translation logic.
-          </div>
+          <div class="about-hero-title">PM reporting and portfolio polish</div>
+          <div class="about-hero-copy">Version 3.1 focuses on turning CATCH into a cleaner command center for project managers while keeping technical drilldown available when teams need it.</div>
         </div>
 
         <div class="ref-section">
           <div class="ref-section-title">Highlights</div>
           <div class="rule-card">
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Modernized validate workspace</span><span class="rule-note">Refreshed the main review surface with a cleaner layout, stronger visual hierarchy, better findings presentation, and a more focused workflow.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">History as a readable feed</span><span class="rule-note">Reframed saved validation sessions as reviewable run cards with export, backup, and restore actions that are easier to understand.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Trends as a reporting dashboard</span><span class="rule-note">Added health signals, trend summaries, recurring-issue analysis, publisher concentration, and row-level detail for project teams and leadership.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Schema review improvements</span><span class="rule-note">Added `Merged`, `Workbook`, and `Contract` schema views so users can confirm field expectations without leaving the tool.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Error refinement workflow</span><span class="rule-note">Users can refine recurring errors directly into the translation library from findings and trend detail views.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Portfolio tab</span><span class="rule-note">Added a PM-first portfolio workspace with filters, KPI cards, top publishers, top issues, and an envelope queue.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Envelope reader modal</span><span class="rule-note">Queue rows now open into a focused modal with envelope context, what was sent incorrectly, and error detail without forcing users into History.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">History repositioned</span><span class="rule-note">History is now treated more clearly as the saved-run archive for exports, backup, and one-run technical review.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Health report redesign</span><span class="rule-note">Reporting now centers on portfolio health, envelope-level review, recurring issues, and PM-ready workbook output.</span></div>
           </div>
         </div>
 
         <div class="ref-section">
-          <div class="ref-section-title">Recent Improvements</div>
+          <div class="ref-section-title">Polish and Stability</div>
           <div class="rule-card">
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Schema source toggle</span><span class="rule-note">Event Type review now lets users switch between merged schema guidance, workbook guidance, and raw contract structure.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Cleaner plain-English messages</span><span class="rule-note">Translations were rewritten to explain issues in business-readable language without over-assuming root cause or ownership.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Health report naming</span><span class="rule-note">The reporting output formerly labeled as an ELT report is now surfaced more clearly as a Health Report.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Support content moved to Settings</span><span class="rule-note">About CATCH and Product Updates now live in the support-content path instead of competing with workflow tabs in the main header.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Encoding cleanup</span><span class="rule-note">Cleaned multiple mojibake paths across trends, reporting strings, and support content.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Support content in Settings</span><span class="rule-note">Moved About CATCH and Release Notes behind Settings so the main tab strip stays focused on workflow.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Settings control refresh</span><span class="rule-note">Simplified the Settings control so it reads as one clear action button in the header.</span></div>
+            <div class="rule-row"><span class="rule-label" style="min-width:220px">Trend toolbar cleanup</span><span class="rule-note">Removed redundant controls and reduced repeated explanatory copy in reporting views.</span></div>
           </div>
         </div>
 
         <div class="ref-section">
-          <div class="ref-section-title">Stability Fixes</div>
-          <div class="rule-card">
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">History action layout</span><span class="rule-note">Restored grouped export and backup actions so the History toolbar reads as one intentional control area instead of a stacked list of buttons.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Reader modal wiring</span><span class="rule-note">Repaired the shared support-content modal so About CATCH, Product Updates, and trend explainer content open correctly again.</span></div>
-            <div class="rule-row"><span class="rule-label" style="min-width:220px">Schema review modal</span><span class="rule-note">Preserved access to the full schema while improving the default spreadsheet-style view for easier contract review.</span></div>
-          </div>
-        </div>
-
-        <div class="ref-section">
-          <div class="ref-section-title">What Comes Next</div>
+          <div class="ref-section-title">Next Up</div>
           <div style="font-size:11px;color:var(--text2);font-family:var(--sans);line-height:1.7;">
-            The next strongest enhancements are batch validation, trend movement over time, and deeper publisher-level reporting for leadership and implementation teams.
+            The next strongest improvements are deeper PM queue refinement, better owner signaling in Portfolio, and more compact reporting surfaces for leadership consumption.
           </div>
         </div>
       </div>
@@ -910,11 +840,36 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
 
 
 
-<script src="tx-workbook-schema-v3.js?v=20260405c"></script>
-<script src="app.js?v=20260405c"></script>
+<script src="tx-workbook-schema-v3.js?v=20260406ac"></script>
+<script src="app.js?v=20260406ac"></script>
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
