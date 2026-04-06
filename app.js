@@ -1,10 +1,10 @@
-// ══════════════════════════════════════════════════════════════════════════════
-// SECURITY LAYER — Feature 1: XSS Fix · 2: PII Scrubber · 3: Session-Only
-//                  Feature 4: Inactivity Auto-Clear · 5: Export Warning
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SECURITY LAYER - Feature 1: XSS Fix - 2: PII Scrubber - 3: Session-Only
+//                  Feature 4: Inactivity Auto-Clear - 5: Export Warning
 //                  Feature 6: History TTL (7-day auto-expire)
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-// ── Feature 1: HTML escaping helper (XSS prevention) ─────────────────────────
+// --"- Feature 1: HTML escaping helper (XSS prevention) --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // All user-supplied data rendered via innerHTML must go through escHtml().
 // The existing esc() in the library editor is extended here for global use.
 function escHtml(s) {
@@ -18,7 +18,20 @@ function escHtml(s) {
 }
 
 function hasMojibake(str) {
-  return /[ÃÂâï]/.test(String(str || ''));
+  return /[ÃƒÃ‚Ã¢Ã¯]/.test(String(str || ''));
+}
+function cleanMetaText(value, fallback) {
+  if (value === null || value === undefined || value === '') return fallback || '';
+  return String(value)
+    .replace(/Ã¢â‚¬Â¦|â€¦/g, '...')
+    .replace(/â€“|â€”/g, '-')
+    .replace(/â†’/g, '->')
+    .replace(/â€˜|â€™/g, "'")
+    .replace(/â€œ|â€�/g, '"')
+    .replace(/Â/g, '')
+    .replace(/Ã‚/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim() || (fallback || '');
 }
 
 function removeDuplicateIdNodes(id) {
@@ -88,7 +101,7 @@ function normalizeCorruptedUiShell() {
 
   setNodeHtml(
     '#main-title',
-    'CATCH / TX OCA <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:6px;">v3.0</span>'
+    'CATCH / TX OCA <span style="font-size:10px;font-weight:400;color:var(--text3);margin-left:6px;">v3.1</span>'
   );
 
   Array.prototype.slice.call(document.querySelectorAll('#state-select option')).forEach(function(option) {
@@ -97,8 +110,8 @@ function normalizeCorruptedUiShell() {
     if (val === 'IL') option.textContent = 'IL / AOIC';
   });
 
-  setNodeAttr('#settings-btn', 'title', 'Settings - Schema Manager, Error Log cap, Error Library');
-  setNodeHtml('#settings-btn', '&#9881; Settings<span id="settings-cap-badge" style="display:none;background:var(--orange);color:#000;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:2px;"></span>');
+  setNodeAttr('#settings-btn', 'title', 'Settings');
+  setNodeHtml('#settings-btn', 'Settings<span id="settings-cap-badge" style="display:none;background:var(--orange);color:#000;font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:6px;"></span>');
   setNodeAttr(
     '#input-area',
     'placeholder',
@@ -133,14 +146,14 @@ function normalizeCorruptedUiShell() {
   Array.prototype.slice.call(document.querySelectorAll('button, span, div, label, option')).forEach(function(node) {
     if (!node.children.length && hasMojibake(node.textContent)) {
       node.textContent = node.textContent
-        .replace(/[ÃÂâï][^ ]*/g, '')
+        .replace(/[ÃƒÃ‚Ã¢Ã¯][^ ]*/g, '')
         .replace(/\s{2,}/g, ' ')
         .trim();
     }
   });
 }
 
-// ── Feature 2: PII Scrubber ───────────────────────────────────────────────────
+// --"- Feature 2: PII Scrubber --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Strips likely PII from history/error-log entries before they touch localStorage.
 // Targets: SSN patterns, DOB-like dates embedded in field values, defendant names
 // in known name fields. Operates on the errors array inside a run object.
@@ -178,7 +191,7 @@ function scrubRunPII(run) {
   return r;
 }
 
-// ── Feature 3: Session-Only mode ─────────────────────────────────────────────
+// --"- Feature 3: Session-Only mode --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // When enabled, history/error-log writes go to sessionStorage only (cleared
 // when the tab closes). Persists the toggle preference itself in localStorage.
 const SESSION_ONLY_KEY = 'catch_session_only_mode';
@@ -214,12 +227,12 @@ function updateSessionOnlyLabel() {
   const lbl = document.getElementById('session-only-label');
   if (!lbl) return;
   lbl.textContent = isSessionOnly()
-    ? 'Session-Only ON — nothing will persist after tab close'
-    : 'Session-Only OFF — history saved to browser storage';
+    ? 'Session-Only ON - nothing will persist after tab close'
+    : 'Session-Only OFF - history saved to browser storage';
   lbl.style.color = isSessionOnly() ? 'var(--orange)' : 'var(--text3)';
 }
 
-// ── Feature 4: Inactivity Auto-Clear ─────────────────────────────────────────
+// --"- Feature 4: Inactivity Auto-Clear --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Clears the validate textarea and results after 30 minutes of no user action.
 // Resets on any keypress, mouse move, or click. Shows a countdown warning at 25m.
 const INACTIVITY_MS     = 30 * 60 * 1000; // 30 minutes
@@ -253,13 +266,13 @@ function showInactivityWarning() {
     'padding:8px 12px','border-radius:5px','max-width:320px','line-height:1.6'
   ].join(';');
   inactivityWarnEl.innerHTML =
-    '⚠ Inactivity detected — workspace will auto-clear in 5 minutes to protect sensitive data. ' +
+    'Warning Inactivity detected - workspace will auto-clear in 5 minutes to protect sensitive data. ' +
     '<span style="cursor:pointer;text-decoration:underline" onclick="resetInactivityTimer()">Keep active</span>';
   document.body.appendChild(inactivityWarnEl);
 }
 
 function autoClearOnInactivity() {
-  // Clear the validation input and results (not history — just the live workspace)
+  // Clear the validation input and results (not history - just the live workspace)
   const inputArea = document.getElementById('input-area');
   const resultsArea = document.getElementById('results-area');
   const summaryBar = document.getElementById('summary-bar');
@@ -317,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch(e) {}
 });
 
-// ── Feature 5: Export Warning Modal ──────────────────────────────────────────
+// --"- Feature 5: Export Warning Modal --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Any function that triggers a file download calls confirmExport() first.
 // Returns a Promise that resolves true (proceed) or false (cancel).
 function confirmExport(label) {
@@ -333,7 +346,7 @@ function confirmExport(label) {
       'padding:20px 24px','max-width:400px','width:90%','font-family:var(--mono)'
     ].join(';');
     box.innerHTML =
-      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">⚠ Export Confirmation</div>' +
+      '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px">Warning Export Confirmation</div>' +
       '<div style="font-size:10.5px;color:var(--text2);line-height:1.7;margin-bottom:16px">' +
         'You are about to export <strong>' + escHtml(label) + '</strong>.<br>' +
         'This file may contain court record data. Ensure you are saving it to an approved, secure location.' +
@@ -350,9 +363,9 @@ function confirmExport(label) {
   });
 }
 
-// ── Feature 6: History TTL ────────────────────────────────────────────────────
+// --"- Feature 6: History TTL --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Runs expire after 7 days. Called once during loadHistory() to silently prune
-// stale entries before they are ever displayed. No data is exported — expired
+// stale entries before they are ever displayed. No data is exported - expired
 // entries are simply discarded (they are old enough to not be actionable).
 const HISTORY_TTL_DAYS = 7;
 const HISTORY_TTL_MS   = HISTORY_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -367,9 +380,9 @@ function pruneExpiredRuns(runs) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // END SECURITY LAYER
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const VALID_V3 = [
   "di-texas-oca-court-appointments",
@@ -389,10 +402,10 @@ const VALID_V01 = [
   "di-texas-oca-court-criminal-sanctions"
 ];
 const ALL_VALID = [...VALID_V3, ...VALID_V01];
-// ── Market tracking ───────────────────────────────────────────────────────────
+// --"- Market tracking --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 var _currentMarket = 'TX';
 
-// ── IL · AOIC Schema Data (v3.1.0) ───────────────────────────────────────────
+// --"- IL - AOIC Schema Data (v3.1.0) --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 const IL_VALID_ENTITY_TYPES = ["di-aoic-pretrial-active-status","di-aoic-pretrial-court-appearance-and-judicial-decisions","di-aoic-pretrial-courts-and-charges","di-aoic-pretrial-disposition-and-release","di-aoic-pretrial-drug-screening","di-aoic-pretrial-individual-background","di-aoic-pretrial-intake-and-assessment","di-aoic-pretrial-jail","di-aoic-pretrial-offense-charges","di-aoic-pretrial-offenses","di-aoic-pretrial-violations","di-aoic-probation-active-status","di-aoic-probation-ancillary-assessment","di-aoic-probation-drug-testing","di-aoic-probation-individual-background","di-aoic-probation-intake","di-aoic-probation-offenses","di-aoic-probation-programming-and-treatment","di-aoic-probation-supervision-and-sentencing","di-aoic-probation-termination","di-aoic-probation-violations-and-sanctions","di-aoic-trialcourt-adr","di-aoic-trialcourt-case-status","di-aoic-trialcourt-documents","di-aoic-trialcourt-financial","di-aoic-trialcourt-hearings","di-aoic-trialcourt-ja","di-aoic-trialcourt-party","di-aoic-trialcourt-party-hearing","di-aoic-trialcourt-pretrial","di-aoic-reviewingcourt-administration","di-aoic-reviewingcourt-case-status","di-aoic-reviewingcourt-financial","di-aoic-reviewingcourt-hearings","di-aoic-reviewingcourt-party","di-aoic-reviewingcourt-party-hearing","di-aoic-reviewingcourt-reviewing-courts"];
 
 const IL_SOURCE_ID_MAP = {"Journal Technologies":"833tgmurNEpY7bPfKoZxeY","Goodin & Associates":"xnBe24mSP2YH4zfNSc5HSK","DuPage County":"4YYU6PVzSFE7mEJkuCBbFd","JANO Justice Systems":"8ZMMrB2L323qGcCPViu1qJ","Tyler Technologies (Enterprise Justice)":"81e7K4fPBnxDHAqQNyVND2","Justice Systems":"dVEWjdnqgsE8Kj2rb3YXGk","Tracker - Solution Specialties":"xgodrPpqbrDJjCKi6wrw2R"};
@@ -452,13 +465,13 @@ const DEADLY_WEAPON_FINDING = ["No","Yes - Firearm","Yes - Not a Firearm",null];
 const CHARGE_MANNER_OF_DISPOSITION = ["Bench Trial","Jury Trial","Non-Trial",null];
 const CHARGE_DISPOSITION = ["Abandoned Charges","Acquitted","Acquitted - Insane","Acquitted - Mentally Incompetent","Amend Probation","Community Supervision Expired","Commuted","Conditional Discharge","Convicted","Convicted - Appeal Pending","Convicted - Lesser Charge","DIC Update","Dead","Deferred","Deferred Amended Probation","Deferred Sentence Modified","Dismissed","Dismissed - Insane","Dismissed - Mentally Incompetent","Mistrial","Multiple Charges - 1 Disposition","Non-Disclosure Order","Not Guilty","Pardoned","Pending","Pending - Mental Incompetent","Probation Discharge","Probation Revocation","Quashed","Reduced to Class C","Reversed","Sentence Modified","Unadjudicated With","Waived",null];
 
-// Odyssey Source branch county allowlist (~105 counties — enforced by the registered Source ID, not the full schema)
+// Odyssey Source branch county allowlist (~105 counties - enforced by the registered Source ID, not the full schema)
 const ODYSSEY_COUNTIES = new Set(["Anderson","Andrews","Angelina","Aransas","Archer","Austin","Bastrop","Bell","Bexar","Bowie","Brazoria","Brazos","Burnet","Caldwell","Calhoun","Cameron","Chambers","Clay","Collin","Comal","Comanche","Crane","Dallas","DeWitt","Delta","Denton","Donley","Eastland","Ector","El Paso","Erath","Fannin","Fayette","Fort Bend","Franklin","Galveston","Gillespie","Gonzales","Grayson","Gregg","Guadalupe","Hale","Hamilton","Harris","Harrison","Hartley","Hays","Henderson","Hidalgo","Hill","Hood","Howard","Hunt","Hutchinson","Jackson","Jasper","Jeff Davis","Jefferson","Johnson","Karnes","Kaufman","Kendall","Kerr","Lamar","Leon","Liberty","Limestone","Loving","Lubbock","Matagorda","Medina","Mills","Montague","Montgomery","Morris","Navarro","Nueces","Panola","Parker","Pecos","Polk","Potter","Randall","Refugio","Rockwall","San Jacinto","San Patricio","Scurry","Smith","Somervell","Sutton","Tarrant","Taylor","Tom Green","Travis","Upton","Victoria","Walker","Waller","Webb","Wichita","Williamson","Winkler","Wise","Wood","Yoakum"]);
 
 // Publisher-specific county enums
 // Odyssey Source branch is restricted to ~104 counties based on registered Source ID
 
-// v0.1 county enum — County-Subdivision format (delete-record-event entity types)
+// v0.1 county enum - County-Subdivision format (delete-record-event entity types)
 const V01_COUNTIES = new Set(["Anderson","Anderson-Elkhart","Anderson-Frankston","Anderson-PCT 1-Pl 1","Anderson-PCT 2-Pl 1","Anderson-PCT 3-Pl 1","Anderson-PCT 4-Pl 1","Anderson-Palestine","Andrews","Andrews-Andrews","Andrews-PCT 1","Andrews-PCT 2","Angelina","Angelina-Diboll","Angelina-Hudson","Angelina-Huntington","Angelina-Lufkin","Angelina-PCT 1-Pl 1","Angelina-PCT 2-Pl 1","Angelina-PCT 3-Pl 1","Angelina-PCT 4-Pl 1","Angelina-Zavalla","Aransas","Aransas-Fulton","Aransas-PCT 1","Aransas-PCT 2","Aransas-Rockport","Archer","Archer-Archer City","Archer-Holliday","Archer-Lakeside City","Archer-PCT 1-Pl 1","Archer-PCT 2-Pl 1","Archer-PCT 3-Pl 1","Archer-PCT 4-Pl 1","Archer-Windthorst","Armstrong","Armstrong-Claude","Atascosa","Atascosa-Charlotte","Atascosa-Jourdanton","Atascosa-Lytle","Atascosa-PCT 1","Atascosa-PCT 2","Atascosa-PCT 3","Atascosa-PCT 4","Atascosa-Pleasanton","Atascosa-Poteet","Austin","Austin-Bellville","Austin-PCT 1-Pl 1","Austin-PCT 2-Pl 1","Austin-PCT 3-Pl 1","Austin-PCT 4-Pl 1","Austin-San Felipe","Austin-Sealy","Austin-Wallis","Bailey","Bailey-Muleshoe","Bailey-PCT 1-Pl 1","Bandera","Bandera-Bandera","Bandera-PCT 1","Bandera-PCT 2","Bandera-PCT 3","Bandera-PCT 4","Bastrop","Bastrop-Bastrop","Bastrop-Elgin","Bastrop-PCT 1-Pl 1","Bastrop-PCT 2-Pl 1","Bastrop-PCT 3-Pl 1","Bastrop-PCT 4-Pl 1","Bastrop-Smithville","Baylor","Baylor-PCT 1-Pl 1","Baylor-PCT 2-Pl 1","Baylor-Seymour","Bee","Bee-Beeville","Bee-PCT 1","Bee-PCT 2","Bee-PCT 3","Bee-PCT 4","Bell","Bell-Bartlett","Bell-Belton","Bell-Harker Heights","Bell-Holland","Bell-Killeen","Bell-Little River-Academy","Bell-Morgan's Point Resort","Bell-Nolanville","Bell-PCT 1-Pl 1","Bell-PCT 2-Pl 1","Bell-PCT 3-Pl 1","Bell-PCT 3-Pl 2","Bell-PCT 4-Pl 1","Bell-PCT 4-Pl 2","Bell-Rogers","Bell-Salado","Bell-Temple","Bell-Troy","Bexar","Bexar-Alamo Heights","Bexar-Balcones Heights","Bexar-Castle Hills","Bexar-China Grove","Bexar-City of Sandy Oaks","Bexar-Converse","Bexar-Elmendorf","Bexar-Fair Oaks Ranch","Bexar-Grey Forest","Bexar-Helotes","Bexar-Hill Country Village","Bexar-Hollywood Park","Bexar-Kirby","Bexar-Leon Valley","Bexar-Live Oak","Bexar-Olmos Park","Bexar-PCT 1-Pl 1","Bexar-PCT 2-Pl 1","Bexar-PCT 3-Pl 1","Bexar-PCT 4-Pl 1","Bexar-Saint Hedwig","Bexar-San Antonio","Bexar-Selma","Bexar-Shavano Park","Bexar-Somerset","Bexar-Terrell Hills","Bexar-Universal City","Bexar-Von Ormy","Bexar-Windcrest","Blanco","Blanco-Blanco","Blanco-Johnson City","Blanco-PCT 1-Pl 1","Blanco-PCT 4-Pl 1","Borden","Bosque","Bosque-Clifton","Bosque-Meridian","Bosque-Morgan","Bosque-PCT 1-Pl 1","Bosque-PCT 2-Pl 1","Bosque-Valley Mills","Bosque-Walnut Springs","Bowie","Bowie-De Kalb","Bowie-Hooks","Bowie-Maud","Bowie-Nash","Bowie-New Boston","Bowie-PCT 1-Pl 1","Bowie-PCT 1-Pl 2","Bowie-PCT 2-Pl 1","Bowie-PCT 3-Pl 1","Bowie-PCT 4-Pl 1","Bowie-PCT 5-Pl 1","Bowie-Redwater","Bowie-Texarkana","Bowie-Wake Village","Brazoria","Brazoria-Alvin","Brazoria-Angleton","Brazoria-Brazoria","Brazoria-Brookside Village","Brazoria-Clute","Brazoria-Danbury","Brazoria-Freeport","Brazoria-Holiday Lakes","Brazoria-Iowa Colony","Brazoria-Jones Creek","Brazoria-Lake Jackson","Brazoria-Liverpool","Brazoria-Manvel","Brazoria-Oyster Creek","Brazoria-PCT 1-Pl 1","Brazoria-PCT 1-Pl 2","Brazoria-PCT 2-Pl 1","Brazoria-PCT 2-Pl 2","Brazoria-PCT 3-Pl 1","Brazoria-PCT 3-Pl 2","Brazoria-PCT 4-Pl 1","Brazoria-PCT 4-Pl 2","Brazoria-Pearland","Brazoria-Richwood","Brazoria-Surfside Beach","Brazoria-Sweeny","Brazoria-West Columbia","Brazos","Brazos-Bryan","Brazos-College Station","Brazos-PCT 1","Brazos-PCT 2","Brazos-PCT 3","Brazos-PCT 4","Brewster","Brewster-Alpine","Brewster-PCT 1-Pl 1","Brewster-PCT 2-Pl 1","Brewster-PCT 3-Pl 1","Briscoe","Briscoe-PCT 1-Pl 1","Briscoe-PCT 2-Pl 1","Brooks","Brooks-Falfurrias","Brooks-PCT 1-Pl 1","Brooks-PCT 2-Pl 1","Brooks-PCT 3-Pl 1","Brooks-PCT 4-Pl 1","Brown","Brown-Bangs","Brown-Brownwood","Brown-Early","Brown-PCT 1-Pl 1","Brown-PCT 2-Pl 1","Brown-PCT 3-Pl 1","Brown-PCT 4-Pl 1","Burleson","Burleson-Caldwell","Burleson-PCT 1","Burleson-PCT 2","Burleson-PCT 3","Burleson-PCT 4","Burleson-Snook","Burleson-Somerville","Burnet","Burnet-Bertram","Burnet-Burnet","Burnet-Cottonwood Shores","Burnet-Granite Shoals","Burnet-Highland Haven","Burnet-Marble Falls","Burnet-Meadowlakes","Burnet-PCT 1-Pl 1","Burnet-PCT 2-Pl 1","Burnet-PCT 3-Pl 1","Burnet-PCT 4-Pl 1","Caldwell","Caldwell-Lockhart","Caldwell-Luling","Caldwell-Martindale","Caldwell-PCT 1-Pl 1","Caldwell-PCT 2-Pl 1","Caldwell-PCT 3-Pl 1","Caldwell-PCT 4-Pl 1","Calhoun","Calhoun-PCT 1-Pl 1","Calhoun-PCT 2-Pl 1","Calhoun-PCT 3-Pl 1","Calhoun-PCT 4-Pl 1","Calhoun-PCT 5-Pl 1","Calhoun-Point Comfort","Calhoun-Port Lavaca","Calhoun-Seadrift","Callahan","Callahan-Baird","Callahan-Clyde","Callahan-Cross Plains","Callahan-PCT 1-Pl 1","Callahan-PCT 3-Pl 1","Callahan-PCT 4-Pl 1","Cameron","Cameron-Brownsville","Cameron-Combes","Cameron-Harlingen","Cameron-Indian Lake","Cameron-Jail Magistrate Court","Cameron-La Feria","Cameron-Laguna Vista","Cameron-Los Fresnos","Cameron-PCT 1","Cameron-PCT 2-Pl 1","Cameron-PCT 2-Pl 2","Cameron-PCT 2-Pl 3","Cameron-PCT 3-Pl 1","Cameron-PCT 3-Pl 2","Cameron-PCT 4","Cameron-PCT 5 Pl 3","Cameron-PCT 5-Pl 1","Cameron-PCT 5-Pl 2","Cameron-Palm Valley","Cameron-Port Isabel","Cameron-Primera","Cameron-Rancho Viejo","Cameron-Rio Hondo","Cameron-San Benito","Cameron-Santa Rosa","Cameron-South Padre Island","Camp","Camp-Pittsburg","Carson","Carson-Groom","Carson-PCT 1-Pl 1","Carson-PCT 2-Pl 1","Carson-Panhandle","Carson-Skellytown","Carson-White Deer","Cass","Cass-Atlanta","Cass-Avinger","Cass-Bloomburg","Cass-Hughes Springs","Cass-Linden","Cass-PCT 1-Pl 1","Cass-PCT 2-Pl 1","Cass-PCT 3-Pl 1","Cass-PCT 4-Pl 1","Cass-Queen City","Castro","Castro-Dimmitt","Castro-Hart","Chambers","Chambers-Anahuac","Chambers-Beach City","Chambers-Mont Belvieu","Chambers-Old River-Winfree","Chambers-PCT 1-Pl 1","Chambers-PCT 2-Pl 1","Chambers-PCT 3-Pl 1","Chambers-PCT 4-Pl 1","Chambers-PCT 5-Pl 1","Chambers-PCT 6-Pl 1","Cherokee","Cherokee-Alto","Cherokee-Bullard","Cherokee-Cuney","Cherokee-Jacksonville","Cherokee-New Summerfield","Cherokee-PCT 1-Pl 1","Cherokee-PCT 2-Pl 1","Cherokee-PCT 3-Pl 1","Cherokee-PCT 4-Pl 1","Cherokee-Rusk","Cherokee-Wells","Childress","Childress-Childress","Clay","Clay-Henrietta","Cochran","Cochran-Morton","Coke","Coke-Bronte","Coke-PCT 1","Coke-Robert Lee","Coleman","Coleman-Coleman","Coleman-Santa Anna","Collin","Collin-Allen","Collin-Anna","Collin-Blue Ridge","Collin-Celina","Collin-Fairview","Collin-Farmersville","Collin-Frisco","Collin-Josephine","Collin-Lavon","Collin-Lucas","Collin-McKinney","Collin-Melissa","Collin-Murphy","Collin-Nevada","Collin-PCT 1","Collin-PCT 2","Collin-PCT 3","Collin-PCT 4","Collin-Parker","Collin-Plano","Collin-Princeton","Collin-Prosper","Collin-Town of New Hope","Collin-Wylie","Collingsworth","Collingsworth-Wellington","Colorado","Colorado-Columbus","Colorado-Eagle Lake","Colorado-PCT 1-Pl 1","Colorado-PCT 2-Pl 1","Colorado-PCT 3-Pl 1","Colorado-PCT 4-Pl 1","Colorado-Weimar","Comal","Comal-Bulverde","Comal-Garden Ridge","Comal-New Braunfels","Comal-PCT 1","Comal-PCT 2","Comal-PCT 3","Comal-PCT 4","Comanche","Comanche-Comanche","Comanche-De Leon","Concho","Concho-Eden","Cooke","Cooke-Gainesville","Cooke-Lindsay","Cooke-Muenster","Cooke-PCT 1","Cooke-PCT 2","Cooke-Town of Oak Ridge","Cooke-Valley View","Coryell","Coryell-Copperas Cove","Coryell-Evant","Coryell-Gatesville","Coryell-PCT 1","Coryell-PCT 2","Coryell-PCT 3-Pl 1","Coryell-PCT 4-Pl 1","Cottle","Cottle-Paducah","Crane","Crane-Crane","Crockett","Crosby","Crosby-Crosbyton","Crosby-Lorenzo","Crosby-PCT 1-Pl 1","Crosby-Ralls","Culberson","Culberson-PCT 1-Pl 1","Culberson-PCT 2-Pl 1","Culberson-PCT 3-Pl 1","Culberson-PCT 4-Pl 1","Culberson-Van Horn","Dallam","Dallam-Dalhart","Dallam-Texline","Dallas","Dallas-Addison","Dallas-Balch Springs","Dallas-Carrollton","Dallas-Cedar Hill","Dallas-Cockrell Hill","Dallas-Coppell","Dallas-Dallas","Dallas-DeSoto","Dallas-Duncanville","Dallas-Farmers Branch","Dallas-Garland","Dallas-Glenn Heights","Dallas-Grand Prairie","Dallas-Highland Park","Dallas-Hutchins","Dallas-Irving","Dallas-Lancaster","Dallas-Mesquite","Dallas-PCT 1-Pl 1","Dallas-PCT 1-Pl 2","Dallas-PCT 2-Pl 1","Dallas-PCT 2-Pl 2","Dallas-PCT 3-Pl 1","Dallas-PCT 3-Pl 2","Dallas-PCT 4-Pl 1","Dallas-PCT 4-Pl 2","Dallas-PCT 5-Pl 1","Dallas-PCT 5-Pl 2","Dallas-Richardson","Dallas-Rowlett","Dallas-Sachse","Dallas-Seagoville","Dallas-Sunnyvale","Dallas-University Park","Dallas-Wilmer","Dawson","Dawson-Lamesa","DeWitt","DeWitt-Cuero","DeWitt-PCT 1-Pl 1","DeWitt-PCT 2-Pl 1","DeWitt-Yorktown","Deaf Smith","Deaf Smith-Hereford","Delta","Delta-Cooper","Delta-PCT 5-Pl 1","Denton","Denton-Argyle","Denton-Aubrey","Denton-Bartonville","Denton-City of Dish","Denton-Copper Canyon","Denton-Corinth","Denton-Cross Roads","Denton-Denton","Denton-Double Oak","Denton-Flower Mound","Denton-Hackberry","Denton-Hickory Creek","Denton-Highland Village","Denton-Justin","Denton-Krugerville","Denton-Krum","Denton-Lake Dallas","Denton-Lakewood Village","Denton-Lewisville","Denton-Little Elm","Denton-Northlake","Denton-Oak Point","Denton-PCT 1","Denton-PCT 2","Denton-PCT 3","Denton-PCT 4","Denton-PCT 5","Denton-PCT 6","Denton-Pilot Point","Denton-Ponder","Denton-Providence Village","Denton-Roanoke","Denton-Sanger","Denton-Shady Shores","Denton-The Colony","Denton-Trophy Club","Denton-Westlake","Dickens","Dickens-PCT 1-Pl 1","Dickens-Spur","Dimmit","Dimmit-Carrizo Springs","Dimmit-PCT 1-Pl 1","Dimmit-PCT 2-Pl 1","Dimmit-PCT 3-Pl 1","Dimmit-PCT 4-Pl 1","Donley","Donley-Clarendon","Donley-Howardwick","Donley-PCTs 1 & 2 Pl 1","Donley-PCTs 3 & 4 Pl 2","Duval","Duval-Benavides","Duval-Freer","Duval-PCT 1-Pl 1","Duval-PCT 2-Pl 1","Duval-PCT 3-Pl 1","Duval-PCT 4-Pl 1","Duval-San Diego","Eastland","Eastland-Cisco","Eastland-Eastland","Eastland-Gorman","Eastland-PCT 1","Eastland-PCT 2","Eastland-PCT 4","Eastland-Ranger","Eastland-Rising Star","Ector","Ector-Odessa","Ector-PCT 1-Pl 1","Ector-PCT 2-Pl 1","Ector-PCT 3-Pl 1","Ector-PCT 4-Pl 1","Edwards","El Paso","El Paso-Anthony","El Paso-Clint","El Paso-El Paso","El Paso-Horizon City","El Paso-PCT 1-Pl 1","El Paso-PCT 2-Pl 1","El Paso-PCT 3-Pl 1","El Paso-PCT 4-Pl 1","El Paso-PCT 5-Pl 1","El Paso-PCT 6-Pl 1","El Paso-PCT 6-Pl 2","El Paso-PCT 7-Pl 1","El Paso-San Elizario","El Paso-Socorro","Ellis","Ellis-Alma","Ellis-Bardwell","Ellis-Ennis","Ellis-Ferris","Ellis-Garrett","Ellis-Italy","Ellis-Maypearl","Ellis-Midlothian","Ellis-Milford","Ellis-Oak Leaf","Ellis-Ovilla","Ellis-PCT 1-Pl 1","Ellis-PCT 2-Pl 1","Ellis-PCT 3-Pl 1","Ellis-PCT 4-Pl 1","Ellis-Palmer","Ellis-Pecan Hill","Ellis-Red Oak","Ellis-Waxahachie","Erath","Erath-Dublin","Erath-PCT 1","Erath-PCT 2-Pl 1","Erath-PCT 3","Erath-PCT 4","Erath-Stephenville","Falls","Falls-Lott","Falls-Marlin","Falls-PCT 1-Pl 1","Falls-PCT 2-Pl 1","Falls-PCT 3-Pl 1","Falls-PCT 4-Pl 1","Falls-Rosebud","Fannin","Fannin-Bonham","Fannin-Ector","Fannin-Honey Grove","Fannin-Ladonia","Fannin-Leonard","Fannin-PCT 1-Pl 1","Fannin-PCT 2-Pl 1","Fannin-PCT 3-Pl 1","Fannin-Savoy","Fannin-Trenton","Fayette","Fayette-Flatonia","Fayette-La Grange","Fayette-PCT 1-Pl 1","Fayette-PCT 2-Pl 1","Fayette-PCT 3-Pl 1","Fayette-PCT 4-Pl 1","Fayette-Round Top","Fayette-Schulenburg","Fisher","Fisher-PCT 1-Pl 1","Floyd","Floyd-Floydada","Floyd-Lockney","Floyd-PCT  4","Floyd-PCT 1","Floyd-PCT 2","Floyd-PCT 3","Foard","Foard-Crowell","Fort Bend","Fort Bend-Arcola","Fort Bend-Fulshear","Fort Bend-Meadows Pl","Fort Bend-Missouri City","Fort Bend-Needville","Fort Bend-Orchard","Fort Bend-PCT 1-Pl 1","Fort Bend-PCT 1-Pl 2","Fort Bend-PCT 2-Pl 1","Fort Bend-PCT 2-Pl 2","Fort Bend-PCT 3","Fort Bend-PCT 4-Pl 1","Fort Bend-Richmond","Fort Bend-Rosenberg","Fort Bend-Simonton","Fort Bend-Stafford","Fort Bend-Sugar Land","Fort Bend-Thompsons","Franklin","Franklin-Mount Vernon","Freestone","Freestone-Fairfield","Freestone-PCT 1","Freestone-PCT 2","Freestone-PCT 3","Freestone-PCT 4","Freestone-Teague","Freestone-Wortham","Frio","Frio-Dilley","Frio-PCT 1-Pl 1","Frio-PCT 2-Pl 1","Frio-PCT 3-Pl 1","Frio-PCT 4-Pl 1","Frio-Pearsall","Gaines","Gaines-PCT 1-Pl 1","Gaines-PCT 2-Pl 1","Gaines-Seagraves","Gaines-Seminole","Galveston","Galveston-Bayou Vista","Galveston-Clear Lake Shores","Galveston-Dickinson","Galveston-Friendswood","Galveston-Galveston","Galveston-Hitchcock","Galveston-Jamaica Beach","Galveston-Kemah","Galveston-La Marque","Galveston-League City","Galveston-PCT 1","Galveston-PCT 2","Galveston-PCT 3","Galveston-PCT 4","Galveston-Santa Fe","Galveston-Texas City","Galveston-Village of Tiki Island","Garza","Garza-PCT 1-Pl 1","Garza-PCT 2-Pl 1","Garza-Post","Gillespie","Gillespie-Fredericksburg","Gillespie-PCT 1-Pl 1","Gillespie-PCT 2-Pl 1","Gillespie-PCT 3-Pl 1","Gillespie-PCT 4-Pl 1","Glasscock","Goliad","Goliad-Goliad","Goliad-PCT 1","Goliad-PCT 2","Gonzales","Gonzales-Gonzales","Gonzales-Nixon","Gonzales-PCT 1","Gonzales-PCT 3-Pl 1","Gonzales-PCT 4-Pl 1","Gonzales-Smiley","Gonzales-Waelder","Gray","Gray-Lefors","Gray-PCT 1","Gray-PCT 2","Gray-PCT 3","Gray-Pampa","Grayson","Grayson-Bells","Grayson-Collinsville","Grayson-Denison","Grayson-Gunter","Grayson-Howe","Grayson-PCT 1","Grayson-PCT 2","Grayson-PCT 3","Grayson-PCT 4","Grayson-Pottsboro","Grayson-Sherman","Grayson-Southmayd","Grayson-Tioga","Grayson-Tom Bean","Grayson-Van Alstyne","Grayson-Whitesboro","Grayson-Whitewright","Gregg","Gregg-Clarksville City","Gregg-Gladewater","Gregg-Kilgore","Gregg-Lakeport","Gregg-Longview","Gregg-PCT 1-Pl 1","Gregg-PCT 2-Pl 1","Gregg-PCT 3-Pl 1","Gregg-PCT 4-Pl 1","Gregg-White Oak","Grimes","Grimes-Navasota","Grimes-PCT 1-Pl 1","Grimes-PCT 2-Pl 1","Grimes-PCT 3-Pl 1","Grimes-Todd Mission","Guadalupe","Guadalupe-Cibolo","Guadalupe-Marion","Guadalupe-PCT 1-Pl 1","Guadalupe-PCT 2-Pl 1","Guadalupe-PCT 3","Guadalupe-PCT 4-Pl 1","Guadalupe-Santa Clara","Guadalupe-Schertz","Guadalupe-Seguin","Hale","Hale-Abernathy","Hale-Hale Center","Hale-PCT 1-Pl 1","Hale-PCT 3-Pl 1","Hale-Petersburg","Hale-Plainview","Hall","Hall-Estelline","Hall-Memphis","Hall-PCT 1","Hall-PCT 2","Hall-PCT 3","Hall-PCT 4-Pl 1","Hamilton","Hamilton-Hamilton","Hamilton-Hico","Hamilton-PCT 1-Pl 1","Hansford","Hansford-Spearman","Hardeman","Hardeman-Chillicothe","Hardeman-Quanah","Hardin","Hardin-Kountze","Hardin-Lumberton","Hardin-PCT 1-Pl 1","Hardin-PCT 2-Pl 1","Hardin-PCT 3-Pl 1","Hardin-PCT 4-Pl 1","Hardin-PCT 5-Pl 1","Hardin-PCT 6-Pl 1","Hardin-Silsbee","Hardin-Sour Lake","Harris","Harris-Baytown","Harris-Bellaire","Harris-Bunker Hill","Harris-Deer Park","Harris-El Lago","Harris-Galena Park","Harris-Hedwig Village","Harris-Hilshire Village","Harris-Houston","Harris-Humble","Harris-Hunters Creek Village","Harris-Jacinto City","Harris-Jersey Village","Harris-Katy","Harris-La Porte","Harris-Morgan's Point","Harris-Nassau Bay","Harris-PCT 1-Pl 1","Harris-PCT 1-Pl 2","Harris-PCT 2-Pl 1","Harris-PCT 2-Pl 2","Harris-PCT 3-Pl 1","Harris-PCT 3-Pl 2","Harris-PCT 4-Pl 1","Harris-PCT 4-Pl 2","Harris-PCT 5-Pl 1","Harris-PCT 5-Pl 2","Harris-PCT 6-Pl 1","Harris-PCT 6-Pl 2","Harris-PCT 7-Pl 1","Harris-PCT 7-Pl 2","Harris-PCT 8-Pl 1","Harris-PCT 8-Pl 2","Harris-Pasadena","Harris-Piney Point Village","Harris-Seabrook","Harris-Shoreacres","Harris-South Houston","Harris-Southside Pl","Harris-Spring Valley Village","Harris-Taylor Lake Village","Harris-Tomball","Harris-Webster","Harris-West University Pl","Harrison","Harrison-Hallsville","Harrison-Marshall","Harrison-PCT 1","Harrison-PCT 2","Harrison-PCT 3","Harrison-PCT 4","Harrison-Waskom","Hartley","Hartley-Channing","Haskell","Haskell-Haskell","Haskell-PCT 1-Pl 1","Haskell-Rule","Haskell-Weinert","Hays","Hays-Buda","Hays-Dripping Springs","Hays-Jail Magistrate Court","Hays-Kyle","Hays-PCT 1-Pl 1","Hays-PCT 1-Pl 2","Hays-PCT 2-Pl 1","Hays-PCT 3-Pl 1","Hays-PCT 4-Pl 1","Hays-PCT 5-Pl 1","Hays-San Marcos","Hays-Wimberley","Hays-Woodcreek","Hemphill","Hemphill-Canadian","Henderson","Henderson-Athens","Henderson-Berryville","Henderson-Brownsboro","Henderson-Caney City","Henderson-Chandler","Henderson-Coffee City","Henderson-Enchanted Oaks","Henderson-Eustace","Henderson-Gun Barrel City","Henderson-Log Cabin","Henderson-Malakoff","Henderson-PCT 1","Henderson-PCT 2","Henderson-PCT 3","Henderson-PCT 4","Henderson-PCT 5","Henderson-Payne Springs","Henderson-Seven Points","Henderson-Star Harbor","Henderson-Tool","Henderson-Trinidad","Hidalgo","Hidalgo-Alamo","Hidalgo-Alton","Hidalgo-Donna","Hidalgo-Edcouch","Hidalgo-Edinburg","Hidalgo-Elsa","Hidalgo-Hidalgo","Hidalgo-La Joya","Hidalgo-La Villa","Hidalgo-McAllen","Hidalgo-Mercedes","Hidalgo-Mission","Hidalgo-PCT 1-Pl 1","Hidalgo-PCT 1-Pl 2","Hidalgo-PCT 2-Pl 1","Hidalgo-PCT 2-Pl 2","Hidalgo-PCT 3-Pl 1","Hidalgo-PCT 3-Pl 2","Hidalgo-PCT 4-Pl 1","Hidalgo-PCT 4-Pl 2","Hidalgo-PCT 5-Pl 1","Hidalgo-Palmhurst","Hidalgo-Palmview","Hidalgo-Penitas","Hidalgo-Pharr","Hidalgo-Progreso","Hidalgo-San Juan","Hidalgo-Sullivan City","Hidalgo-Weslaco","Hill","Hill-Hillsboro","Hill-Hubbard","Hill-Itasca","Hill-PCT 1-Pl 1","Hill-PCT 2-Pl 1","Hill-PCT 3-Pl 1","Hill-PCT 4-Pl 1","Hill-Whitney","Hockley","Hockley-Anton","Hockley-Levelland","Hockley-PCT 1-Pl 1","Hockley-PCT 2-Pl 1","Hockley-PCT 4-Pl 1","Hockley-PCT 5-Pl 1","Hockley-Ropesville","Hockley-Sundown","Hood","Hood-Granbury","Hood-Lipan","Hood-PCT 1","Hood-PCT 2","Hood-PCT 3","Hood-PCT 4","Hood-Tolar","Hopkins","Hopkins-Cumby","Hopkins-PCT 1-Pl 1","Hopkins-PCT 2-Pl 1","Hopkins-Sulphur Springs","Houston","Houston-Crockett","Houston-Grapeland","Houston-PCT 1-Pl 1","Houston-PCT 2-Pl 1","Howard","Howard-Big Spring","Howard-PCT 1-Pl 1","Howard-PCT 1-Pl 2","Howard-PCT 2","Hudspeth","Hudspeth-PCT 1-Pl 1","Hudspeth-PCT 2-Pl 1","Hudspeth-PCT 3-Pl 1","Hudspeth-PCT 4-Pl 1","Hunt","Hunt-Caddo Mills","Hunt-Celeste","Hunt-Commerce","Hunt-Greenville","Hunt-Hawk Cove","Hunt-Lone Oak","Hunt-PCT 1-Pl 1","Hunt-PCT 1-Pl 2","Hunt-PCT 2-Pl 1","Hunt-PCT 3-Pl 1","Hunt-PCT 4-Pl 1","Hunt-Quinlan","Hunt-West Tawakoni","Hunt-Wolfe City","Hutchinson","Hutchinson-Borger","Hutchinson-Fritch","Hutchinson-PCT 1","Hutchinson-PCT 2","Hutchinson-Stinnett","Irion","Irion-Mertzon","Jack","Jack-Bryson","Jack-Jacksboro","Jackson","Jackson-Edna","Jackson-Ganado","Jackson-PCT 1-Pl 1","Jackson-PCT 2-Pl 1","Jasper","Jasper-Jasper","Jasper-Kirbyville","Jasper-PCT 1-Pl 1","Jasper-PCT 2-Pl 1","Jasper-PCT 3-Pl 1","Jasper-PCT 4-Pl 1","Jasper-PCT 5-Pl 1","Jasper-PCT 6-Pl 1","Jeff Davis","Jefferson","Jefferson-Beaumont","Jefferson-Bevil Oaks","Jefferson-Groves","Jefferson-Nederland","Jefferson-PCT 1-Pl 1","Jefferson-PCT 1-Pl 2","Jefferson-PCT 2","Jefferson-PCT 4","Jefferson-PCT 6","Jefferson-PCT 7","Jefferson-PCT 8","Jefferson-Port Arthur","Jefferson-Port Neches","Jim Hogg","Jim Hogg-PCT 1-Pl 1","Jim Hogg-PCT 2-Pl 1","Jim Hogg-PCT 3-Pl 1","Jim Hogg-PCT 4-Pl 1","Jim Wells","Jim Wells-Alice","Jim Wells-Orange Grove","Jim Wells-PCT 1-Pl 1","Jim Wells-PCT 3-Pl 1","Jim Wells-PCT 4-Pl 1","Jim Wells-PCT 5-Pl 1","Jim Wells-PCT 6-Pl 1","Jim Wells-Premont","Johnson","Johnson-Alvarado","Johnson-Briaroaks","Johnson-Burleson","Johnson-Cleburne","Johnson-Cross Timber","Johnson-Godley","Johnson-Grandview","Johnson-Joshua","Johnson-Keene","Johnson-PCT 1-Pl 1","Johnson-PCT 2-Pl 1","Johnson-PCT 3-Pl 1","Johnson-PCT 4-Pl 1","Johnson-Rio Vista","Johnson-Venus","Jones","Jones-Anson","Jones-Hamlin","Jones-Hawley","Jones-Stamford","Karnes","Karnes-Falls City","Karnes-Karnes City","Karnes-Kenedy","Karnes-PCT 1","Karnes-PCT 2","Karnes-PCT 3","Karnes-PCT 4","Kaufman","Kaufman-City of Oak Ridge","Kaufman-Combine","Kaufman-Crandall","Kaufman-Forney","Kaufman-Kaufman","Kaufman-Kemp","Kaufman-Mabank","Kaufman-PCT 1","Kaufman-PCT 2","Kaufman-PCT 3","Kaufman-PCT 4","Kaufman-Scurry","Kaufman-Talty","Kaufman-Terrell","Kendall","Kendall-Boerne","Kendall-PCT 1-Pl 1","Kendall-PCT 2-Pl 1","Kendall-PCT 3-Pl 1","Kendall-PCT 4-Pl 1","Kenedy","Kenedy-PCT 1-Pl 1","Kenedy-PCT 2-Pl 1","Kenedy-PCT 3-Pl 1","Kenedy-PCT 4-Pl 1","Kent","Kerr","Kerr-Ingram","Kerr-Kerrville","Kerr-PCT 1-Pl 1","Kerr-PCT 2","Kerr-PCT 3-Pl 1","Kerr-PCT 4-Pl 1","Kimble","Kimble-Junction","King","Kinney","Kinney-Brackettville","Kleberg","Kleberg-Kingsville","Kleberg-PCT 1-Pl 1","Kleberg-PCT 2-Pl 1","Kleberg-PCT 3-Pl 1","Kleberg-PCT 4-Pl 1","Knox","Knox-Knox City","Knox-Munday","La Salle","La Salle-Cotulla","La Salle-Encinal","La Salle-PCT 1-Pl 1","La Salle-PCT 2-Pl 1","La Salle-PCT 3-Pl 1","La Salle-PCT 4-Pl 1","Lamar","Lamar-PCT 1-Pl 1","Lamar-PCT 2-Pl 1","Lamar-PCT 3-Pl 1","Lamar-PCT 4-Pl 1","Lamar-PCT 5-Pl 1","Lamar-PCT 5-Pl 2","Lamar-Paris","Lamar-Reno (Lamar County)","Lamar-Roxton","Lamb","Lamb-Amherst","Lamb-Earth","Lamb-Littlefield","Lamb-Olton","Lamb-PCT 1-Pl 1","Lamb-PCT 2-Pl 1","Lamb-PCT 3-Pl 1","Lamb-PCT 4-Pl 1","Lamb-Sudan","Lampasas","Lampasas-Kempner","Lampasas-Lampasas","Lampasas-Lometa","Lampasas-PCT 1-Pl 1","Lampasas-PCT 2-Pl 1","Lampasas-PCT 3-Pl 1","Lampasas-PCT 4-Pl 1","Lavaca","Lavaca-Hallettsville","Lavaca-Moulton","Lavaca-PCT 1-Pl 1","Lavaca-PCT 2-Pl 1","Lavaca-PCT 3-Pl 1","Lavaca-PCT 4-Pl 1","Lavaca-Shiner","Lavaca-Yoakum","Lee","Lee-Giddings","Lee-Lexington","Lee-PCT 2-Pl 1","Lee-PCT 3-Pl 1","Lee-PCT 4-Pl 1","Leon","Leon-Buffalo","Leon-Jewett","Leon-Marquez","Leon-Normangee","Leon-Oakwood","Leon-PCT 1-Pl 1","Leon-PCT 2-Pl 1","Leon-PCT 4-Pl 1","Liberty","Liberty-Cleveland","Liberty-Daisetta","Liberty-Dayton","Liberty-Dayton Lakes","Liberty-Hardin","Liberty-Kenefick","Liberty-Liberty","Liberty-PCT 1-Pl 1","Liberty-PCT 2-Pl 1","Liberty-PCT 3-Pl 1","Liberty-PCT 4-Pl 1","Liberty-PCT 5-Pl 1","Liberty-PCT 6-Pl 1","Liberty-Plum Grove","Limestone","Limestone-Coolidge","Limestone-Groesbeck","Limestone-Kosse","Limestone-Mexia","Limestone-PCT 1-Pl 1","Limestone-PCT 2-Pl 1","Limestone-PCT 3-Pl 1","Limestone-PCT 4-Pl 2","Limestone-Thornton","Lipscomb","Lipscomb-Booker","Lipscomb-Follett","Live Oak","Live Oak-George West","Live Oak-PCT 1","Live Oak-PCT 2-Pl 1","Live Oak-PCT 3-Pl 1","Live Oak-PCT 4-Pl 1","Live Oak-Three Rivers","Llano","Llano-Horseshoe Bay","Llano-Llano","Llano-PCT 1-Pl 1","Llano-PCT 2-Pl 1","Llano-PCT 3-Pl 1","Llano-PCT 4-Pl 1","Llano-Sunrise Beach Village","Loving","Lubbock","Lubbock-Buffalo Springs","Lubbock-Idalou","Lubbock-Lubbock","Lubbock-New Deal","Lubbock-PCT 1-Pl 1","Lubbock-PCT 2-Pl 1","Lubbock-PCT 3-Pl 1","Lubbock-PCT 4-Pl 1","Lubbock-Ransom Canyon","Lubbock-Shallowater","Lubbock-Slaton","Lubbock-Wolfforth","Lynn","Lynn-O'Donnell","Lynn-PCT 1-Pl 1","Lynn-PCT 4-Pl 1","Lynn-Tahoka","Lynn-Wilson","Madison","Madison-City of Midway","Madison-Madisonville","Madison-PCT 1","Madison-PCT 2","Marion","Marion-Jefferson","Marion-PCT 1-Pl 1","Marion-PCT 2-Pl 1","Martin","Martin-PCT 1","Martin-PCT 2","Mason","Mason-Mason","Matagorda","Matagorda-Bay City","Matagorda-PCT 1-Pl 1","Matagorda-PCT 2-Pl 1","Matagorda-PCT 3-Pl 1","Matagorda-PCT 4-Pl 1","Matagorda-PCT 6-Pl 1","Matagorda-Palacios","Maverick","Maverick-Eagle Pass","Maverick-PCT 1-Pl 1","Maverick-PCT 2-Pl 1","Maverick-PCT 3-Pl 1","Maverick-PCT 3-Pl 2","Maverick-PCT 4-Pl 1","McCulloch","McCulloch-Brady","McLennan","McLennan-Bellmead","McLennan-Beverly Hills","McLennan-Bruceville-Eddy","McLennan-Crawford","McLennan-Hewitt","McLennan-Lacy Lakeview","McLennan-Lorena","McLennan-Mart","McLennan-McGregor","McLennan-Moody","McLennan-PCT 1-Pl 1","McLennan-PCT 1-Pl 2","McLennan-PCT 2","McLennan-PCT 3","McLennan-PCT 4","McLennan-PCT 5","McLennan-Riesel","McLennan-Robinson","McLennan-Waco","McLennan-West","McLennan-Woodway","McMullen","Medina","Medina-Castroville","Medina-Devine","Medina-Hondo","Medina-La Coste","Medina-Natalia","Medina-PCT 1-Pl 1","Medina-PCT 2-Pl 1","Medina-PCT 3-Pl 1","Medina-PCT 4-Pl 1","Menard","Menard-Menard","Midland","Midland-Midland","Midland-PCT 1","Midland-PCT 2","Midland-PCT 3","Midland-PCT 4","Milam","Milam-Buckholts","Milam-Cameron","Milam-Milano","Milam-PCT 1-Pl 1","Milam-PCT 2-Pl 1","Milam-PCT 3-Pl 1","Milam-PCT 4-Pl 1","Milam-Rockdale","Milam-Thorndale","Mills","Mitchell","Mitchell-Colorado City","Mitchell-Loraine","Mitchell-PCT 1-Pl 1","Mitchell-PCT 2-Pl 1","Mitchell-PCT 3-Pl 1","Mitchell-PCT 4-Pl 1","Montague","Montague-Bowie","Montague-Nocona","Montague-PCT 1-Pl 1","Montague-PCT 2-Pl 1","Montague-Saint Jo","Montgomery","Montgomery-Conroe","Montgomery-Cut and Shoot","Montgomery-Magnolia","Montgomery-Montgomery","Montgomery-Oak Ridge North","Montgomery-PCT 1-Pl 1","Montgomery-PCT 2-Pl 1","Montgomery-PCT 3-Pl 1","Montgomery-PCT 4-Pl 1","Montgomery-PCT 5-Pl 1","Montgomery-Panorama Village","Montgomery-Patton Village","Montgomery-Roman Forest","Montgomery-Shenandoah","Montgomery-Splendora","Montgomery-Stagecoach","Montgomery-Willis","Montgomery-Woodbranch","Moore","Moore-Cactus","Moore-Dumas","Moore-PCT 1-Pl 1","Moore-PCT 2-Pl 1","Moore-Sunray","Morris","Morris-Daingerfield","Morris-Lone Star","Morris-Naples","Morris-Omaha","Morris-PCT 1","Morris-PCT 2","Motley","Nacogdoches","Nacogdoches-Garrison","Nacogdoches-Nacogdoches","Nacogdoches-PCT 1","Nacogdoches-PCT 2-Pl 1","Nacogdoches-PCT 3-Pl 1","Nacogdoches-PCT 4-Pl 1","Navarro","Navarro-Angus","Navarro-Blooming Grove","Navarro-Corsicana","Navarro-Dawson","Navarro-Frost","Navarro-Kerens","Navarro-PCT 1","Navarro-PCT 2","Navarro-PCT 3","Navarro-PCT 4","Navarro-Rice","Navarro-Richland","Newton","Newton-Newton","Newton-PCT 1-Pl 1","Newton-PCT 2-Pl 1","Newton-PCT 3-Pl 1","Newton-PCT 4-Pl 1","Nolan","Nolan-Roscoe","Nolan-Sweetwater","Nueces","Nueces-Bishop","Nueces-City of Agua Dulce","Nueces-Corpus Christi","Nueces-Driscoll","Nueces-PCT 1-Pl 1","Nueces-PCT 1-Pl 2","Nueces-PCT 1-Pl 3","Nueces-PCT 2-Pl 1","Nueces-PCT 2-Pl 2","Nueces-PCT 3","Nueces-PCT 4-Pl 1","Nueces-PCT 5-Pl 1","Nueces-PCT 5-Pl 2","Nueces-Port Aransas","Nueces-Robstown","Ochiltree","Ochiltree-Perryton","Oldham","Oldham-Vega","Orange","Orange-Bridge City","Orange-Orange","Orange-PCT 1-Pl 1","Orange-PCT 2-Pl 1","Orange-PCT 3-Pl 1","Orange-PCT 4-Pl 1","Orange-Pine Forest","Orange-Pinehurst","Orange-Rose City","Orange-Vidor","Orange-West Orange","Palo Pinto","Palo Pinto-Mineral Wells","Palo Pinto-PCT 1-Pl 1","Palo Pinto-PCT 2-Pl 1","Palo Pinto-PCT 3-Pl 1","Palo Pinto-PCT 4-Pl 1","Palo Pinto-PCT 5-Pl 1","Palo Pinto-Strawn","Panola","Panola-Carthage","Panola-PCT 1","Panola-PCT 2","Panola-PCT 3","Panola-PCT 4","Parker","Parker-Aledo","Parker-Azle","Parker-Hudson Oaks","Parker-PCT 1","Parker-PCT 2","Parker-PCT 3","Parker-PCT 4","Parker-Reno","Parker-Sanctuary","Parker-Springtown","Parker-Weatherford","Parker-Willow Park","Parmer","Parmer-Bovina","Parmer-Farwell","Parmer-Friona","Parmer-PCT 1-Pl 1","Parmer-PCT 2-Pl 1","Parmer-PCT 3-Pl 1","Pecos","Pecos-Fort Stockton","Pecos-Iraan","Pecos-PCT 1-Pl 1","Pecos-PCT 3-Pl 1","Pecos-PCT 4-Pl 1","Pecos-PCT 6-Pl 1","Polk","Polk-Corrigan","Polk-Livingston","Polk-Onalaska","Polk-PCT 1-Pl 1","Polk-PCT 2-Pl 1","Polk-PCT 3-Pl 1","Polk-PCT 4-Pl 1","Potter","Potter-Amarillo","Potter-PCT 1","Potter-PCT 2","Potter-PCT 3","Potter-PCT 4","Presidio","Presidio-Marfa","Presidio-PCT 1-Pl 1","Presidio-PCT 2-Pl 1","Presidio-Presidio","Rains","Rains-Alba","Rains-East Tawakoni","Rains-Emory","Rains-Point","Randall","Randall-Canyon","Randall-Lake Tanglewood","Randall-PCT 1-Pl 1","Randall-PCT 4","Randall-PCT 4-Pl 1","Randall-Timbercreek Canyon","Randall-Village of Palisades","Reagan","Reagan-Big Lake","Real","Red River","Red River-Bogata","Red River-Clarksville","Reeves","Reeves-PCT 1-Pl 1","Reeves-PCT 2-Pl 1","Reeves-PCT 3-Pl 1","Reeves-PCT 4-Pl 1","Reeves-Town of Pecos City","Refugio","Refugio-Bayside","Refugio-PCT 1","Refugio-PCT 2","Refugio-Refugio","Refugio-Woodsboro","Roberts","Robertson","Robertson-Bremond","Robertson-Calvert","Robertson-Franklin","Robertson-Hearne","Robertson-PCT 1","Robertson-PCT 2-Pl 1","Robertson-PCT 3-Pl 1","Robertson-PCT 4-Pl 1","Rockwall","Rockwall-Fate","Rockwall-Heath","Rockwall-McLendon-Chisholm","Rockwall-PCT 1-Pl 1","Rockwall-PCT 2-Pl 1","Rockwall-PCT 3-Pl 1","Rockwall-PCT 4-Pl 1","Rockwall-Rockwall","Rockwall-Royse City","Runnels","Runnels-Ballinger","Runnels-Miles","Runnels-PCT 1-Pl 1","Runnels-PCT 2-Pl 1","Runnels-Winters","Rusk","Rusk-Henderson","Rusk-Mount Enterprise","Rusk-New London","Rusk-Overton","Rusk-PCT 1-Pl 1","Rusk-PCT 2-Pl 1","Rusk-PCT 3-Pl 1","Rusk-PCT 4-Pl 1","Rusk-PCT 5-Pl 1","Rusk-Tatum","Sabine","Sabine-Hemphill","Sabine-PCT 1-Pl 1","Sabine-PCT 2-Pl 1","Sabine-Pineland","San Augustine","San Augustine-PCT 1-Pl 1","San Augustine-PCT 2-Pl 1","San Augustine-PCT 3-Pl 1","San Augustine-PCT 4-Pl 1","San Augustine-San Augustine","San Jacinto","San Jacinto-PCT 1-Pl 1","San Jacinto-PCT 2-Pl 1","San Jacinto-PCT 3-Pl 1","San Jacinto-PCT 4-Pl 1","San Jacinto-Shepherd","San Patricio","San Patricio-Aransas Pass","San Patricio-Gregory","San Patricio-Ingleside","San Patricio-Lake City","San Patricio-Mathis","San Patricio-Odem","San Patricio-PCT 1","San Patricio-PCT 2","San Patricio-PCT 4","San Patricio-PCT 5","San Patricio-PCT 6","San Patricio-PCT 8","San Patricio-Portland","San Patricio-Sinton","San Patricio-Taft","San Saba","San Saba-Richland Springs","San Saba-San Saba","Schleicher","Schleicher-Eldorado","Scurry","Scurry-PCT 1","Scurry-PCT 2-Pl 1","Scurry-Snyder","Shackelford","Shackelford-Albany","Shelby","Shelby-Center","Shelby-PCT 1-Pl 1","Shelby-PCT 2-Pl 1","Shelby-PCT 3-Pl 1","Shelby-PCT 4-Pl 1","Shelby-PCT 5-Pl 1","Shelby-Tenaha","Shelby-Timpson","Sherman","Sherman-Stratford","Sherman-Texhoma","Smith","Smith-Arp","Smith-Lindale","Smith-Noonday","Smith-PCT 1-Pl 1","Smith-PCT 2-Pl 1","Smith-PCT 3-Pl 1","Smith-PCT 4-Pl 1","Smith-PCT 5-Pl 1","Smith-Troup","Smith-Tyler","Smith-Whitehouse","Smith-Winona","Somervell","Somervell-Glen Rose","Somervell-PCT 1-Pl 1","Somervell-PCT 2-Pl 1","Starr","Starr-Escobares","Starr-La Grulla","Starr-PCT 1-Pl 1","Starr-PCT 2-Pl 1","Starr-PCT 3-Pl 1","Starr-PCT 4-Pl 1","Starr-PCT 4-Pl 2","Starr-PCT 5-Pl 1","Starr-PCT 6-Pl 1","Starr-PCT 7-Pl 1","Starr-PCT 8-Pl 1","Starr-Rio Grande City","Starr-Roma","Stephens","Stephens-Breckenridge","Sterling","Stonewall","Sutton","Sutton-Sonora","Swisher","Swisher-Happy","Swisher-Kress","Swisher-Tulia","Tarrant","Tarrant-Arlington","Tarrant-Bedford","Tarrant-Benbrook","Tarrant-Blue Mound","Tarrant-Colleyville","Tarrant-Crowley","Tarrant-Dalworthington Gardens","Tarrant-Edgecliff Village","Tarrant-Euless","Tarrant-Everman","Tarrant-Forest Hill","Tarrant-Fort Worth","Tarrant-Grapevine","Tarrant-Haltom City","Tarrant-Haslet","Tarrant-Hurst","Tarrant-Keller","Tarrant-Kennedale","Tarrant-Lake Worth","Tarrant-Lakeside","Tarrant-Mansfield","Tarrant-North Richland Hills","Tarrant-PCT 1-Pl 1","Tarrant-PCT 2-Pl 1","Tarrant-PCT 3-Pl 1","Tarrant-PCT 4-Pl 1","Tarrant-PCT 5","Tarrant-PCT 6","Tarrant-PCT 7-Pl 1","Tarrant-PCT 8-Pl 1","Tarrant-Pantego","Tarrant-Pelican Bay","Tarrant-Richland Hills","Tarrant-River Oaks","Tarrant-Saginaw","Tarrant-Sansom Park","Tarrant-Southlake","Tarrant-Watauga","Tarrant-Westover Hills","Tarrant-Westworth Village","Tarrant-White Settlement","Taylor","Taylor-Abilene","Taylor-Merkel","Taylor-PCT 1-Pl 1","Taylor-PCT 1-Pl 2","Taylor-PCT 2-Pl 1","Taylor-PCT 3-Pl 1","Taylor-PCT 4-Pl 1","Taylor-Tuscola","Taylor-Tye","Terrell","Terrell-PCT 1 & 2 Pl 2","Terrell-PCTs 3 & 4 Pl 1","Terry","Terry-Brownfield","Throckmorton","Titus","Titus-Mount Pleasant","Titus-PCT 1, 3 & 4","Titus-PCT 2-Pl 1","Titus-PCT 3","Titus-PCT 4","Titus-Winfield","Tom Green","Tom Green-PCT 1-Pl 1","Tom Green-PCT 2-Pl 1","Tom Green-PCT 3-Pl 1","Tom Green-PCT 4-Pl 1","Tom Green-San Angelo","Travis","Travis-Austin","Travis-Austin Community Court","Travis-Briarcliff","Travis-City of Bee Cave","Travis-Jonestown","Travis-Lago Vista","Travis-Lakeway","Travis-Manor","Travis-Mustang Ridge","Travis-PCT 1-Pl 1","Travis-PCT 2-Pl 1","Travis-PCT 3-Pl 1","Travis-PCT 4-Pl 1","Travis-PCT 5-Pl 1","Travis-Pflugerville","Travis-Rollingwood","Travis-Sunset Valley","Travis-Village of Point Venture","Travis-Volente","Travis-West Lake Hills","Trinity","Trinity-Groveton","Trinity-PCT 1-Pl 1","Trinity-PCT 2-Pl 1","Trinity-PCT 3-Pl 1","Trinity-PCT 4-Pl 1","Trinity-Trinity","Tyler","Tyler-Ivanhoe","Tyler-PCT 1-Pl 1","Tyler-PCT 2-Pl 1","Tyler-PCT 3-Pl 1","Tyler-PCT 4-Pl 1","Tyler-Woodville","Upshur","Upshur-Big Sandy","Upshur-East Mountain","Upshur-Gilmer","Upshur-Ore City","Upshur-PCT 1-Pl 1","Upshur-PCT 2-Pl 1","Upshur-PCT 3-Pl 1","Upshur-PCT 4-Pl 1","Upton","Upton-McCamey","Upton-PCT 1-Pl 1","Upton-PCT 2-Pl 1","Upton-PCT 3-Pl 1","Upton-PCT 4-Pl 1","Uvalde","Uvalde-PCT 1-Pl 1","Uvalde-PCT 2","Uvalde-PCT 3-Pl 1","Uvalde-PCT 4-Pl 1","Uvalde-PCT 6-Pl 1","Uvalde-Sabinal","Uvalde-Uvalde","Val Verde","Val Verde-Del Rio","Val Verde-PCT 1-Pl 1","Val Verde-PCT 2-Pl 1","Val Verde-PCT 3-Pl 1","Val Verde-PCT 4-Pl 1","Van Zandt","Van Zandt-Canton","Van Zandt-Edgewood","Van Zandt-Grand Saline","Van Zandt-PCT 1-Pl 1","Van Zandt-PCT 2-Pl 1","Van Zandt-PCT 3-Pl 1","Van Zandt-PCT 4-Pl 1","Van Zandt-Van","Van Zandt-Wills Point","Victoria","Victoria-PCT 1","Victoria-PCT 2","Victoria-PCT 3","Victoria-PCT 4","Victoria-Victoria","Walker","Walker-Huntsville","Walker-PCT 1-Pl 1","Walker-PCT 2-Pl 1","Walker-PCT 3-Pl 1","Walker-PCT 4-Pl 1","Waller","Waller-Brookshire","Waller-Hempstead","Waller-PCT 1-Pl 1","Waller-PCT 2-Pl 1","Waller-PCT 3-Pl 1","Waller-PCT 4-Pl 1","Waller-Pattison","Waller-Prairie View","Waller-Waller","Ward","Ward-Monahans","Ward-PCT 1-Pl 1","Ward-PCT 2-Pl 1","Ward-Wickett","Washington","Washington-Brenham","Washington-PCT 1-Pl 1","Washington-PCT 2-Pl 1","Washington-PCT 3-Pl 1","Washington-PCT 4-Pl 1","Webb","Webb-El Cenizo","Webb-Laredo","Webb-PCT 1-Pl 1","Webb-PCT 1-Pl 2","Webb-PCT 2-Pl 1","Webb-PCT 2-Pl 2","Webb-PCT 3-Pl 1","Webb-PCT 4-Pl 1","Webb-Rio Bravo","Wharton","Wharton-East Bernard","Wharton-El Campo","Wharton-PCT 1","Wharton-PCT 2","Wharton-PCT 3","Wharton-PCT 4","Wharton-Wharton","Wheeler","Wheeler-PCT 1","Wheeler-PCT 2","Wheeler-Shamrock","Wheeler-Wheeler","Wichita","Wichita-Burkburnett","Wichita-Electra","Wichita-Iowa Park","Wichita-PCT 1-Pl 1","Wichita-PCT 1-Pl 2","Wichita-PCT 2-Pl 1","Wichita-PCT 3-Pl 1","Wichita-PCT 4-Pl 1","Wichita-Wichita Falls","Wilbarger","Wilbarger-PCT 1-Pl 1","Wilbarger-PCT 2-Pl 1","Wilbarger-Vernon","Willacy","Willacy-Lyford","Willacy-PCT 1-Pl 1","Willacy-PCT 2-Pl 1","Willacy-PCT 3-Pl 1","Willacy-PCT 4-Pl 1","Willacy-PCT 5-Pl 1","Willacy-Raymondville","Williamson","Williamson-Cedar Park","Williamson-Florence","Williamson-Georgetown","Williamson-Granger","Williamson-Hutto","Williamson-Jarrell","Williamson-Leander","Williamson-Liberty Hill","Williamson-PCT 1-Pl 1","Williamson-PCT 2-Pl 1","Williamson-PCT 3-Pl 1","Williamson-PCT 4","Williamson-Round Rock","Williamson-Taylor","Williamson-Thrall","Wilson","Wilson-Floresville","Wilson-La Vernia","Wilson-PCT 1-Pl 1","Wilson-PCT 2-Pl 1","Wilson-PCT 3-Pl 1","Wilson-PCT 4-Pl 1","Wilson-Poth","Wilson-Stockdale","Winkler","Winkler-Kermit","Winkler-PCT 1","Winkler-PCT 2","Winkler-Wink","Wise","Wise-Alvord","Wise-Aurora","Wise-Boyd","Wise-Bridgeport","Wise-Chico","Wise-Decatur","Wise-Lake Bridgeport","Wise-New Fairview","Wise-Newark","Wise-PCT 1","Wise-PCT 2","Wise-PCT 3","Wise-PCT 4","Wise-Paradise","Wise-Rhome","Wise-Runaway Bay","Wood","Wood-Hawkins","Wood-Mineola","Wood-PCT 1","Wood-PCT 2","Wood-PCT 3","Wood-PCT 4","Wood-Quitman","Wood-Winnsboro","Yoakum","Yoakum-Denver City","Yoakum-PCT 1-Pl 1","Yoakum-PCT 2-Pl 1","Yoakum-Plains","Young","Young-Graham","Young-Newcastle","Young-Olney","Young-PCT 1-Pl 1","Young-PCT 3-Pl 1","Zapata","Zapata-PCT 1-Pl 1","Zapata-PCT 2-Pl 1","Zapata-PCT 3-Pl 1","Zapata-PCT 4-Pl 1","Zavala","Zavala-Crystal City","Zavala-PCT 1-Pl 1","Zavala-PCT 2-Pl 1","Zavala-PCT 3-Pl 1","Zavala-PCT 4-Pl 1"]);
 const V01_CASE_TYPE = ["Felony","Fine-Only Misdemeanor","Misdemeanor",null];
 const V01_ATTORNEY_TYPE = ["Appointed - private practice","Appointed - public defender","Retained/Private",null];
@@ -736,7 +749,7 @@ function getTranslation(field, msg, entity) {
   if (entity && (entity._market === 'IL' || IL_VALID_ENTITY_TYPES.includes(entity.entityType||''))) {
     return null;
   }
-  // Check error library first — library entries take priority over generic translations
+  // Check error library first - library entries take priority over generic translations
   var libMatch = null;
   try { libMatch = matchLibraryEntry(field, msg, entity); } catch(e) {}
   if (libMatch) return libMatch;
@@ -775,7 +788,7 @@ function getTranslation(field, msg, entity) {
   }
   // county errors
   if (field === 'county') {
-    if (msg.includes('Casey')) return '"Casey" is not a Texas county — this is test/demo data using a fake county. The submission cannot land in OCA. Fix owner: Odyssey CMS team (use a real registered county).';
+    if (msg.includes('Casey')) return '"Casey" is not a Texas county - this is test/demo data using a fake county. The submission cannot land in OCA. Fix owner: Odyssey CMS team (use a real registered county).';
     if (msg.includes('registered for ~105 counties')) return `"${entity.county}" is a real Texas county, but it is not currently within the registered county scope for this source.`;
     if (msg.includes('County-Subdivision format')) return 'v0.1 entity types require a county + court subdivision value (e.g. "Grayson-Sherman"), not just the county name. Fix owner: submitting publisher.';
     return 'The county value submitted is not in the allowed list for this entity type. Fix owner: submitting publisher.';
@@ -783,7 +796,7 @@ function getTranslation(field, msg, entity) {
   // publisher errors
   if (field === 'publisher') return 'The publisher name does not match the approved publisher enum. Verify the Publisher field matches exactly (case-sensitive) to an approved value. Fix owner: submitting publisher.';
   // recordid
-  if (field === 'recordid') return 'Every entity must have a unique recordid. This is a required field — the submission cannot be processed without it. Fix owner: submitting publisher.';
+  if (field === 'recordid') return 'Every entity must have a unique recordid. This is a required field - the submission cannot be processed without it. Fix owner: submitting publisher.';
   // additionalProperties
   if (msg.includes('additionalProperties')) {
     if (entity.entityType === 'di-texas-oca-court-case-status') return `"${field}" is not a field on court-case-status. Odyssey is likely submitting appointment-entity data under the wrong entity type. The EntityType should be di-texas-oca-court-appointments, not di-texas-oca-court-case-status. Fix owner: Odyssey CMS mapping.`;
@@ -799,7 +812,7 @@ function getTranslation(field, msg, entity) {
   // enum violations
   if (msg.includes('Invalid value')) {
     if (field === 'plea_type') return 'Odyssey is submitting plain-English plea values (e.g. "Guilty") but the schema requires letter-code format (e.g. "G - Guilty"). Fix owner: Odyssey CMS data mapping.';
-    if (field === 'party_race') return '"Not Available" is not a valid value — the correct value is "Not Available (Blank)" (exact match required). Fix owner: Odyssey CMS data mapping.';
+    if (field === 'party_race') return '"Not Available" is not a valid value - the correct value is "Not Available (Blank)" (exact match required). Fix owner: Odyssey CMS data mapping.';
     if (field === 'case_status_event') return 'The case status event value does not match the approved enum. Check the OCA data dictionary for valid values. Fix owner: submitting publisher.';
     return getSchemaDerivedTranslation(field, msg, entity) || `The submitted value is not in the approved list for "${field}". Check the OCA contract schema for valid values. Fix owner: submitting publisher.`;
   }
@@ -889,7 +902,7 @@ function getSchemaFieldGuide(field, entity, msg) {
 
   function inferTypeFromMessage(text) {
     if (!text) return null;
-    var mustBeMatch = text.match(/Must be\s+([^—-]+)/i);
+    var mustBeMatch = text.match(/Must be\s+([^--]+)/i);
     if (mustBeMatch && mustBeMatch[1]) return mustBeMatch[1].trim().replace(/\s+/g, ' ');
     if (/not a valid county/i.test(text)) return 'county enum';
     if (/Invalid value/i.test(text)) return 'string enum';
@@ -987,10 +1000,10 @@ function getSchemaDerivedTranslation(field, msg, entity) {
 }
 
 function formatTrendBadValues(entry) {
-  if (!entry || !entry.badValues || !entry.badValues.length) return '—';
+  if (!entry || !entry.badValues || !entry.badValues.length) return '-';
   var values = entry.badValues.map(function(v) {
     var text = String(v);
-    if ((entry.errorCategory || '').toLowerCase() === 'type error') {
+    if ((entry.errorCategory || '-').toLowerCase() === 'type error') {
       return 'string "' + text + '"';
     }
     return '"' + text + '"';
@@ -998,9 +1011,9 @@ function formatTrendBadValues(entry) {
   return values.join(', ');
 }
 
-// ── Dynamic Schema Derivation ─────────────────────────────────────────────────
+// --"- Dynamic Schema Derivation --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Reads an uploaded schema and derives the same rule shape as ENTITY_RULES
-// Built-in ENTITY_RULES always serves as fallback — BIS-layer checks always run
+// Built-in ENTITY_RULES always serves as fallback - BIS-layer checks always run
 function deriveRulesFromSchema(schema) {
   const numOrNull = [];
   const enums = {};
@@ -1012,13 +1025,13 @@ function deriveRulesFromSchema(schema) {
     const def = entry[1];
     if (!def) return;
 
-    // Type derivation — detect number|null fields
+    // Type derivation - detect number|null fields
     const types = Array.isArray(def.type) ? def.type : (def.type ? [def.type] : []);
     if (types.includes('number') && !types.includes('string')) {
       numOrNull.push(field);
     }
 
-    // Enum derivation — use schema enum array if present
+    // Enum derivation - use schema enum array if present
     if (Array.isArray(def.enum) && def.enum.length > 0) {
       enums[field] = def.enum;
     }
@@ -1028,7 +1041,7 @@ function deriveRulesFromSchema(schema) {
     numOrNull: numOrNull,
     enums: enums,
     required: required,
-    // badFields and refs are BIS-layer knowledge — not derivable from schema
+    // badFields and refs are BIS-layer knowledge - not derivable from schema
     // Always merged from built-in ENTITY_RULES
     badFields: {},
     refs: {}
@@ -1041,14 +1054,14 @@ function deriveRulesFromSchema(schema) {
 function mergeRules(derived, builtin) {
   if (!builtin) return derived;
   return {
-    // Union of numOrNull — schema derivation may find fields built-in missed
+    // Union of numOrNull - schema derivation may find fields built-in missed
     numOrNull: Array.from(new Set([...derived.numOrNull, ...builtin.numOrNull])),
-    // Derived enums win — schema is authoritative for allowed values
+    // Derived enums win - schema is authoritative for allowed values
     // Built-in fills gaps for fields not in derived (shouldn't happen but safe)
     enums: Object.assign({}, builtin.enums, derived.enums),
     // Required: schema-derived takes precedence
     required: derived.required.size > 0 ? derived.required : (builtin.required || new Set()),
-    // badFields and refs always come from built-in — BIS institutional knowledge
+    // badFields and refs always come from built-in - BIS institutional knowledge
     badFields: builtin.badFields || {},
     refs: builtin.refs || {}
   };
@@ -1062,7 +1075,7 @@ function validateEntity(entity) {
   return validateEntityTX(entity);
 }
 
-// ── IL AOIC Validator ─────────────────────────────────────────────────────────
+// --"- IL AOIC Validator --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function validateEntityIL(entity) {
   const errors = [];
   const et = entity.entityType || '';
@@ -1128,7 +1141,7 @@ function validateEntityIL(entity) {
   return errors;
 }
 
-// ── TX OCA Validator (original, renamed) ─────────────────────────────────────
+// --"- TX OCA Validator (original, renamed) --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function validateEntityTX(entity) {
   const errors = [];
   const et = entity.entityType || entity.entity_type;
@@ -1145,9 +1158,9 @@ function validateEntityTX(entity) {
       const evType = entity._eventType || '';
       let suggestion;
       if (evType === 'di-texas-oca-new-record-event') {
-        suggestion = 'Use di-texas-oca-court-charges (v3.0.0) — this is a new-record-event.';
+        suggestion = 'Use di-texas-oca-court-charges (v3.0.0) - this is a new-record-event.';
       } else if (evType === 'di-texas-oca-delete-record-event') {
-        suggestion = 'Use di-texas-oca-court-criminal-charges (v0.1) — this is a delete-record-event.';
+        suggestion = 'Use di-texas-oca-court-criminal-charges (v0.1) - this is a delete-record-event.';
       } else {
         suggestion = 'Use di-texas-oca-court-charges (v3.0.0) for new-record-event, or di-texas-oca-court-criminal-charges (v0.1) for delete-record-event.';
       }
@@ -1169,7 +1182,7 @@ function validateEntityTX(entity) {
     const countyValid = isOdyssey ? ODYSSEY_COUNTIES.has(entity.county) : V3_COUNTIES.includes(entity.county);
     if (!countyValid) {
       const isKnownFake = entity.county === "Casey";
-      const odysseyNote = isOdyssey ? ` (Tyler Tech-Odyssey Source ID is registered for ~105 counties — "${entity.county}" is not among them. Submit ticket to D&I to request registration expansion.)` : " (county-only enum, no subdivisions)";
+      const odysseyNote = isOdyssey ? ` (Tyler Tech-Odyssey Source ID is registered for ~105 counties - "${entity.county}" is not among them. Submit ticket to D&I to request registration expansion.)` : " (county-only enum, no subdivisions)";
       errors.push({ field:"county", msg:`"${entity.county}" is not a valid county for this publisher's v3.0.0 submission${odysseyNote}.`, ref: isKnownFake ? "OCA-007, OCA-008, OCA-009" : null });
     }
   } else if (!isV3 && !V01_COUNTIES.has(entity.county)) {
@@ -1182,7 +1195,7 @@ function validateEntityTX(entity) {
     errors.push({ field:"publisher", msg:`"${entity.publisher}" is not in the allowed publisher enum.`, ref:null });
   }
 
-  // Determine active rules — dynamic derivation from uploaded schema merged with built-in
+  // Determine active rules - dynamic derivation from uploaded schema merged with built-in
   const market = 'TX';
   const uploadedSchema = schemaOverrides[market] && schemaOverrides[market][et];
   const builtinRules = ENTITY_RULES[et];
@@ -1198,14 +1211,14 @@ function validateEntityTX(entity) {
   activeRules = applyWorkbookSchemaSupplement(et, market, activeRules);
 
   if (activeRules) {
-    // Type checks — number|null fields sent as strings
+    // Type checks - number|null fields sent as strings
     activeRules.numOrNull.forEach(function(f) {
       if (entity[f] !== undefined && entity[f] !== null && typeof entity[f] === 'string') {
-        errors.push({ field:f, msg:'Must be number|null — received string "' + entity[f] + '". Do not serialize as a quoted value.', ref:(activeRules.refs[f]||null) });
+        errors.push({ field:f, msg:'Must be number|null - received string "' + entity[f] + '". Do not serialize as a quoted value.', ref:(activeRules.refs[f]||null) });
       }
     });
 
-    // Enum checks — value not in allowed list
+    // Enum checks - value not in allowed list
     Object.entries(activeRules.enums).forEach(function(entry) {
       const f = entry[0];
       const valid = entry[1];
@@ -1219,18 +1232,18 @@ function validateEntityTX(entity) {
       }
     });
 
-    // Bad field name traps — BIS institutional knowledge, always from built-in
+    // Bad field name traps - BIS institutional knowledge, always from built-in
     Object.entries(activeRules.badFields).forEach(function(entry) {
       const bad = entry[0];
       const correct = entry[1];
       if (entity[bad] !== undefined) {
-        errors.push({ field:bad, msg:'Wrong field name — the correct field name is "' + correct + '".', ref:(activeRules.refs[bad]||null) });
+        errors.push({ field:bad, msg:'Wrong field name - the correct field name is "' + correct + '".', ref:(activeRules.refs[bad]||null) });
       }
     });
   }
 
-  // additionalProperties check — only runs when we have a full schema for this entity type
-  // Additional properties check — uploaded schema takes priority over built-in
+  // additionalProperties check - only runs when we have a full schema for this entity type
+  // Additional properties check - uploaded schema takes priority over built-in
   // uploadedSchema already resolved above
   let allowedFields;
   if (uploadedSchema && uploadedSchema.properties) {
@@ -1259,13 +1272,13 @@ function normalizeEntity(raw, eventType) {
                   || data.EntityType || data.entityType || data.entity_type || '';
   const entityId = raw.EntityId || raw.entityId || null;
   // Merge EntityData fields up so validators can read them flat
-  // _eventType is internal-only — used for context-aware error messages
+  // _eventType is internal-only - used for context-aware error messages
   return { entityType, entityId, _eventType: eventType || '', ...data };
 }
 
 
 
-// ── Entity count preview ─────────────────────────────────────────────────────
+// --"- Entity count preview --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function updateEntityPreview() {
   const ta = document.getElementById('input-area');
   const preview = document.getElementById('entity-preview');
@@ -1297,7 +1310,7 @@ function updateEntityPreview() {
 }
 
 
-// ── Tab badges ───────────────────────────────────────────────────────────────
+// --"- Tab badges --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function updateTabBadges() {
   // History badge
   try {
@@ -1312,7 +1325,7 @@ function updateTabBadges() {
       }
     }
   } catch(e) {}
-  // Catalog badge — count unique errors from history
+  // Catalog badge - count unique errors from history
   try {
     const errBadge = document.getElementById('tab-badge-catalog');
     if (errBadge) {
@@ -1330,7 +1343,7 @@ function updateTabBadges() {
 }
 
 
-// ── Drag-and-drop payload file ───────────────────────────────────────────────
+// --"- Drag-and-drop payload file --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function handlePayloadDrop(e) {
   e.preventDefault();
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
@@ -1351,7 +1364,7 @@ function handlePayloadDrop(e) {
 }
 
 
-// ── History filter clear ──────────────────────────────────────────────────────
+// --"- History filter clear --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function clearHistoryFilter() {
   const input = document.getElementById('history-filter');
   if (input) { input.value = ''; renderHistory(); }
@@ -1365,7 +1378,7 @@ function updateHistoryFilterClear() {
   btn.style.display = input.value.trim() ? 'inline-block' : 'none';
 }
 
-// ── Legend toggle ────────────────────────────────────────────────────────────
+// --"- Legend toggle --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function toggleLegend(e) {
   e.stopPropagation();
   const pop = document.getElementById('legend-popover');
@@ -1380,7 +1393,7 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// ── Timestamp helpers ────────────────────────────────────────────────────────
+// --"- Timestamp helpers --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function formatUnixMs(ts) {
   if (!ts) return null;
   try {
@@ -1398,16 +1411,16 @@ function parseInput(text) {
   try {
     const p = JSON.parse(text);
 
-    // ── IL AOIC envelope: { EventType, Entities: [{EntityType, instanceid, ...}] }
+    // --"- IL AOIC envelope: { EventType, Entities: [{EntityType, instanceid, ...}] }
     if (p.EventType && IL_EVENT_TYPES.includes(p.EventType) && Array.isArray(p.Entities)) {
       const entities = p.Entities.map(function(e) { return normalizeEntityIL(e, p.EventType); });
-      // IL has no envelope-level Publisher — derive from unique entity .name values
+      // IL has no envelope-level Publisher - derive from unique entity .name values
       const ilNames = [...new Set(p.Entities.map(e => e.name || e.Name || '').filter(Boolean))];
       const ilPublisher = ilNames.length > 0 ? ilNames.join('; ') : null;
       return { entities, eventType: p.EventType, envelopeId: p.envelopeId || null, publisher: ilPublisher, market: 'IL' };
     }
 
-    // ── TX OCA full envelope: { Events: [{ EventType, Entities: [...] }] }
+    // --"- TX OCA full envelope: { Events: [{ EventType, Entities: [...] }] }
     if (p.Events && Array.isArray(p.Events)) {
       const entities = [];
       const evType = p.EventType || null;
@@ -1426,7 +1439,7 @@ function parseInput(text) {
       }
       return { entities: p.entities.map(e => normalizeEntity(e, evType)), eventType: evType, envelopeId: p.envelopeId || null, publisher: p.publisher || null, market: 'TX' };
     }
-    // Array of entities — detect market by first entity type
+    // Array of entities - detect market by first entity type
     if (Array.isArray(p)) {
       const firstET = (p[0] && (p[0].EntityType || p[0].entityType)) || '';
       const market = IL_VALID_ENTITY_TYPES.includes(firstET) ? 'IL' : 'TX';
@@ -1445,7 +1458,7 @@ function parseInput(text) {
   } catch(e) { return { error: e.message }; }
 }
 
-// IL entity normalizer — fields are flat (no EntityData nesting)
+// IL entity normalizer - fields are flat (no EntityData nesting)
 function normalizeEntityIL(raw, eventType) {
   const entityType = raw.EntityType || raw.entityType || '';
   const entityId = raw.EntityId || raw.entityId || null;
@@ -1526,10 +1539,10 @@ function buildValidationRunFromText(text, options) {
       i: i,
       entityType: e.entityType || 'Unknown',
       entityId: e.entityId || null,
-      recordid: e.recordid || '—',
-      county: e.county || '—',
-      instanceid: e.instanceid || '—',
-      localid: e.localid || '—',
+      recordid: e.recordid || '-',
+      county: e.county || '-',
+      instanceid: e.instanceid || '-',
+      localid: e.localid || '-',
       market: market,
       _name: e.name || '',
       raw: e,
@@ -1634,7 +1647,7 @@ function renderSingleValidationRun(validationRun) {
 
   if (!validationRun || validationRun.error) {
     const msg = validationRun && validationRun.error ? validationRun.error : 'Unable to validate this payload.';
-    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">✕ JSON Parse Error</div><div class="parse-error-msg">${escHtml(msg)}</div></div>`;
+    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">JSON Parse Error</div><div class="parse-error-msg">${escHtml(msg)}</div></div>`;
     sb.style.display = 'none';
     rc.textContent = '';
     if (copyBtn) copyBtn.style.display = 'none';
@@ -1662,17 +1675,17 @@ function renderSingleValidationRun(validationRun) {
   sb.style.display = 'flex';
   let sbHtml = '';
   if (parsed.eventType) {
-    sbHtml += `<span class="sum-neutral">eventType:</span><span style="color:var(--cyan);margin-left:4px">${escHtml(parsed.eventType)}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+    sbHtml += `<span class="sum-neutral">eventType:</span><span style="color:var(--cyan);margin-left:4px">${escHtml(parsed.eventType)}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
   }
   if (submittedAt) {
-    sbHtml += `<span class="sum-neutral">submitted:</span><span style="color:var(--orange);margin-left:4px" title="Envelope OriginalTimestamp: ${escHtml(parsed.originalTimestamp)}">${escHtml(submittedAt)}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+    sbHtml += `<span class="sum-neutral">submitted:</span><span style="color:var(--orange);margin-left:4px" title="Envelope OriginalTimestamp: ${escHtml(parsed.originalTimestamp)}">${escHtml(submittedAt)}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
   }
-  sbHtml += `<span class="sum-neutral">CATCH analysed:</span><span style="color:var(--purple);margin-left:4px">${escHtml(analysedAt)}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
-  sbHtml += `<span class="sum-neutral">entities:</span><span style="color:var(--text);margin-left:4px">${results.length}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  sbHtml += `<span class="sum-neutral">CATCH analysed:</span><span style="color:var(--purple);margin-left:4px">${escHtml(analysedAt)}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
+  sbHtml += `<span class="sum-neutral">entities:</span><span style="color:var(--text);margin-left:4px">${results.length}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
   if (totalErr === 0) {
-    sbHtml += `<span class="sum-ok">✓ All valid</span>`;
+    sbHtml += `<span class="sum-ok">All valid</span>`;
   } else {
-    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">✕ ${totalErr} error${totalErr>1?'s':''}</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">✕ clear filter</button>`;
+    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">${totalErr} error${totalErr>1?'s':''}</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">clear filter</button>`;
   }
   sb.innerHTML = sbHtml;
   rc.textContent = '';
@@ -1686,8 +1699,8 @@ function renderSingleValidationRun(validationRun) {
     if (heroEventType) heroEventType.textContent = parsed.eventType || 'Single entity / custom payload';
     if (heroSubmittedAt) heroSubmittedAt.textContent = submittedAt || 'Not provided';
     if (heroAnalysedAt) heroAnalysedAt.textContent = analysedAt;
-    if (heroRunSummary) heroRunSummary.textContent = `${results.length} entities · ${totalErr} error${totalErr === 1 ? '' : 's'}`;
-    if (heroRunMeta) heroRunMeta.textContent = totalErr === 0 ? 'Filter: all findings' : `Filter: all findings · ${validationRun.validN} passed`;
+    if (heroRunSummary) heroRunSummary.textContent = `${results.length} entities - ${totalErr} error${totalErr === 1 ? '' : 's'}`;
+    if (heroRunMeta) heroRunMeta.textContent = totalErr === 0 ? 'Filter: all findings' : `Filter: all findings - ${validationRun.validN} passed`;
   } catch(e) {}
 
   try {
@@ -1710,7 +1723,7 @@ function renderSingleValidationRun(validationRun) {
       const cls = r.valid ? 'valid' : 'invalid';
       let html = `<div class="result-card ${cls}">
         <div class="result-header">
-          <span class="${r.valid ? 'status-valid' : 'status-invalid'}">${r.valid ? '✓ VALID' : '✕ INVALID'} · Entity ${r.i + 1}</span>
+          <span class="${r.valid ? 'status-valid' : 'status-invalid'}">${r.valid ? 'VALID' : 'INVALID'} - Entity ${r.i + 1}</span>
           <span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="${escHtml(r.entityType)}">${escHtml(r.entityType)}</span>
           ${!r.valid ? `<span class="error-count">${r.errors.length} error${r.errors.length>1?'s':''}</span>` : ''}
         </div>
@@ -1719,7 +1732,7 @@ function renderSingleValidationRun(validationRun) {
           ${r.entityId ? `<div class="meta-row"><span class="meta-key">entityId &nbsp;:</span><span class="meta-val">${escHtml(r.entityId)}</span></div>` : ''}
           <div class="meta-row"><span class="meta-key">recordid &nbsp;:</span><span class="meta-val">${escHtml(r.recordid)}</span></div>
           ${r.market === 'IL'
-            ? `<div class="meta-row"><span class="meta-key">instanceid:</span><span class="meta-val">${escHtml(r.instanceid||'—')}</span></div><div class="meta-row"><span class="meta-key">localid &nbsp; :</span><span class="meta-val">${escHtml(r.localid||'—')}</span></div>`
+            ? `<div class="meta-row"><span class="meta-key">instanceid:</span><span class="meta-val">${escHtml(r.instanceid||'-')}</span></div><div class="meta-row"><span class="meta-key">localid &nbsp; :</span><span class="meta-val">${escHtml(r.localid||'-')}</span></div>`
             : `<div class="meta-row"><span class="meta-key">county &nbsp;&nbsp; :</span><span class="meta-val">${escHtml(r.county)}</span></div>`
           }
         </div>`;
@@ -1732,7 +1745,7 @@ function renderSingleValidationRun(validationRun) {
           html += `<div class="error-item" style="cursor:pointer;" title="Click to jump to '${err.field.replace(/'/g,"\\'")}' in the payload" data-field="${escHtml(err.field)}" data-idx="${r.i}" onclick="jumpToField(this.dataset.field, parseInt(this.dataset.idx))">
             <div class="error-field-row">
               <span class="error-field">${escHtml(err.field)}</span>
-              <span style="font-size:8px;color:var(--text3);margin-left:auto;padding-left:8px;opacity:0.7;letter-spacing:0.03em;">↖ jump</span>
+              <span style="font-size:8px;color:var(--text3);margin-left:auto;padding-left:8px;opacity:0.7;letter-spacing:0.03em;">-> jump</span>
             </div>
             <div class="finding-columns">
               <div class="finding-panel finding-panel-technical">
@@ -1764,14 +1777,14 @@ function runValidation() {
   const text = document.getElementById('input-area').value.trim();
   if (!text) return;
   const runBtn = document.getElementById('run-btn');
-  if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ Running…'; }
+  if (runBtn) { runBtn.disabled = true; runBtn.textContent = 'Running...'; }
   // Defer to next tick so the button state renders before heavy work
   setTimeout(function() { _runValidationCore(); }, 10);
 }
 function _runValidationCore() {
   const text = document.getElementById('input-area').value.trim();
   const runBtn = document.getElementById('run-btn');
-  function restoreBtn() { if (runBtn) { runBtn.disabled = false; runBtn.innerHTML = '▶&nbsp; Run Validation'; } }
+  function restoreBtn() { if (runBtn) { runBtn.disabled = false; runBtn.innerHTML = 'Run Validation'; } }
   if (!text) { restoreBtn(); return; }
   const overrideElModern = document.getElementById('envelope-override');
   const validationRunModern = buildValidationRunFromText(text, {
@@ -1805,7 +1818,7 @@ function _runValidationCore() {
   const parsed = parseInput(text);
   const copyBtn = document.getElementById('copy-results-btn');
   if (parsed.error) {
-    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">✗ JSON Parse Error</div><div class="parse-error-msg">${escHtml(parsed.error)}</div></div>`;
+    ra.innerHTML = `<div class="parse-error"><div class="parse-error-title">-- JSON Parse Error</div><div class="parse-error-msg">${escHtml(parsed.error)}</div></div>`;
     sb.style.display = 'none';
     rc.textContent = '';
     if (copyBtn) copyBtn.style.display = 'none';
@@ -1839,10 +1852,10 @@ function _runValidationCore() {
       i,
       entityType: e.entityType || "Unknown",
       entityId: e.entityId || null,
-      recordid: e.recordid || "—",
-      county: e.county || "—",
-      instanceid: e.instanceid || "—",
-      localid: e.localid || "—",
+      recordid: e.recordid || '-',
+      county: e.county || '-',
+      instanceid: e.instanceid || '-',
+      localid: e.localid || '-',
       market,
       _name: e.name || '',
       raw: e,
@@ -1857,21 +1870,21 @@ function _runValidationCore() {
   sb.style.display = 'flex';
   let sbHtml = '';
   if (parsed.eventType) {
-    sbHtml += `<span class="sum-neutral">eventType:</span><span style="color:var(--cyan);margin-left:4px">${parsed.eventType}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+    sbHtml += `<span class="sum-neutral">eventType:</span><span style="color:var(--cyan);margin-left:4px">${parsed.eventType}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
   }
   // Envelope submission time from OriginalTimestamp
   const submittedAt = parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : null;
   if (submittedAt) {
-    sbHtml += `<span class="sum-neutral">submitted:</span><span style="color:var(--orange);margin-left:4px" title="Envelope OriginalTimestamp: ${parsed.originalTimestamp}">${submittedAt}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+    sbHtml += `<span class="sum-neutral">submitted:</span><span style="color:var(--orange);margin-left:4px" title="Envelope OriginalTimestamp: ${parsed.originalTimestamp}">${submittedAt}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
   }
   const analysedAt = new Date().toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'});
-  sbHtml += `<span class="sum-neutral">CATCH analysed:</span><span style="color:var(--purple);margin-left:4px">${analysedAt}</span><span style="margin:0 8px;color:var(--text3)">·</span>`;
+  sbHtml += `<span class="sum-neutral">CATCH analysed:</span><span style="color:var(--purple);margin-left:4px">${analysedAt}</span><span style="margin:0 8px;color:var(--text3)">-</span>`;
   sbHtml += `<span class="sum-neutral">entities:</span><span style="color:var(--text);margin-left:4px">${results.length}</span>`;
-  sbHtml += `<span style="margin:0 8px;color:var(--text3)">·</span>`;
+  sbHtml += `<span style="margin:0 8px;color:var(--text3)">-</span>`;
   if (totalErr === 0) {
-    sbHtml += `<span class="sum-ok">✓ All valid</span>`;
+    sbHtml += `<span class="sum-ok">All valid</span>`;
   } else {
-    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">✗ ${totalErr} error${totalErr>1?'s':''}</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">✕ clear filter</button>`;
+    sbHtml += `<button class="sum-filter-btn sum-err" id="sb-err-btn" onclick="applyResultFilter('errors')" title="Show only errors">-- ${totalErr} error${totalErr>1?'s':''}</button><button class="sum-filter-clear" id="sb-clear-btn" onclick="applyResultFilter('all')">clear filter</button>`;
   }
   sb.innerHTML = sbHtml;
   rc.textContent = '';
@@ -1885,11 +1898,11 @@ function _runValidationCore() {
     if (heroEventType) heroEventType.textContent = parsed.eventType || 'Single entity / custom payload';
     if (heroSubmittedAt) heroSubmittedAt.textContent = submittedAt || 'Not provided';
     if (heroAnalysedAt) heroAnalysedAt.textContent = analysedAt;
-    if (heroRunSummary) heroRunSummary.textContent = `${results.length} entities · ${totalErr} error${totalErr === 1 ? '' : 's'}`;
-    if (heroRunMeta) heroRunMeta.textContent = totalErr === 0 ? 'Filter: all findings' : `Filter: all findings · ${validN} passed`;
+    if (heroRunSummary) heroRunSummary.textContent = `${results.length} entities - ${totalErr} error${totalErr === 1 ? '' : 's'}`;
+    if (heroRunMeta) heroRunMeta.textContent = totalErr === 0 ? 'Filter: all findings' : `Filter: all findings - ${validN} passed`;
   } catch(e) {}
 
-  // Record this run in history — wrapped in try/catch so storage failure never blocks validation
+  // Record this run in history - wrapped in try/catch so storage failure never blocks validation
   try {
     const overrideEl = document.getElementById('envelope-override');
     const envelopeId = (overrideEl ? overrideEl.value.trim() : '') || parsed.envelopeId || null;
@@ -1923,7 +1936,7 @@ function _runValidationCore() {
       errorCount: totalErr,
       errors: historyErrors
     });
-  } catch(e) { /* history storage unavailable — validation continues */ }
+  } catch(e) { /* history storage unavailable - validation continues */ }
 
   // Auto-log to TX Error Log (TX only)
   if ((parsed.market || 'TX') === 'TX') {
@@ -1931,7 +1944,7 @@ function _runValidationCore() {
       const overrideElLog = document.getElementById('envelope-override');
       const envelopeIdLog = (overrideElLog ? overrideElLog.value.trim() : '') || parsed.envelopeId || null;
       autoLogRunToErrorLog(parsed, results, envelopeIdLog, parsed.originalTimestamp || null);
-    } catch(e) { /* error log unavailable — validation continues */ }
+    } catch(e) { /* error log unavailable - validation continues */ }
   }
 
   try {
@@ -1969,7 +1982,7 @@ function _runValidationCore() {
     const cls = r.valid ? 'valid' : 'invalid';
     let html = `<div class="result-card ${cls}">
       <div class="result-header">
-        <span class="${r.valid ? 'status-valid' : 'status-invalid'}">${r.valid ? '✓ VALID' : '✗ INVALID'} · Entity ${r.i + 1}</span>
+        <span class="${r.valid ? 'status-valid' : 'status-invalid'}">${r.valid ? 'VALID' : 'INVALID'} - Entity ${r.i + 1}</span>
         <span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="${escHtml(r.entityType)}">${escHtml(r.entityType)}</span>
         ${!r.valid ? `<span class="error-count">${r.errors.length} error${r.errors.length>1?'s':''}</span>` : ''}
       </div>
@@ -1978,7 +1991,7 @@ function _runValidationCore() {
         ${r.entityId ? `<div class="meta-row"><span class="meta-key">entityId &nbsp;:</span><span class="meta-val">${escHtml(r.entityId)}</span></div>` : ''}
         <div class="meta-row"><span class="meta-key">recordid &nbsp;:</span><span class="meta-val">${escHtml(r.recordid)}</span></div>
         ${r.market === 'IL'
-          ? `<div class="meta-row"><span class="meta-key">instanceid:</span><span class="meta-val">${escHtml(r.instanceid||'—')}</span></div><div class="meta-row"><span class="meta-key">localid &nbsp; :</span><span class="meta-val">${escHtml(r.localid||'—')}</span></div>`
+          ? `<div class="meta-row"><span class="meta-key">instanceid:</span><span class="meta-val">${escHtml(r.instanceid||'-')}</span></div><div class="meta-row"><span class="meta-key">localid &nbsp; :</span><span class="meta-val">${escHtml(r.localid||'-')}</span></div>`
           : `<div class="meta-row"><span class="meta-key">county &nbsp;&nbsp; :</span><span class="meta-val">${escHtml(r.county)}</span></div>`
         }
       </div>`;
@@ -2004,12 +2017,12 @@ function _runValidationCore() {
         if (currentValue !== undefined) schemaHintParts.push(`Received ${escHtml(currentValueText)}`);
         if (schemaGuide && schemaGuide.required !== undefined) schemaHintParts.push(schemaGuide.required ? 'Required field' : 'Optional field');
         const schemaHint = schemaHintParts.length
-          ? `<div class="finding-schema-hint"><span class="finding-support-label">Schema hint</span><div class="finding-support-value">${schemaHintParts.join(' · ')}</div></div>`
+          ? `<div class="finding-schema-hint"><span class="finding-support-label">Schema hint</span><div class="finding-support-value">${schemaHintParts.join(' - ')}</div></div>`
           : '';
         html += `<div class="error-item" style="cursor:pointer;" title="Click to jump to '${err.field.replace(/'/g,"\\'")}' in the payload" data-field="${escHtml(err.field)}" data-idx="${r.i}" onclick="jumpToField(this.dataset.field, parseInt(this.dataset.idx))">
           <div class="error-field-row">
             <span class="error-field">${escHtml(err.field)}</span>
-            <span style="font-size:8px;color:var(--text3);margin-left:auto;padding-left:8px;opacity:0.7;letter-spacing:0.03em;">↖ jump</span>
+            <span style="font-size:8px;color:var(--text3);margin-left:auto;padding-left:8px;opacity:0.7;letter-spacing:0.03em;">-> jump</span>
           </div>
           <div class="finding-columns">
             <div class="finding-panel finding-panel-technical">
@@ -2038,11 +2051,11 @@ function _runValidationCore() {
   updateTabBadges();
 }
 
-// ── Export ELT Report (.xlsx) ─────────────────────────────────────────────────
+// --"- Export ELT Report (.xlsx) --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function exportELTReport() {
   // Try to use current session data first (full entity details available)
   if (_lastValidationResults && _lastValidationParsed) {
-    confirmExport('CATCH Validation Health Report (.xlsx) — current session').then(function(confirmed) {
+    confirmExport('CATCH Validation Health Report (.xlsx) - current session').then(function(confirmed) {
       if (!confirmed) return;
       try { _buildAndDownloadELTReport(); }
       catch(e) { console.error('ELT export failed:', e); }
@@ -2053,13 +2066,13 @@ function exportELTReport() {
   // Fallback: use most recent history run
   const runs = loadHistory();
   if (runs.length === 0) {
-    alert('⚠ No validation data available.\n\nPlease run a validation first by pasting a payload and clicking "Run Validation".');
+    alert('Warning No validation data available.\n\nPlease run a validation first by pasting a payload and clicking "Run Validation".');
     return;
   }
 
   const run = runs[0];
-  const label = 'most recent run — ' + (run.envelopeId ? run.envelopeId.slice(0,16) + '…' : 'no envelope ID') + ' · ' + (run.timestamp || '');
-  confirmExport('CATCH Validation Health Report (.xlsx)\nUsing ' + label + '\n\nℹ To export a specific run, use the Health button on its history card.').then(function(confirmed) {
+  const label = 'most recent run - ' + (run.envelopeId ? run.envelopeId.slice(0,16) + '...' : 'no envelope ID') + ' - ' + (run.timestamp || '');
+  confirmExport('CATCH Validation Health Report (.xlsx)\nUsing ' + label + '\n\nâ„¹ To export a specific run, use the Health button on its history card.').then(function(confirmed) {
     if (!confirmed) return;
     try { _buildAndDownloadELTReportFromHistory(run); }
     catch(e) { console.error('ELT export from history failed:', e); }
@@ -2070,7 +2083,7 @@ function exportELTReportFromRun(idx) {
   const runs = loadHistory();
   const run = runs[idx];
   if (!run) { alert('Run not found.'); return; }
-  const label = (run.envelopeId ? run.envelopeId.slice(0,16) + '… ' : '') + '(' + (run.timestamp || '') + ')';
+  const label = (run.envelopeId ? run.envelopeId.slice(0,16) + '... ' : '') + '(' + (run.timestamp || '') + ')';
   confirmExport('CATCH Validation Health Report (.xlsx)\nRun: ' + label).then(function(confirmed) {
     if (!confirmed) return;
     try { _buildAndDownloadELTReportFromHistory(run); }
@@ -2078,7 +2091,7 @@ function exportELTReportFromRun(idx) {
   });
 }
 
-// ── ELT helper: extract fix owner from translation string ────────────────────
+// --"- ELT helper: extract fix owner from translation string --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function _extractFixOwner(translation) {
   if (!translation) return '';
   var m = translation.match(/[Ff]ix owner[:\s]+([^.]+)/);
@@ -2087,7 +2100,7 @@ function _extractFixOwner(translation) {
   return '';
 }
 
-// ── ELT helper: merge cells in any sheet ─────────────────────────────────────
+// --"- ELT helper: merge cells in any sheet --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function _xlMerge(ws, r1, c1, r2, c2) {
   if (!ws['!merges']) ws['!merges'] = [];
   ws['!merges'].push({s:{r:r1,c:c1},e:{r:r2,c:c2}});
@@ -2098,18 +2111,18 @@ function _buildAndDownloadELTReport() {
   var parsed  = _lastValidationParsed;
   var now     = new Date();
   var analysedAt = now.toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  var submittedAt = parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : (parsed.envelopeSubmittedAt || '—');
-  var envelopeId = (document.getElementById('envelope-override') || {}).value || parsed.envelopeId || '—';
-  var publisher  = parsed.publisher || '—';
+  var submittedAt = parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : (parsed.envelopeSubmittedAt || '-');
+  var envelopeId = (document.getElementById('envelope-override') || {}).value || parsed.envelopeId || '-';
+  var publisher  = parsed.publisher || '-';
   var market     = parsed.market || 'TX';
-  var eventType  = parsed.eventType || '—';
+  var eventType  = parsed.eventType || '-';
 
   var totalEntities  = results.length;
   var totalErrors    = results.reduce(function(s,r){ return s + r.errors.length; }, 0);
   var totalValid     = results.filter(function(r){ return r.valid; }).length;
   var totalInvalid   = totalEntities - totalValid;
 
-  // ── Shared cell builder ───────────────────────────────────────────────────
+  // --"- Shared cell builder --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   function mkCell(v, opts) {
     return { v: v, t: typeof v === 'number' ? 'n' : 's',
              s: {
@@ -2134,7 +2147,7 @@ function _buildAndDownloadELTReport() {
       var translation = '';
       try { translation = getTranslation(e.field, e.msg, r) || ''; } catch(ex){}
       errorRows.push({ entityNum:r.i+1, entityType:r.entityType, recordid:r.recordid,
-                       county:r.county||'—', field:e.field, ref:e.ref||'', msg:e.msg,
+                       county:r.county||'-', field:e.field, ref:e.ref||'', msg:e.msg,
                        translation:translation, fixOwner:_extractFixOwner(translation) });
     });
   });
@@ -2151,10 +2164,10 @@ function _buildAndDownloadELTReport() {
 function _buildAndDownloadELTReportFromHistory(run) {
   var now        = new Date();
   var analysedAt = now.toLocaleString('en-US', {month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  var envelopeId = run.envelopeId || '—';
-  var publisher  = run.publisher  || '—';
+  var envelopeId = run.envelopeId || '-';
+  var publisher  = run.publisher  || '-';
   var market     = run.market     || 'TX';
-  var eventType  = run.eventType  || '—';
+  var eventType  = run.eventType  || '-';
 
   var uniqueEntityIds = {};
   run.errors.forEach(function(e) {
@@ -2167,14 +2180,14 @@ function _buildAndDownloadELTReportFromHistory(run) {
   var entitiesByKey = {};
   run.errors.forEach(function(e) {
     var key = (e.entityId||e.recordid||e.entityType)+'||'+e.entityType;
-    if (!entitiesByKey[key]) entitiesByKey[key] = { entityType:e.entityType, recordid:e.recordid||'—', county:e.county||'—', errors:[] };
+    if (!entitiesByKey[key]) entitiesByKey[key] = { entityType:e.entityType, recordid:e.recordid||'-', county:e.county||'-', errors:[] };
     entitiesByKey[key].errors.push(e);
   });
   var entityList = Object.keys(entitiesByKey).map(function(k){ return entitiesByKey[k]; });
 
   var errorRows = run.errors.map(function(e) {
-    return { entityNum:'', entityType:e.entityType, recordid:e.recordid||'—',
-             county:e.county||'—', field:e.field, ref:e.ref||'', msg:e.msg,
+    return { entityNum:'', entityType:e.entityType, recordid:e.recordid||'-',
+             county:e.county||'-', field:e.field, ref:e.ref||'', msg:e.msg,
              translation:e.translation||'', fixOwner:_extractFixOwner(e.translation||'') };
   });
 
@@ -2197,7 +2210,7 @@ function _buildAndDownloadELTReportFromHistory(run) {
 
   _buildELTWorkbook({
     envelopeId:    envelopeId, publisher:publisher, market:market, eventType:eventType,
-    analysedAt:    analysedAt, submittedAt:run.envelopeSubmittedAt||'—',
+    analysedAt:    analysedAt, submittedAt:run.envelopeSubmittedAt||'-',
     totalEntities: totalEntities, totalValid:totalValid, totalInvalid:totalInvalid, totalErrors:run.errorCount||0,
     results:       null, errorRows:errorRows, entityList:entityList, isFromHistory:true,
     mkCell:        mkCell
@@ -2228,30 +2241,30 @@ function _buildELTWorkbook(p, now) {
 
   var passRate  = p.totalEntities > 0 ? (p.totalValid / p.totalEntities * 100) : 100;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SHEET 1 – Dashboard
-  // ═══════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // SHEET 1 - Dashboard
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   var ws1 = {};
   var NC  = 7;  // columns 0-7 (8 wide)
   function s1(r,c,cell){ ws1[C(r,c)] = cell; }
   var r = 0;
 
-  // ── A: Title ───────────────────────────────────────────────────────────────
-  s1(r,0, mkCell('CATCH · Validation Health Report — TX OCA Community Pipeline',
+  // --"- A: Title --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
+  s1(r,0, mkCell('CATCH - Validation Health Report - TX OCA Community Pipeline',
     { bold:true, fill:'1F3864', color:'FFFFFF', sz:13, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
-  s1(r,0, mkCell('Tyler Technologies · BIS' + (p.isFromHistory ? '   (exported from history)' : ''),
+  s1(r,0, mkCell('Tyler Technologies - BIS' + (p.isFromHistory ? '   (exported from history)' : ''),
     { fill:'2E75B6', color:'FFFFFF', sz:10, align:'center', italic:true }));
   _xlMerge(ws1,r,0,r,NC); r += 2;
 
-  // ── B: How to use ─────────────────────────────────────────────────────────
+  // --"- B: How to use --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   s1(r,0, mkCell('HOW TO USE THIS REPORT', { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   [
-    ['📊 Dashboard (this tab)', 'Pipeline health score, configurable thresholds, publisher status snapshot, error summary by entity type, and trend data. Start here.'],
-    ['🔍 Error Log',            'Every field-level validation failure with error message, plain-English translation, and fix owner. Share with the submitting publisher for remediation.'],
-    ['📋 Entity Detail',        'One row per entity. Shows validation status and which fields failed. Useful for scoping the impact of an issue across an envelope.'],
-    ['📚 Error Catalog',        'Deduplicated error patterns found in this run, linked to OCA/BIS references and fix ownership. Reference for project stakeholders and governance.'],
+    ['-- Dashboard (this tab)', 'Pipeline health score, configurable thresholds, publisher status snapshot, error summary by entity type, and trend data. Start here.'],
+    ['-- Error Log',            'Every field-level validation failure with error message, plain-English translation, and fix owner. Share with the submitting publisher for remediation.'],
+    ['-- Entity Detail',        'One row per entity. Shows validation status and which fields failed. Useful for scoping the impact of an issue across an envelope.'],
+    ['-- Error Catalog',        'Deduplicated error patterns found in this run, linked to OCA/BIS references and fix ownership. Reference for project stakeholders and governance.'],
   ].forEach(function(row, i) {
     var alt = i%2===0;
     s1(r,0, mkCell(row[0], { bold:true, fill:alt?'E8F0FE':'F1F3F4', sz:10 }));
@@ -2260,7 +2273,7 @@ function _buildELTWorkbook(p, now) {
   });
   r++;
 
-  // ── C: Timestamps ─────────────────────────────────────────────────────────
+  // --"- C: Timestamps --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   s1(r,0, mkCell('TIMESTAMPS', { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   [
@@ -2278,7 +2291,7 @@ function _buildELTWorkbook(p, now) {
   });
   r++;
 
-  // ── D: Run metadata ───────────────────────────────────────────────────────
+  // --"- D: Run metadata --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   s1(r,0, mkCell('RUN METADATA', { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   [['Envelope ID',p.envelopeId],['Publisher',p.publisher],['Market',p.market],['Event Type',p.eventType]].forEach(function(row,i){
@@ -2288,47 +2301,47 @@ function _buildELTWorkbook(p, now) {
   });
   r++;
 
-  // ── E: Configurable health thresholds ─────────────────────────────────────
-  s1(r,0, mkCell('HEALTH THRESHOLDS   ✏  Edit the yellow cells to change thresholds',
+  // --"- E: Configurable health thresholds --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
+  s1(r,0, mkCell('HEALTH THRESHOLDS   âœ  Edit the yellow cells to change thresholds',
     { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
-  s1(r,0, lbl('🟢  Healthy  —  pass rate  ≥'));
+  s1(r,0, lbl('ðŸŸ¢  Healthy  -  pass rate  â‰¥'));
   s1(r,1, thr(T_HEALTHY));
   s1(r,2, mkCell('%', { sz:10 }));
   s1(r,3, note('No action needed. Pipeline operating normally.'));
   _xlMerge(ws1,r,3,r,NC); r++;
-  s1(r,0, lbl('🟡  Warning  —  pass rate  ≥'));
+  s1(r,0, lbl('ðŸŸ¡  Warning  -  pass rate  â‰¥'));
   s1(r,1, thr(T_WARN));
   s1(r,2, mkCell('%  (and below Healthy)', { sz:10, color:'555555' }));
   _xlMerge(ws1,r,2,r,3);
   s1(r,4, note('Elevated error rate. Review errors and notify publisher.'));
   _xlMerge(ws1,r,4,r,NC); r++;
-  s1(r,0, lbl('🔴  Critical  —  pass rate  <'));
+  s1(r,0, lbl('--  Critical  -  pass rate  <'));
   s1(r,1, mkCell('(Warning threshold)', { fill:'FFE4E1', sz:9, italic:true, color:'721C24', align:'center' }));
   s1(r,2, mkCell('%  (below Warning threshold)', { sz:10, color:'555555' }));
   _xlMerge(ws1,r,2,r,3);
   s1(r,4, note('Significant data quality issue. Escalate per pipeline governance.'));
   _xlMerge(ws1,r,4,r,NC); r += 2;
 
-  // ── F: Pipeline health score ──────────────────────────────────────────────
+  // --"- F: Pipeline health score --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   s1(r,0, mkCell('PIPELINE HEALTH SCORE', { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   var sFn = statusCell(passRate);
   var scoreLabel = passRate.toFixed(1) + '%  PASS RATE   '
-    + (passRate >= T_HEALTHY ? '🟢  HEALTHY' : passRate >= T_WARN ? '🟡  WARNING' : '🔴  CRITICAL');
+    + (passRate >= T_HEALTHY ? 'ðŸŸ¢  HEALTHY' : passRate >= T_WARN ? 'ðŸŸ¡  WARNING' : '--  CRITICAL');
   var scoreC = sFn(scoreLabel);
   scoreC.s.font.sz = 14;
   s1(r,0, scoreC);
   _xlMerge(ws1,r,0,r,NC); r++;
 
   // counts row
-  [['Total Entities',p.totalEntities,null],['✓ Valid',p.totalValid,'D4EDDA'],['✗ Invalid',p.totalInvalid,p.totalInvalid>0?'FFE0E0':'D4EDDA'],['Total Errors',p.totalErrors,p.totalErrors>0?'FFE0E0':'D4EDDA']].forEach(function(item,i) {
+  [['Total Entities',p.totalEntities,null],['- Valid',p.totalValid,'D4EDDA'],['-- Invalid',p.totalInvalid,p.totalInvalid>0?'FFE0E0':'D4EDDA'],['Total Errors',p.totalErrors,p.totalErrors>0?'FFE0E0':'D4EDDA']].forEach(function(item,i) {
     s1(r, i*2,   mkCell(item[0], { bold:true, fill:'E9EFF7', sz:10, align:'center' }));
     s1(r, i*2+1, mkCell(item[1], { fill:item[2]||'EBF3FB', align:'center', sz:12, bold:true, color:item[2]==='FFE0E0'?'721C24':item[2]==='D4EDDA'?'155724':'000000' }));
   });
   r += 2;
 
-  // ── G: Publisher snapshot ─────────────────────────────────────────────────
+  // --"- G: Publisher snapshot --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   s1(r,0, mkCell('PUBLISHER SNAPSHOT', { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   ['Publisher','Total Entities','Valid','Invalid','Error Rate','Status',''].forEach(function(h,c){ s1(r,c,subhdr(h)); });
@@ -2357,13 +2370,13 @@ function _buildELTWorkbook(p, now) {
     s1(r,2, ok(d.valid));
     s1(r,3, invalid > 0 ? mkCell(invalid, { fill:'FFE0E0', color:'721C24', align:'center', sz:10 }) : ok(0));
     s1(r,4, sf === ok ? val(er,alt,'center') : sf(er));
-    s1(r,5, sf(sf === ok ? '🟢  Healthy' : sf === wrn ? '🟡  Warning' : '🔴  Critical'));
+    s1(r,5, sf(sf === ok ? 'ðŸŸ¢  Healthy' : sf === wrn ? 'ðŸŸ¡  Warning' : '--  Critical'));
     s1(r,6, mkCell('', { fill:alt?'EBF3FB':null, sz:10 }));
     r++;
   });
   r++;
 
-  // ── H: Error summary by entity type ───────────────────────────────────────
+  // --"- H: Error summary by entity type --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   s1(r,0, mkCell('ERROR SUMMARY BY ENTITY TYPE', { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
   ['Entity Type','Total','Invalid','Errors','Pass Rate','Top Error Fields',''].forEach(function(h,c){ s1(r,c,subhdr(h)); });
@@ -2395,34 +2408,34 @@ function _buildELTWorkbook(p, now) {
   Object.keys(byType).sort().forEach(function(et, i) {
     var d = byType[et];
     var pr = d.total > 0 ? (d.valid / d.total * 100) : (d.errors > 0 ? 0 : 100);
-    var prLabel = d.total > 0 ? (((d.total - d.invalid) / d.total) * 100).toFixed(1) + '%' : '—';
+    var prLabel = d.total > 0 ? (((d.total - d.invalid) / d.total) * 100).toFixed(1) + '%' : '-';
     var sf = d.total > 0 ? statusCell((d.total - d.invalid) / d.total * 100) : val;
     var topFields = Object.keys(d.fields).sort(function(a,b){ return d.fields[b]-d.fields[a]; }).slice(0,3).join(', ');
     var alt = i%2===0;
     s1(r,0, val(et,    alt));
-    s1(r,1, val(d.total||'—', alt, 'center'));
+    s1(r,1, val(d.total||'-', alt, 'center'));
     s1(r,2, d.invalid > 0 ? mkCell(d.invalid, { fill:'FFE0E0', color:'721C24', align:'center', sz:10 }) : ok(0));
     s1(r,3, d.errors  > 0 ? mkCell(d.errors,  { fill:'FFE0E0', color:'721C24', align:'center', sz:10 }) : ok(0));
-    s1(r,4, d.total > 0 ? sf(prLabel) : val('—', alt, 'center'));
-    s1(r,5, val(topFields||'—', alt));
+    s1(r,4, d.total > 0 ? sf(prLabel) : val('-', alt, 'center'));
+    s1(r,5, val(topFields||'-', alt));
     s1(r,6, mkCell('', { fill:alt?'EBF3FB':null }));
     r++;
   });
   r++;
 
-  // ── I: Trend (last 10 runs same publisher + market) ────────────────────────
+  // --"- I: Trend (last 10 runs same publisher + market) --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   var histRuns = [];
   try { histRuns = loadHistory ? loadHistory() : []; } catch(e) {}
   var trendRuns = histRuns.filter(function(run) {
     return (run.publisher||'') === p.publisher && (run.market||'TX') === p.market;
   }).slice(0, 10);
 
-  s1(r,0, mkCell('TREND — LAST ' + trendRuns.length + ' RUNS   (' + p.publisher + '  ·  ' + p.market + ')',
+  s1(r,0, mkCell('TREND - LAST ' + trendRuns.length + ' RUNS   (' + p.publisher + '  -  ' + p.market + ')',
     { bold:true, fill:'1F3864', color:'FFFFFF', sz:10, align:'center' }));
   _xlMerge(ws1,r,0,r,NC); r++;
 
   if (trendRuns.length === 0) {
-    s1(r,0, note('No trend data available. Run history is stored in this browser — export from the same browser used for validation to include trend data.'));
+    s1(r,0, note('No trend data available. Run history is stored in this browser - export from the same browser used for validation to include trend data.'));
     _xlMerge(ws1,r,0,r,NC); r++;
   } else {
     ['Analysed (CATCH)','Submitted to AEP','Envelope ID','Entities','Errors','Pass Rate','Status'].forEach(function(h,c){ s1(r,c,subhdr(h)); });
@@ -2437,14 +2450,14 @@ function _buildELTWorkbook(p, now) {
       var pr     = total > 0 ? (validCt / total * 100) : 100;
       var sf     = statusCell(pr);
       var alt    = i%2===0;
-      var envShort = (run.envelopeId||'—').length > 18 ? (run.envelopeId||'—').slice(0,18)+'…' : (run.envelopeId||'—');
-      s1(r,0, val(run.timestamp||'—',        alt));
-      s1(r,1, val(run.envelopeSubmittedAt||'—', alt));
+      var envShort = (run.envelopeId||'-').length > 18 ? (run.envelopeId||'-').slice(0,18)+'...' : (run.envelopeId||'-');
+      s1(r,0, val(run.timestamp||'-',        alt));
+      s1(r,1, val(run.envelopeSubmittedAt||'-', alt));
       s1(r,2, val(envShort,                  alt));
       s1(r,3, val(total,                     alt, 'center'));
       s1(r,4, errCt > 0 ? mkCell(errCt,{ fill:'FFE0E0', color:'721C24', align:'center', sz:10 }) : ok(0));
       s1(r,5, sf(pr.toFixed(1)+'%'));
-      s1(r,6, sf(pr >= T_HEALTHY ? '🟢  Healthy' : pr >= T_WARN ? '🟡  Warning' : '🔴  Critical'));
+      s1(r,6, sf(pr >= T_HEALTHY ? 'ðŸŸ¢  Healthy' : pr >= T_WARN ? 'ðŸŸ¡  Warning' : '--  Critical'));
       r++;
     });
   }
@@ -2453,20 +2466,20 @@ function _buildELTWorkbook(p, now) {
   ws1['!cols'] = [{wch:28},{wch:18},{wch:38},{wch:14},{wch:14},{wch:16},{wch:20},{wch:14}];
   ws1['!rows'] = [{hpt:28},{hpt:16}];
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SHEET 2 – Error Log (with Fix Owner)
-  // ═══════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // SHEET 2 - Error Log (with Fix Owner)
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   var ws2 = {};
   function s2(row,c,cell){ ws2[XLSX.utils.encode_cell({r:row,c:c})] = cell; }
 
-  s2(0,0, hdr('Error Log — Field-Level Validation Failures'));
+  s2(0,0, hdr('Error Log - Field-Level Validation Failures'));
   var errHdrs = p.isFromHistory
     ? ['Entity Type','Record ID','County','Field','OCA Ref','Fix Owner','Error Message','Translation']
     : ['Entity #','Entity Type','Record ID','County','Field','OCA Ref','Fix Owner','Error Message','Translation'];
   errHdrs.forEach(function(h,c){ s2(1,c,subhdr(h)); });
 
   if (p.errorRows.length === 0) {
-    s2(2,0, mkCell('✓ No errors — all entities passed validation', { fill:'D4EDDA', bold:true, sz:10, color:'155724' }));
+    s2(2,0, mkCell('- No errors - all entities passed validation', { fill:'D4EDDA', bold:true, sz:10, color:'155724' }));
     _xlMerge(ws2,2,0,2,errHdrs.length-1);
   } else {
     p.errorRows.forEach(function(e, i) {
@@ -2492,14 +2505,14 @@ function _buildELTWorkbook(p, now) {
   ws2['!freeze']     = {xSplit:0, ySplit:2};
   ws2['!autofilter'] = {ref:'A2:'+XLSX.utils.encode_col(ws2Cols)+'2'};
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SHEET 3 – Entity Detail
-  // ═══════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // SHEET 3 - Entity Detail
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   var ws3 = {};
   function s3(row,c,cell){ ws3[XLSX.utils.encode_cell({r:row,c:c})] = cell; }
 
   var entitySource = p.results || p.entityList || [];
-  s3(0,0, hdr('Entity Detail — ' + (p.isFromHistory ? 'Entities with Errors (from history)' : 'All Validated Records')));
+  s3(0,0, hdr('Entity Detail - ' + (p.isFromHistory ? 'Entities with Errors (from history)' : 'All Validated Records')));
   ['Entity #','Entity Type','Record ID','County / Instance','Publisher','Status','Errors','Error Fields'].forEach(function(h,c){ s3(1,c,subhdr(h)); });
 
   entitySource.forEach(function(ent, i) {
@@ -2508,19 +2521,19 @@ function _buildELTWorkbook(p, now) {
     var isValid, errCount, locationVal, errorFields;
     if (p.isFromHistory) {
       isValid = false; errCount = ent.errors.length;
-      locationVal  = ent.county || '—';
+      locationVal  = ent.county || '-';
       errorFields  = ent.errors.map(function(e){ return e.field; }).join(', ');
     } else {
       isValid = ent.valid; errCount = ent.errors.length;
       locationVal  = ent.market === 'IL' ? 'inst: ' + ent.instanceid + ' / local: ' + ent.localid : ent.county;
-      errorFields  = ent.errors.map(function(e){ return e.field; }).join(', ') || '—';
+      errorFields  = ent.errors.map(function(e){ return e.field; }).join(', ') || '-';
     }
     s3(row,0, val(i+1, alt, 'center'));
     s3(row,1, val(p.isFromHistory ? ent.entityType : ent.entityType, alt));
     s3(row,2, val(p.isFromHistory ? ent.recordid   : ent.recordid,   alt));
     s3(row,3, val(locationVal, alt));
     s3(row,4, val(p.publisher, alt));
-    s3(row,5, isValid ? ok('✓  VALID') : crt('✗  INVALID'));
+    s3(row,5, isValid ? ok('-  VALID') : crt('--  INVALID'));
     s3(row,6, errCount > 0 ? mkCell(errCount,{ fill:'FFE0E0', color:'721C24', align:'center', sz:10, bold:true }) : ok(0));
     s3(row,7, mkCell(errorFields, { fill: isValid?'D4EDDA':'FFE0E0', sz:10, wrap:true }));
   });
@@ -2533,13 +2546,13 @@ function _buildELTWorkbook(p, now) {
   ws3['!freeze']     = {xSplit:0, ySplit:2};
   ws3['!autofilter'] = {ref:'A2:H2'};
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SHEET 4 – Error Catalog (deduplicated patterns in this run)
-  // ═══════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // SHEET 4 - Error Catalog (deduplicated patterns in this run)
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   var ws4 = {};
   function s4(row,c,cell){ ws4[XLSX.utils.encode_cell({r:row,c:c})] = cell; }
 
-  s4(0,0, hdr('Error Catalog — Distinct Error Patterns in This Run'));
+  s4(0,0, hdr('Error Catalog - Distinct Error Patterns in This Run'));
   ['OCA / BIS Ref','Field','Entity Type','Fix Owner','Occurrences','Error Pattern','Translation / Action'].forEach(function(h,c){ s4(1,c,subhdr(h)); });
 
   var lib = [];
@@ -2559,10 +2572,10 @@ function _buildELTWorkbook(p, now) {
         }
       }
       catMap[key] = {
-        ref:        e.ref || (libMatch ? libMatch.ref : '') || '—',
+        ref:        e.ref || (libMatch ? libMatch.ref : '') || '-',
         field:      e.field,
         entityType: e.entityType,
-        fixOwner:   e.fixOwner || (libMatch ? libMatch.fixOwner : '') || '—',
+        fixOwner:   e.fixOwner || (libMatch ? libMatch.fixOwner : '') || '-',
         count:      0,
         msg:        e.msg,
         translation: e.translation || (libMatch ? libMatch.translation : '') || '',
@@ -2574,18 +2587,20 @@ function _buildELTWorkbook(p, now) {
 
   var catRows = Object.keys(catMap).map(function(k){ return catMap[k]; }).sort(function(a,b){ return b.count - a.count; });
   if (catRows.length === 0) {
-    s4(2,0, mkCell('✓  No errors in this run — nothing to catalog', { fill:'D4EDDA', bold:true, sz:10, color:'155724' }));
+    s4(2,0, mkCell('-  No errors in this run - nothing to catalog', { fill:'D4EDDA', bold:true, sz:10, color:'155724' }));
     _xlMerge(ws4,2,0,2,6);
   } else {
     catRows.forEach(function(cat, i) {
       var alt = i%2===0;
       var ownerFill = { 'Odyssey':'FFF3CD','Publisher':'FFF3CD','D&I':'EDE7F6','BIS TPM':'E3F2FD','OCA':'E8F5E9' }[cat.fixOwner];
-      var actionStr = cat.translation + (cat.action ? '\n→ ' + cat.action : '');
+      var actionStr = cat.translation + (cat.action ? '\n-> ' + cat.action : '');
       s4(2+i, 0, val(cat.ref,        alt, 'center'));
       s4(2+i, 1, val(cat.field,      alt));
       s4(2+i, 2, val(cat.entityType, alt));
       s4(2+i, 3, mkCell(cat.fixOwner, { fill:ownerFill||'EBF3FB', sz:10, align:'center' }));
       s4(2+i, 4, mkCell(cat.count,   { fill:cat.count>5?'FFE0E0':alt?'EBF3FB':null, align:'center', sz:10, bold:cat.count>5, color:cat.count>5?'721C24':'000000' }));
+      s4(2+i, 5, mkCell(cat.msg,     { fill:'FFF8E1', sz:10, wrap:true }));
+      s4(2+i, 6, mkCell(actionStr,   { fill:alt?'EBF3FB':null, sz:10, wrap:true }));
       s4(2+i, 5, mkCell(cat.msg,     { fill:'FFF8E1', sz:10, wrap:true }));
       s4(2+i, 6, mkCell(actionStr,   { fill:alt?'EBF3FB':null, sz:10, wrap:true }));
     });
@@ -2599,18 +2614,18 @@ function _buildELTWorkbook(p, now) {
   ws4['!freeze']     = {xSplit:0, ySplit:2};
   ws4['!autofilter'] = {ref:'A2:G2'};
 
-  // ── Build & download workbook ───────────────────────────────────────────────
+  // --"- Build & download workbook --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws1, '📊 Dashboard');
-  XLSX.utils.book_append_sheet(wb, ws2, '🔍 Error Log');
-  XLSX.utils.book_append_sheet(wb, ws3, '📋 Entity Detail');
-  XLSX.utils.book_append_sheet(wb, ws4, '📚 Error Catalog');
+  XLSX.utils.book_append_sheet(wb, ws1, '-- Dashboard');
+  XLSX.utils.book_append_sheet(wb, ws2, '-- Error Log');
+  XLSX.utils.book_append_sheet(wb, ws3, '-- Entity Detail');
+  XLSX.utils.book_append_sheet(wb, ws4, '-- Error Catalog');
 
-  var safeEnv = (p.envelopeId !== '—' ? p.envelopeId.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,20) + '_' : '');
-  XLSX.writeFile(wb, 'CATCH_ELT_Report_' + safeEnv + now.toISOString().slice(0,10) + '.xlsx');
+  var safeEnv = (p.envelopeId !== '-' ? p.envelopeId.replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,20) + '_' : '');
+  dlWorkbook(wb, 'CATCH_ELT_Report_' + safeEnv + now.toISOString().slice(0,10) + '.xlsx');
 }
 
-// ── Result filter (errors only / show all) ─────────────────────────────────
+// --"- Result filter (errors only / show all) --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 var _activeResultFilter = 'all';
 var _lastValidationResults = null;
 var _lastValidationParsed  = null;
@@ -2661,7 +2676,7 @@ function applyResultFilter(type) {
   }
 }
 
-// ── Format + Copy ────────────────────────────────────────────────────────────
+// --"- Format + Copy --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function formatInput() {
   const ta = document.getElementById('input-area');
   try {
@@ -2695,14 +2710,14 @@ function copyResults() {
         const trans = e.querySelector('.error-translation');
         if (field) text += '  [' + field.textContent.trim() + '] ';
         if (msg) text += msg.textContent.trim() + '\n';
-        if (trans) text += '    → ' + trans.textContent.replace('↳ ','').trim() + '\n';
+        if (trans) text += '    -> ' + trans.textContent.replace('? ','').trim() + '\n';
       });
     }
     text += '\n';
   });
   navigator.clipboard.writeText(text).then(function() {
     const btn = document.getElementById('copy-results-btn');
-    if (btn) { btn.textContent = '✓ Copied'; setTimeout(function() { btn.textContent = '⎘ Copy Results'; }, 1500); }
+    if (btn) { btn.textContent = '- Copied'; setTimeout(function() { btn.textContent = 'âŽ˜ Copy Results'; }, 1500); }
   }).catch(function() {
     // Fallback for non-secure contexts
     const ta = document.createElement('textarea');
@@ -2712,7 +2727,7 @@ function copyResults() {
     document.execCommand('copy');
     document.body.removeChild(ta);
     const btn = document.getElementById('copy-results-btn');
-    if (btn) { btn.textContent = '✓ Copied'; setTimeout(function() { btn.textContent = '⎘ Copy Results'; }, 1500); }
+    if (btn) { btn.textContent = '- Copied'; setTimeout(function() { btn.textContent = 'âŽ˜ Copy Results'; }, 1500); }
   });
 }
 
@@ -2722,9 +2737,9 @@ function onStateChange() {
   const label = sel.options[sel.selectedIndex].dataset.label || val;
   const titleEl = document.getElementById('main-title');
   const aboutTitleEl = document.getElementById('about-title');
-  if (titleEl) titleEl.textContent = 'CATCH · ' + label;
-  if (aboutTitleEl) aboutTitleEl.textContent = 'CATCH · ' + label;
-  document.title = 'CATCH · ' + label;
+  if (titleEl) titleEl.textContent = 'CATCH - ' + label;
+  if (aboutTitleEl) aboutTitleEl.textContent = 'CATCH - ' + label;
+  document.title = 'CATCH - ' + label;
   _currentMarket = val;
   // Clear workspace on market switch
   const inputArea = document.getElementById('input-area');
@@ -2761,7 +2776,7 @@ function switchTab(tab) {
     t.classList.toggle('active', t.dataset.tab === tab);
   });
   // All panels including hidden ones (errors panel kept for JS compatibility)
-  ['validate','batch','reference','errors','history','assoc','about','release'].forEach(p => {
+  ['validate','batch','reference','errors','history','portfolio','assoc','about','release'].forEach(p => {
     const el = document.getElementById('panel-' + p);
     if (!el) return;
     const isActive = p === tab;
@@ -2881,7 +2896,7 @@ function openBatchRunInValidate(index) {
 
     if (result.valid) {
       return '<div class="result-card valid" style="margin-bottom:14px;">' +
-        '<div class="result-header"><span class="status-valid">✓ VALID · Entity ' + (resultIndex + 1) + '</span><span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="' + escHtml(result.entityType) + '">' + escHtml(result.entityType) + '</span></div>' +
+        '<div class="result-header"><span class="status-valid">VALID - Entity ' + (resultIndex + 1) + '</span><span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="' + escHtml(result.entityType) + '">' + escHtml(result.entityType) + '</span></div>' +
         '<div class="result-meta">' + summaryMeta + '</div>' +
         '<div style="padding:6px 12px 12px;color:var(--green);font-size:10.5px">All checks passed.</div>' +
       '</div>';
@@ -2908,7 +2923,7 @@ function openBatchRunInValidate(index) {
     }).join('');
 
     return '<div class="result-card invalid" style="margin-bottom:14px;">' +
-      '<div class="result-header"><span class="status-invalid">✕ INVALID · Entity ' + (resultIndex + 1) + '</span><span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="' + escHtml(result.entityType) + '">' + escHtml(result.entityType) + '</span><span class="error-count">' + result.errors.length + ' error' + (result.errors.length > 1 ? 's' : '') + '</span></div>' +
+      '<div class="result-header"><span class="status-invalid">INVALID - Entity ' + (resultIndex + 1) + '</span><span style="font-size:9.5px;color:var(--text3);font-family:var(--mono);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px;" title="' + escHtml(result.entityType) + '">' + escHtml(result.entityType) + '</span><span class="error-count">' + result.errors.length + ' error' + (result.errors.length > 1 ? 's' : '') + '</span></div>' +
       '<div class="result-meta">' + summaryMeta + '</div>' +
       '<div class="error-list">' + issueHtml + '</div>' +
     '</div>';
@@ -2958,18 +2973,18 @@ function renderBatchResults(batchRuns) {
     ? (batchIdRun.batchSessionId || (batchIdRun.historyRun && batchIdRun.historyRun.batchSessionId) || 'Not assigned')
     : 'Not assigned';
 
-  count.textContent = batchRuns.length + ' payloads · ' + batchSessionLabel;
+  count.textContent = batchRuns.length + ' payloads - ' + batchSessionLabel;
 
   let summaryHtml = '<div class="batch-summary-grid">' +
-    '<div class="batch-summary-card"><span class="batch-summary-label">Payloads processed</span><div class="batch-summary-value">' + batchRuns.length + '</div><div class="batch-summary-note">' + passedRuns + ' passed cleanly' + (parseFailures ? ' · ' + parseFailures + ' parse issue' + (parseFailures > 1 ? 's' : '') : '') + '</div></div>' +
+    '<div class="batch-summary-card"><span class="batch-summary-label">Payloads processed</span><div class="batch-summary-value">' + batchRuns.length + '</div><div class="batch-summary-note">' + passedRuns + ' passed cleanly' + (parseFailures ? ' - ' + parseFailures + ' parse issue' + (parseFailures > 1 ? 's' : '') : '') + '</div></div>' +
     '<div class="batch-summary-card"><span class="batch-summary-label">Total errors</span><div class="batch-summary-value">' + totalErrors + '</div><div class="batch-summary-note">Rolled up across all validated payloads in this batch.</div></div>' +
     '<div class="batch-summary-card"><span class="batch-summary-label">Most pressured publisher</span><div class="batch-summary-value" style="font-size:20px;line-height:1.1;">' + escHtml(topPublisher) + '</div><div class="batch-summary-note">Publisher with the highest current batch issue volume.</div></div>' +
     '</div>';
 
-  count.textContent = batchRuns.length + ' payloads · ' + batchSessionLabel;
+  count.textContent = batchRuns.length + ' payloads - ' + batchSessionLabel;
   var batchSummaryIdCard = '<div class="batch-summary-card"><span class="batch-summary-label">Batch ID</span><div class="batch-summary-value" style="font-size:20px;line-height:1.1;">' + escHtml(batchSessionLabel) + '</div><div class="batch-summary-note">Use this ID to connect these payloads with related History entries.</div></div>';
   summaryHtml = summaryHtml.replace('<div class="batch-summary-grid">', '<div class="batch-summary-grid">' + batchSummaryIdCard);
-  count.textContent = batchRuns.length + ' payloads · ' + batchSessionLabel;
+  count.textContent = batchRuns.length + ' payloads - ' + batchSessionLabel;
 
   const runsHtml = '<div class="batch-runs-list">' + batchRuns.map(function(run, index) {
     if (run.error) {
@@ -3002,9 +3017,9 @@ function renderBatchResults(batchRuns) {
           '<div class="batch-run-meta">' +
             (run.parsed.market ? '<span class="batch-run-chip">' + escHtml(run.parsed.market) + '</span>' : '') +
             (run.parsed.publisher ? '<span>' + escHtml(run.parsed.publisher) + '</span>' : '') +
-            (run.parsed.eventType ? '<span>· ' + escHtml(run.parsed.eventType) + '</span>' : '') +
-            '<span>· ' + run.totalEntities + ' entities</span>' +
-            (run.submittedAt ? '<span>· submitted ' + escHtml(run.submittedAt) + '</span>' : '') +
+            (run.parsed.eventType ? '<span>- ' + escHtml(run.parsed.eventType) + '</span>' : '') +
+            '<span>- ' + run.totalEntities + ' entities</span>' +
+            (run.submittedAt ? '<span>- submitted ' + escHtml(run.submittedAt) + '</span>' : '') +
           '</div>' +
         '</div>' +
         '<div class="batch-run-actions"><button class="batch-open-btn" type="button" onclick="openBatchRunInValidate(' + index + ')">Review findings</button></div>' +
@@ -3053,8 +3068,9 @@ function runBatchValidation() {
   }, 10);
 }
 
-// ── History / Export ─────────────────────────────────────────────────────────
+// --"- History / Export --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 const HISTORY_KEY = 'tx_oca_di_val_history_v1';
+const HISTORY_SORT_KEY = 'catch_history_sort_v1';
 
 function loadHistory() {
   try {
@@ -3065,7 +3081,7 @@ function loadHistory() {
   catch(e) { return []; }
 }
 
-// Maximum chars to store per error message — prevents a single run with long
+// Maximum chars to store per error message - prevents a single run with long
 // enum-listing messages (e.g. 200-value valid-options list) from blowing the
 // ~5 MB localStorage quota and causing a silent save failure.
 const MAX_ERR_MSG_CHARS = 300;
@@ -3076,7 +3092,7 @@ function _trimRunForStorage(run) {
   if (Array.isArray(r.errors)) {
     r.errors = r.errors.map(function(e) {
       if (typeof e.msg === 'string' && e.msg.length > MAX_ERR_MSG_CHARS) {
-        e.msg = e.msg.slice(0, MAX_ERR_MSG_CHARS) + '… [truncated for storage]';
+        e.msg = e.msg.slice(0, MAX_ERR_MSG_CHARS) + '... [truncated for storage]';
       }
       return e;
     });
@@ -3090,7 +3106,7 @@ function saveHistory(runs) {
     // Clear any prior storage warning if save succeeded
     try { localStorage.removeItem('_catch_storage_warn'); } catch(e) {}
   } catch(e) {
-    // QuotaExceededError — trim oldest runs one at a time and retry
+    // QuotaExceededError - trim oldest runs one at a time and retry
     const trimmed = runs.slice();
     let saved = false;
     while (trimmed.length > 1) {
@@ -3104,7 +3120,7 @@ function saveHistory(runs) {
       } catch(ex) { /* keep trimming */ }
     }
     if (!saved) {
-      // Storage is completely blocked or quota is extremely low — flag it
+      // Storage is completely blocked or quota is extremely low - flag it
       try { localStorage.setItem('_catch_storage_warn', '1'); } catch(ex) {}
     }
   }
@@ -3129,8 +3145,8 @@ function _checkStorageWarning() {
   var banner = document.createElement('div');
   banner.id = 'storage-warn-banner';
   banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#3a1a00;border-top:1px solid var(--orange);color:var(--orange);font-family:var(--mono);font-size:10px;padding:7px 16px;display:flex;align-items:center;gap:10px;';
-  banner.innerHTML = '<span>⚠ Browser storage is nearly full — oldest validation runs were dropped to make room. Export your history now to avoid losing data.</span>'
-    + '<button onclick="exportCSV()" style="background:var(--orange);color:#000;border:none;padding:3px 10px;border-radius:3px;font-family:var(--mono);font-size:10px;cursor:pointer;flex-shrink:0;">↓ Export History</button>'
+  banner.innerHTML = '<span>Warning Browser storage is nearly full - oldest validation runs were dropped to make room. Export your history now to avoid losing data.</span>'
+    + '<button onclick="exportCSV()" style="background:var(--orange);color:#000;border:none;padding:3px 10px;border-radius:3px;font-family:var(--mono);font-size:10px;cursor:pointer;flex-shrink:0;">- Export History</button>'
     + '<button onclick="this.parentNode.remove();try{localStorage.removeItem(\'_catch_storage_warn\');}catch(e){}" style="background:none;border:1px solid var(--orange);color:var(--orange);padding:3px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;cursor:pointer;flex-shrink:0;">Dismiss</button>';
   document.body.appendChild(banner);
 }
@@ -3139,6 +3155,27 @@ function clearHistory() {
   if (!confirm('Clear all validation history? This cannot be undone.')) return;
   getStorage().removeItem(HISTORY_KEY);
   renderHistory();
+}
+
+function getHistorySortOrder() {
+  try { return localStorage.getItem(HISTORY_SORT_KEY) || 'aep_desc'; }
+  catch(e) { return 'aep_desc'; }
+}
+function setHistorySortOrder(value) {
+  try { localStorage.setItem(HISTORY_SORT_KEY, value || 'aep_desc'); } catch(e) {}
+}
+function getHistorySortStamp(run) {
+  if (!run) return 0;
+  if (run.originalTimestamp && !Number.isNaN(Number(run.originalTimestamp))) return Number(run.originalTimestamp);
+  if (run.analysedAt) {
+    var analysedMs = Date.parse(run.analysedAt);
+    if (!Number.isNaN(analysedMs)) return analysedMs;
+  }
+  if (run.timestamp) {
+    var timestampMs = Date.parse(run.timestamp);
+    if (!Number.isNaN(timestampMs)) return timestampMs;
+  }
+  return 0;
 }
 
 function renderHistory() {
@@ -3157,28 +3194,44 @@ function renderHistory() {
     return;
   }
 
-  // Apply filter
-  const filtered = filterVal ? runs.filter(function(run) {
-    const searchStr = [
-      run.envelopeId || '',
-      run.publisher || '',
-      run.eventType || '',
-      run.errors.map(function(e) { return (e.county||'') + ' ' + (e.entityType||'') + ' ' + (e.field||''); }).join(' ')
-    ].join(' ').toLowerCase();
-    return searchStr.includes(filterVal);
-  }) : runs;
+  const sortOrder = getHistorySortOrder();
+  let filtered = runs.map(function(run, originalIdx) {
+    return { run: run, originalIdx: originalIdx };
+  });
 
-  list.innerHTML = filtered.map((run, idx) => {
+  if (filterVal) {
+    filtered = filtered.filter(function(entry) {
+      const run = entry.run;
+      const searchStr = [
+        run.envelopeId || '',
+        run.publisher || '',
+        run.eventType || '',
+        run.errors.map(function(e) { return (e.county||'') + ' ' + (e.entityType||'') + ' ' + (e.field||''); }).join(' ')
+      ].join(' ').toLowerCase();
+      return searchStr.includes(filterVal);
+    });
+  }
+
+  filtered.sort(function(a, b) {
+    const aMs = getHistorySortStamp(a.run);
+    const bMs = getHistorySortStamp(b.run);
+    if (sortOrder === 'aep_asc') return aMs - bMs;
+    return bMs - aMs;
+  });
+
+  list.innerHTML = filtered.map((entry, idx) => {
+    const run = entry.run;
+    const originalIdx = entry.originalIdx;
     const runId = 'hrun-' + idx;
     const isBatchRun = run.sourceMode === 'batch' || !!run.batchSessionId;
     const batchSessionLabel = isBatchRun && run.batchSessionId ? run.batchSessionId : '';
     const badge = run.errorCount === 0
-      ? `<span class="history-badge-ok">✓ All valid</span>`
-      : `<span class="history-badge-err" style="cursor:pointer;user-select:none;" title="Click to toggle error details" onclick="(function(){var el=document.getElementById('${runId}-errors');var tog=document.getElementById('${runId}-tog');if(el){var open=el.style.display!=='none';el.style.display=open?'none':'block';tog.textContent=open?'▶':'▼';}})()"><span id="${runId}-tog">▼</span> ✗ ${run.errorCount} error${run.errorCount>1?'s':''}</span>`;
+      ? `<span class="history-badge-ok">All valid</span>`
+      : `<span class="history-badge-err" style="cursor:pointer;user-select:none;" title="Click to toggle error details" onclick="(function(){var el=document.getElementById('${runId}-errors');var tog=document.getElementById('${runId}-tog');if(el){var open=el.style.display!=='none';el.style.display=open?'none':'block';tog.textContent=open?'?':'?';}})()"><span id="${runId}-tog">?</span> ${run.errorCount} error${run.errorCount>1?'s':''}</span>`;
 
     const errorRows = run.errors.map(e =>
       `<div class="history-error-row">
-        <span class="history-entity-id">${escHtml(e.entityId || e.recordid || '—')}</span>
+        <span class="history-entity-id">${escHtml(e.entityId || e.recordid || '-')}</span>
         <span style="color:var(--text3);min-width:60px">${escHtml(e.field)}</span>
         <span>${escHtml(e.msg.length > 80 ? e.msg.slice(0,80) + '...' : e.msg)}</span>
       </div>`
@@ -3188,7 +3241,7 @@ function renderHistory() {
       <div class="history-run-top">
         <div class="history-run-main">
           <div class="history-run-header">
-        <span class="history-run-index">#${runs.length - idx}</span>
+        <span class="history-run-index">#${runs.length - originalIdx}</span>
         <span class="history-envelope">${escHtml(run.envelopeId || 'No EnvelopeId')}</span>
         ${isBatchRun ? `<span class="history-badge-mode">Batch</span>` : ``}
         ${badge}
@@ -3196,23 +3249,21 @@ function renderHistory() {
           <div class="history-run-subline">
             ${isBatchRun ? `<span class="history-chip batch">Batch run</span>` : ''}
             ${run.market && run.market !== 'TX' ? `<span class="history-chip market">${escHtml(run.market)}</span>` : ''}
-            ${run.envelopeSubmittedAt ? `<span class="history-chip submitted" title="Envelope OriginalTimestamp — when the AEP received the submission">AEP submission ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
+            ${run.envelopeSubmittedAt ? `<span class="history-chip submitted" title="Envelope OriginalTimestamp - when the AEP received the submission">AEP submission ${escHtml(run.envelopeSubmittedAt)}</span>` : ''}
             <span class="history-chip analysed" title="When CATCH analysed this envelope">CATCH analysed ${escHtml(run.timestamp)}</span>
             ${batchSessionLabel ? `<span class="history-chip batch-session" title="Shared batch session ID for runs validated together">${escHtml(batchSessionLabel)}</span>` : ''}
-            <span class="history-run-meta"><strong>${run.entityCount}</strong> entities <span class="history-run-dot">·</span> ${escHtml(run.publisher || '—')} <span class="history-run-dot">·</span> ${escHtml(run.eventType || '—')}</span>
+            <span class="history-run-meta"><strong>${run.entityCount}</strong> entities <span class="history-run-dot">-</span> ${escHtml(run.publisher || '-')} <span class="history-run-dot">-</span> ${escHtml(run.eventType || '-')}</span>
           </div>
         </div>
         <div class="history-run-actions">
-          <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunCSV(${idx})">Workbook</button>
-        <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunJSON(${idx})">JSON</button>
+          <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunCSV(${originalIdx})">Workbook</button>
+        <button class="export-btn" style="padding:2px 10px;font-size:10px" onclick="exportRunJSON(${originalIdx})">JSON</button>
       </div>
         </div>
       ${run.errorCount > 0 ? `<div id="${runId}-errors" class="history-errors">${errorRows}</div>` : ''}
     </div>`;
   }).join('');
 }
-
-// ── Clean single-fire download helper ────────────────────────────────────────
 function dlFile(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -3223,25 +3274,30 @@ function dlFile(blob, filename) {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
-// ── Shared XLSX cell helpers (reused by history, error-log, and catalog exports) ─
+// --"- Shared XLSX cell helpers (reused by history, error-log, and catalog exports) --
+function dlWorkbook(wb, filename) {
+  const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  dlFile(blob, filename);
+}
 const HISTORY_LEGEND_ROWS = [
   ['Column', 'Description', 'Example / Notes'],
-  ['Run #', 'Sequential run number assigned by CATCH — newest run is #1. Consistent across bulk export.', '153'],
-  ['Analysed At (CATCH)', "Date and time CATCH processed this envelope — the tool's own clock.", '03/25/2026, 11:16 AM'],
+  ['Run #', 'Sequential run number assigned by CATCH - newest run is #1. Consistent across bulk export.', '153'],
+  ['Analysed At (CATCH)', "Date and time CATCH processed this envelope - the tool's own clock.", '03/25/2026, 11:16 AM'],
   ['Envelope Submitted At (AEP)', 'Date and time the Alliance Exchange Platform (AEP) received the submission. Converted from the raw Unix timestamp in the payload.', '03/24/2026, 08:08:27 PM CDT'],
   ['Market', 'Pipeline market the envelope was submitted to. TX = Texas OCA Community Pipeline. IL = Illinois AOIC Community Pipeline.', 'TX'],
-  ['Envelope ID', 'Unique identifier for the envelope assigned by the D&I pipeline. Use this to look up the raw payload in the AEP or ACB logs.', '6cead12b-6969-47bb-…'],
+  ['Envelope ID', 'Unique identifier for the envelope assigned by the D&I pipeline. Use this to look up the raw payload in the AEP or ACB logs.', '6cead12b-6969-47bb-...'],
   ['Event Type', 'The event type declared at the envelope level. Determines whether entities are new records or deletes.', 'di-texas-oca-new-record-event'],
   ['Publisher', 'The CMS vendor that submitted the envelope, as declared in the Publisher field of the payload.', 'Tyler Tech-Odyssey'],
   ['Entity Count', 'Total number of entities contained in the envelope.', '51'],
   ['Error Count', 'Number of entities in the envelope that failed validation. A run where Error Count = Entity Count means every entity failed.', '51'],
   ['Entity ID', 'The CMS-assigned identifier for the specific entity that triggered this error row. Set by the publisher in the EntityId field of the payload. Useful for looking up the record in the source CMS.', 'CaseStatusSC-1010208'],
-  ['Record ID', 'The D&I pipeline record identifier (UUID) from inside the entity data. Distinct from Entity ID — this is the identifier used by the Alliance pipeline, not the CMS.', 'd89d63af-2a0d-4103-…'],
-  ['County / Instance ID', 'TX payloads: the county field from the entity data — the Texas county the court record belongs to. IL payloads: the instanceid field — the court instance identifier used by the AOIC pipeline.', 'Eastland (TX) / instanceid value (IL)'],
+  ['Record ID', 'The D&I pipeline record identifier (UUID) from inside the entity data. Distinct from Entity ID - this is the identifier used by the Alliance pipeline, not the CMS.', 'd89d63af-2a0d-4103-...'],
+  ['County / Instance ID', 'TX payloads: the county field from the entity data - the Texas county the court record belongs to. IL payloads: the instanceid field - the court instance identifier used by the AOIC pipeline.', 'Eastland (TX) / instanceid value (IL)'],
   ['Entity Type', 'The schema entity type declared for this entity. Determines which contract schema is validated against. Must match an approved value for the pipeline and event type.', 'di-texas-oca-court-case-status'],
   ['Field', 'The specific field within the entity that triggered the validation error.', 'case_status_event'],
   ['Ref', 'OCA or BIS error reference number if this error has been previously logged and tracked. Blank if no reference has been assigned.', 'OCA-001'],
-  ['Error', 'Full validation error message as generated by CATCH, including any invalid values and the list of allowed options.', 'Invalid value "Dismissal". Valid options: …'],
+  ['Error', 'Full validation error message as generated by CATCH, including any invalid values and the list of allowed options.', 'Invalid value "Dismissal". Valid options: ...'],
   ['Translation', 'Plain-English explanation of the error and recommended fix, including fix ownership (publisher, D&I, BIS).', 'The case status event value does not match the approved enum. Fix owner: submitting publisher.'],
 ];
 
@@ -3288,11 +3344,11 @@ function _buildLegendSheet(legendRows) {
 function _buildHistoryDataSheet(runs, includeRunNum) {
   var ws = {};
   var hdrs = includeRunNum
-    ? ['Run #','Analysed At (CATCH)','Envelope Submitted At (AEP)','Market','Envelope ID','Event Type','Publisher','Entity Count','Error Count','Entity ID','Record ID','County / Instance ID','Entity Type','Field','Ref','Error','Translation']
-    : ['Analysed At (CATCH)','Envelope Submitted At (AEP)','Market','Envelope ID','Event Type','Publisher','Entity Count','Error Count','Entity ID','Record ID','County / Instance ID','Entity Type','Field','Ref','Error','Translation'];
+    ? ['Run #','Envelope Submitted At (AEP)','Analysed At (CATCH)','Envelope ID','Publisher','Event Type','Market','Entity Count','Error Count','Status','Entity Type','Entity ID','Record ID','County / Instance ID','Field','Error','Translation']
+    : ['Envelope Submitted At (AEP)','Analysed At (CATCH)','Envelope ID','Publisher','Event Type','Market','Entity Count','Error Count','Status','Entity Type','Entity ID','Record ID','County / Instance ID','Field','Error','Translation'];
   var colWidths = includeRunNum
-    ? [7,22,26,8,38,32,20,13,12,22,18,20,36,22,10,48,48]
-    : [22,26,8,38,32,20,13,12,22,18,20,36,22,10,48,48];
+    ? [7,26,22,38,20,32,8,12,12,12,32,22,18,20,22,48,52]
+    : [26,22,38,20,32,8,12,12,12,32,22,18,20,22,48,52];
 
   hdrs.forEach(function(h,c){ ws[XLSX.utils.encode_cell({r:0,c:c})] = _xCol(h); });
 
@@ -3302,35 +3358,65 @@ function _buildHistoryDataSheet(runs, includeRunNum) {
     var runNum = runs.length - idx;
     if (run.errors.length === 0) {
       var base = includeRunNum ? [runNum] : [];
-      dataRows.push(base.concat([run.timestamp, run.envelopeSubmittedAt||'', mkt, run.envelopeId||'', run.eventType||'', run.publisher||'', run.entityCount, 0, '', '', '', '', '', '', '✓ All valid', '']));
+      dataRows.push(base.concat([
+        run.envelopeSubmittedAt || '',
+        run.timestamp || '',
+        run.envelopeId || '',
+        run.publisher || '',
+        run.eventType || '',
+        mkt,
+        run.entityCount,
+        0,
+        'All valid',
+        '', '', '', '', '', 'All valid', ''
+      ]));
     } else {
       run.errors.forEach(function(e) {
         var base = includeRunNum ? [runNum] : [];
-        dataRows.push(base.concat([run.timestamp, run.envelopeSubmittedAt||'', mkt, run.envelopeId||'', run.eventType||'', run.publisher||'', run.entityCount, run.errorCount, e.entityId||'', e.recordid||'', e.county||e.instanceid||'', e.entityType||'', e.field||'', e.ref||'', e.msg||'', e.translation||'']));
+        dataRows.push(base.concat([
+          run.envelopeSubmittedAt || '',
+          run.timestamp || '',
+          run.envelopeId || '',
+          run.publisher || '',
+          run.eventType || '',
+          mkt,
+          run.entityCount,
+          run.errorCount,
+          'Error',
+          e.entityType || '',
+          e.entityId || '',
+          e.recordid || '',
+          e.county || e.instanceid || '',
+          e.field || '',
+          e.msg || '',
+          e.translation || ''
+        ]));
       });
     }
   });
 
-  var errColIdx  = hdrs.indexOf('Error');
-  var transColIdx = hdrs.indexOf('Translation');
+  var statusColIdx = hdrs.indexOf('Status');
+  var errColIdx = hdrs.indexOf('Error');
   dataRows.forEach(function(row, i) {
     row.forEach(function(v, c) {
-      var isErr   = c === errColIdx && v && v !== '✓ All valid';
-      var isOk    = c === errColIdx && v === '✓ All valid';
-      var isCount = hdrs[c] === 'Error Count';
       var cell;
-      if (isErr)        cell = _xc(v,  { fill:'FFE0E0', sz:10, wrap:true });
-      else if (isOk)    cell = _xOk(v);
-      else if (isCount && typeof v === 'number') cell = v > 0 ? _xErr(v) : _xOk(v);
-      else              cell = _xAlt(v, i, (hdrs[c]==='Run #'||hdrs[c]==='Market'||hdrs[c]==='Entity Count'||hdrs[c]==='Error Count') ? 'center' : 'left');
+      if (c === statusColIdx) {
+        cell = v === 'All valid' ? _xOk(v) : _xErr(v);
+      } else if (c === errColIdx && v && v !== 'All valid') {
+        cell = _xc(v, { fill:'FFE0E0', sz:10, wrap:true });
+      } else {
+        var centerCols = ['Run #','Market','Entity Count','Error Count','Status'];
+        cell = _xAlt(v, i, centerCols.indexOf(hdrs[c]) !== -1 ? 'center' : 'left');
+      }
       ws[XLSX.utils.encode_cell({r:i+1,c:c})] = cell;
     });
   });
 
   ws['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:Math.max(1,dataRows.length),c:hdrs.length-1});
   ws['!cols'] = colWidths.map(function(w){ return {wch:w}; });
-  ws['!rows'] = [{hpt:20}];
+  ws['!rows'] = Array.from({length: Math.max(1, dataRows.length + 1)}, function(_, idx) { return {hpt: idx === 0 ? 20 : 32}; });
   ws['!freeze'] = {xSplit:0, ySplit:1};
+  ws['!autofilter'] = {ref: XLSX.utils.encode_range({r:0,c:0},{r:0,c:hdrs.length-1})};
   return ws;
 }
 
@@ -3339,9 +3425,9 @@ async function exportCSV() {
   if (runs.length === 0) { alert('No history to export.'); return; }
   if (!(await confirmExport('CATCH Validation History (.xlsx)'))) return;
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet(runs, true),  '📋 Validation History');
-  XLSX.utils.book_append_sheet(wb, _buildLegendSheet(HISTORY_LEGEND_ROWS), '📖 Legend');
-  XLSX.writeFile(wb, 'CATCH_Validation_History_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet(runs, true),  '-- Validation History');
+  XLSX.utils.book_append_sheet(wb, _buildLegendSheet(HISTORY_LEGEND_ROWS), '-- Legend');
+  dlWorkbook(wb, 'CATCH_Validation_History_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportJSON() {
@@ -3359,9 +3445,9 @@ async function exportRunCSV(idx) {
   const mkt = run.market || 'TX';
   const envSlug = (run.envelopeId || 'no-envelope').slice(0,8);
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet([run], false), '📋 Run Data');
-  XLSX.utils.book_append_sheet(wb, _buildLegendSheet(HISTORY_LEGEND_ROWS), '📖 Legend');
-  XLSX.writeFile(wb, 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet([run], false), '-- Run Data');
+  XLSX.utils.book_append_sheet(wb, _buildLegendSheet(HISTORY_LEGEND_ROWS), '-- Legend');
+  dlWorkbook(wb, 'CATCH_' + mkt + '_' + envSlug + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportRunJSON(idx) {
@@ -3386,7 +3472,7 @@ function importHistory(event) {
   reader.onload = function(e) {
     try {
       const imported = JSON.parse(e.target.result);
-      if (!Array.isArray(imported)) { alert('Invalid backup file — expected a JSON array.'); return; }
+      if (!Array.isArray(imported)) { alert('Invalid backup file - expected a JSON array.'); return; }
       const existing = loadHistory();
       // Merge: deduplicate by envelopeId + timestamp
       const seen = new Set(existing.map(r => r.envelopeId + '|' + r.timestamp));
@@ -3409,20 +3495,20 @@ const OCA_ERRORS = [
   {
     id:"OCA-006", date:"03/18/2026",
     envelope:"3f30f332-d88e-4e27-a4b3-8e50533f2ec9",
-    entity:"di-texas-oca-court-charge (singular — invalid)",
+    entity:"di-texas-oca-court-charge (singular - invalid)",
     pub:"Tyler Tech-Odyssey",
-    cause:"Entity type name is wrong — 'court-charge' (singular) does not exist. Valid options: di-texas-oca-court-charges (v3.0.0) or di-texas-oca-court-criminal-charges (v0.1). Odyssey must determine which and fix.",
+    cause:"Entity type name is wrong - 'court-charge' (singular) does not exist. Valid options: di-texas-oca-court-charges (v3.0.0) or di-texas-oca-court-criminal-charges (v0.1). Odyssey must determine which and fix.",
     bis:"No schema change required.",
-    priority:"High — blocks Grayson County data from landing in OCA"
+    priority:"High - blocks Grayson County data from landing in OCA"
   },
   {
     id:"OCA-007", date:"03/18/2026",
     envelope:"08c237d7-a88a-419f-9a15-e52ffd59d401",
     entity:"di-texas-oca-court-appointments",
     pub:"Tyler Tech-Odyssey",
-    cause:"County 'Casey' is not a real TX county. Fields amount_approved, number_of_hours_billed, total_billed_expenses submitted as strings — must be number|null. ('Publisher not in allowed enum' was validator noise from wrong Source branch — not a real error.)",
+    cause:"County 'Casey' is not a real TX county. Fields amount_approved, number_of_hours_billed, total_billed_expenses submitted as strings - must be number|null. ('Publisher not in allowed enum' was validator noise from wrong Source branch - not a real error.)",
     bis:"No schema change required.",
-    priority:"Medium — demo/test data"
+    priority:"Medium - demo/test data"
   },
   {
     id:"OCA-008", date:"03/18/2026",
@@ -3431,34 +3517,34 @@ const OCA_ERRORS = [
     pub:"Tyler Tech-Odyssey",
     cause:"County 'Casey' is not a real TX county. Counties must be associated with the publisher's registered Source ID. ('Publisher not in allowed enum' was validator noise from wrong Source branch.)",
     bis:"No schema change required.",
-    priority:"Medium — demo/test data"
+    priority:"Medium - demo/test data"
   },
   {
     id:"OCA-009", date:"03/18/2026",
     envelope:"fe0a0864-817a-4228-998f-8a1b492cceed",
-    entity:"di-texas-oca-court-case-events (×2: CaseEventCE-37488, CaseEventCE-37491)",
+    entity:"di-texas-oca-court-case-events (--2: CaseEventCE-37488, CaseEventCE-37491)",
     pub:"Tyler Tech-Odyssey",
     cause:"Identical root cause to OCA-008. County 'Casey' is not a real TX county, both entities. Demo/test data submitted against unregistered Source + fake county.",
     bis:"No schema change required.",
-    priority:"Medium — demo/test data"
+    priority:"Medium - demo/test data"
   },
   {
     id:"OCA-010", date:"03/18/2026",
     envelope:"74d28300-85dc-4d66-87cf-b8a9970c322c",
-    entity:"di-texas-oca-court-charge (singular — invalid, ×3: Charge-97687, Charge-117621, Charge-123812)",
+    entity:"di-texas-oca-court-charge (singular - invalid, --3: Charge-97687, Charge-117621, Charge-123812)",
     pub:"Tyler Tech-Odyssey",
-    cause:"Same entity type naming error as OCA-006. Real data: Grayson County, cause 2632050. Additional downstream violations that will surface after entity type fix: (1) plea_type submitted as 'Guilty' — must be 'G - Guilty'; (2) field name 'filing_statute_citation' — correct name is 'statute_citation'; (3) field name 'filing_level_and_degree_of_prosecuted_offense' — correct name is 'level_and_degree_of_prosecuted_offense'.",
+    cause:"Same entity type naming error as OCA-006. Real data: Grayson County, cause 2632050. Additional downstream violations that will surface after entity type fix: (1) plea_type submitted as 'Guilty' - must be 'G - Guilty'; (2) field name 'filing_statute_citation' - correct name is 'statute_citation'; (3) field name 'filing_level_and_degree_of_prosecuted_offense' - correct name is 'level_and_degree_of_prosecuted_offense'.",
     bis:"No schema change required.",
-    priority:"Critical — real Grayson County production data not landing in OCA"
+    priority:"Critical - real Grayson County production data not landing in OCA"
   },
   {
     id:"OCA-011", date:"03/18/2026",
     envelope:"114650cc-2ad7-4017-b2c5-e968255c3c50",
     entity:"di-texas-oca-court-party (CaseParty-158327)",
     pub:"Tyler Tech-Odyssey",
-    cause:"party_age_at_time_of_offense submitted as string '35' — must be number|null. party_race submitted as 'Not Available' — must be 'Not Available (Blank)'. Real production data: cause 2632050, Grayson County — same case as OCA-010. Both charge and party entity types failing for this case.",
+    cause:"party_age_at_time_of_offense submitted as string '35' - must be number|null. party_race submitted as 'Not Available' - must be 'Not Available (Blank)'. Real production data: cause 2632050, Grayson County - same case as OCA-010. Both charge and party entity types failing for this case.",
     bis:"No schema change required.",
-    priority:"Critical — same case as OCA-010, Grayson County"
+    priority:"Critical - same case as OCA-010, Grayson County"
   },
 ];
 
@@ -3470,7 +3556,7 @@ document.getElementById('envelope-override').addEventListener('input', function(
 // Init history count on load
 try { renderHistory(); } catch(e) {}
 
-// ── TX Error Log — auto-logging + rendering ──────────────────────────────────
+// --"- TX Error Log - auto-logging + rendering --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 const ERROR_LOG_KEY     = 'catch_tx_error_log_v1';
 const ERROR_LOG_CAP_KEY = 'catch_tx_error_log_cap_v1';
 const DEFAULT_LOG_CAP   = 500;
@@ -3568,9 +3654,8 @@ function _showCatalogNewToast(msg) {
   var existing = document.getElementById('catalog-new-toast');
   if (existing) existing.remove();
   var t = document.createElement('div');
-  t.id = 'catalog-new-toast';
+  t.innerHTML = '<span style="font-size:14px;">*</span><span style="flex:1;">' + escHtml(msg) + '</span><span style="opacity:0.6;font-size:10px;white-space:nowrap;cursor:pointer;" onclick="switchTab(\'assoc\');document.getElementById(\'catalog-new-toast\').remove();">View</span>';
   t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:#0d2a1f;border:1px solid var(--green);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;color:var(--green);box-shadow:0 4px 16px rgba(0,0,0,.5);cursor:pointer;max-width:340px;';
-  t.innerHTML = '<span style="font-size:14px;">◈</span><span style="flex:1;">' + escHtml(msg) + '</span><span style="opacity:0.6;font-size:10px;white-space:nowrap;cursor:pointer;" onclick="switchTab(\'assoc\');document.getElementById(\'catalog-new-toast\').remove();">View →</span>';
   t.onclick = function(e) { if (e.target.tagName !== 'SPAN' || !e.target.onclick) { switchTab('assoc'); t.remove(); } };
   document.body.appendChild(t);
   setTimeout(function() { if (t.parentNode) t.remove(); }, 8000);
@@ -3610,7 +3695,7 @@ function autoLogRunToErrorLog(parsed, results, envelopeId, originalTimestamp) {
 
   var cap = getLogCap();
   if (existing.length > cap) {
-    // Silently trim — no automatic file download. Use the ↓ CSV / ↓ JSON buttons
+    // Silently trim - no automatic file download. Use the - CSV / - JSON buttons
     // in the Error Log toolbar to manually export before cap is hit.
     existing = existing.slice(0, cap);
   }
@@ -3670,7 +3755,7 @@ function renderErrorLog() {
     var sourceBadge = e.source === 'pinned'
       ? '<span style="font-size:9px;color:var(--blue);background:#0d1f3d;border:1px solid #1a3a6e;padding:1px 6px;border-radius:3px;flex-shrink:0;">Pinned</span>'
       : '<span style="font-size:9px;color:var(--green);background:#0d1f16;border:1px solid #1a3a2a;padding:1px 6px;border-radius:3px;flex-shrink:0;">Auto-logged</span>';
-    var fixOwner = e.source === 'pinned' ? 'Open · Fix Owner: Odyssey' : 'Auto-logged · Pending review';
+    var fixOwner = e.source === 'pinned' ? 'Open - Fix Owner: Odyssey' : 'Auto-logged - Pending review';
     var fixStyle = e.source === 'pinned' ? 'log-status-open' : 'font-size:9px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);padding:2px 6px;border-radius:3px;';
 
     return '<div class="log-card">' +
@@ -3681,7 +3766,7 @@ function renderErrorLog() {
         (e.source === 'pinned'
           ? '<span class="log-status-open">' + escHtml(fixOwner) + '</span>'
           : '<span style="' + fixStyle + '">' + escHtml(fixOwner) + '</span>') +
-        '<span class="log-date">' + escHtml(e.date) + (e.submittedAt ? ' <span style="color:var(--orange);font-size:9px;margin-left:6px;">⬆ ' + escHtml(e.submittedAt) + '</span>' : '') + '</span>' +
+        '<span class="log-date">' + escHtml(e.date) + (e.submittedAt ? ' <span style="color:var(--orange);font-size:9px;margin-left:6px;">' + escHtml(e.submittedAt) + '</span>' : '') + '</span>' +
         '<button class="export-btn" style="margin-left:auto;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntry(' + idx + ')">XLSX</button>' +
         '<button class="export-btn" style="margin-left:4px;padding:2px 7px;font-size:9px" onclick="exportSingleLogEntryJSON(' + idx + ')">JSON</button>' +
       '</div>' +
@@ -3725,7 +3810,7 @@ function _buildErrorLogSheet(entries) {
   });
   ws['!ref'] = XLSX.utils.encode_range({r:0,c:0},{r:Math.max(1,entries.length),c:_LOG_HDRS.length-1});
   ws['!cols'] = _LOG_WIDTHS.map(function(w){ return {wch:w}; });
-  ws['!rows'] = [{hpt:20}];
+  ws['!rows'] = Array.from({length: Math.max(1, dataRows.length + 1)}, function(_, idx) { return {hpt: idx === 0 ? 20 : 32}; });
   ws['!freeze'] = {xSplit:0, ySplit:1};
   return ws;
 }
@@ -3736,8 +3821,8 @@ async function exportSingleLogEntry(idx) {
   if (!e) return;
   if (!(await confirmExport('CATCH Error Log Entry (.xlsx)'))) return;
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, _buildErrorLogSheet([e]), '📋 Error Log Entry');
-  XLSX.writeFile(wb, 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  XLSX.utils.book_append_sheet(wb, _buildErrorLogSheet([e]), '-- Error Log Entry');
+  dlWorkbook(wb, 'CATCH_ErrorLog_' + (e.id||'entry').replace(/\s/g,'-') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportSingleLogEntryJSON(idx) {
@@ -3753,8 +3838,8 @@ async function exportErrorLogCSV() {
   if (all.length === 0) { alert('No entries to export.'); return; }
   if (!(await confirmExport('CATCH Error Log (.xlsx)'))) return;
   var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, _buildErrorLogSheet(all), '📋 Error Log');
-  XLSX.writeFile(wb, 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  XLSX.utils.book_append_sheet(wb, _buildErrorLogSheet(all), '-- Error Log');
+  dlWorkbook(wb, 'CATCH_TX_ErrorLog_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 async function exportErrorLogJSON() {
@@ -3785,7 +3870,7 @@ function initErrorLog() {
 try { initErrorLog(); } catch(e) {}
 
 
-// ── Schema Manager ────────────────────────────────────────────────────────────
+// --"- Schema Manager --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 const SCHEMA_OVERRIDE_PREFIX = 'bis_schema_overrides_';
 const SCHEMA_BACKUP_PREFIX   = 'bis_schema_backup_';
 
@@ -3842,7 +3927,7 @@ function openSettingsToCap() {
   }, 120);
 }
 
-// ── Cap proximity warning toast ───────────────────────────────────────────────
+// --"- Cap proximity warning toast --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Shows once per session when auto-log entries reach 80% of cap.
 var _capWarnShown = false;
 function maybeShowCapWarning(current, cap) {
@@ -3919,7 +4004,7 @@ function renderQueuedFiles() {
   if (queuedFiles.length === 0) { list.innerHTML = ''; if (btn) btn.disabled = true; return; }
   if (btn) btn.disabled = false;
   list.innerHTML = queuedFiles.map(f =>
-    '<div class="queued-file"><span class="queued-file-name">' + f.name + '</span><span class="queued-remove" onclick="removeQueuedFile(' + "'" + f.name + "'" + ')">✕</span></div>'
+    '<div class="queued-file"><span class="queued-file-name">' + f.name + '</span><span class="queued-remove" onclick="removeQueuedFile(' + "'" + f.name + "'" + ')">âœ•</span></div>'
   ).join('');
 }
 
@@ -3945,8 +4030,8 @@ function applyUploadedSchemas() {
       try {
         const schema = JSON.parse(e.target.result);
         const entityType = schema.entityType && schema.entityType.const;
-        if (!entityType) throw new Error('Missing entityType.const — is this a contract schema?');
-        if (!schema.properties) throw new Error('Missing properties — is this a contract schema?');
+        if (!entityType) throw new Error('Missing entityType.const - is this a contract schema?');
+        if (!schema.properties) throw new Error('Missing properties - is this a contract schema?');
         loaded.push({ entityType: entityType, schema: schema, file: file.name });
       } catch(err) {
         errors.push(file.name + ': ' + err.message);
@@ -4020,15 +4105,15 @@ function renderSchemaInventory() {
     const isOverridden = !!overrides[et];
     const version = isOverridden ? ((overrides[et].version && overrides[et].version.const) || 'custom') : (VALID_V3.includes(et) ? 'v3.0.0' : 'v0.1');
     const srcClass = isOverridden ? 'schema-inv-source-uploaded' : 'schema-inv-source-builtin';
-    const srcLabel = isOverridden ? '● Uploaded' : '○ Built-in';
+    const srcLabel = isOverridden ? '--- Uploaded' : '--- Built-in';
     return '<div class="schema-inv-row"><span class="schema-inv-entity">' + et + '</span><span class="schema-inv-version">' + version + '</span><span class="' + srcClass + '">' + srcLabel + '</span></div>';
   }).join('');
   const extras = Object.keys(overrides).filter(function(et) { return !ALL_VALID.includes(et); });
   const extraRows = extras.map(function(et) {
     const version = (overrides[et].version && overrides[et].version.const) || 'custom';
-    return '<div class="schema-inv-row"><span class="schema-inv-entity" style="color:var(--orange)">' + et + ' ★</span><span class="schema-inv-version">' + version + '</span><span class="schema-inv-source-uploaded">● Uploaded (new)</span></div>';
+    return '<div class="schema-inv-row"><span class="schema-inv-entity" style="color:var(--orange)">' + et + ' -...</span><span class="schema-inv-version">' + version + '</span><span class="schema-inv-source-uploaded">--- Uploaded (new)</span></div>';
   }).join('');
-  list.innerHTML = rows + (extraRows ? '<div style="margin-top:6px;font-size:9px;color:var(--text3)">★ New entity types from upload</div>' + extraRows : '');
+  list.innerHTML = rows + (extraRows ? '<div style="margin-top:6px;font-size:9px;color:var(--text3)">-... New entity types from upload</div>' + extraRows : '');
 }
 
 // Drag and drop
@@ -4055,7 +4140,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 try { loadSchemaOverrides(); } catch(e) {}
 
-// ── Error Library ─────────────────────────────────────────────────────────────
+// --"- Error Library --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 const LIB_KEY = 'catch_error_library_v1';
 const FIX_OWNERS = ['Odyssey','Publisher','D&I','BIS TPM','OCA'];
 const MATCH_TYPES = ['field_value','field_name','contains'];
@@ -4063,10 +4148,10 @@ const TRUST_STATUSES = ['draft','reviewed','trusted'];
 
 // Seed library with the known BIS errors (OCA-006 through OCA-011)
 const DEFAULT_LIBRARY = [
-  { id:'BIS-001', entityType:'di-texas-oca-court-charge', field:'entityType', matchType:'field_name', matchValue:'', translation:'The entity type name is singular — it does not exist. Use di-texas-oca-court-charges for new-record-event or di-texas-oca-court-criminal-charges for delete-record-event.', fixOwner:'Odyssey', action:'Update the EntityType field in the CMS mapping to the correct plural form based on the event type being submitted.', ref:'OCA-006, OCA-010' },
+  { id:'BIS-001', entityType:'di-texas-oca-court-charge', field:'entityType', matchType:'field_name', matchValue:'', translation:'The entity type name is singular - it does not exist. Use di-texas-oca-court-charges for new-record-event or di-texas-oca-court-criminal-charges for delete-record-event.', fixOwner:'Odyssey', action:'Update the EntityType field in the CMS mapping to the correct plural form based on the event type being submitted.', ref:'OCA-006, OCA-010' },
   { id:'BIS-002', entityType:'All', field:'county', matchType:'field_value', matchValue:'Casey', translation:'"Casey" is not a Texas county. This is test or demo data using a fake county name. Submissions with this county will never land in OCA.', fixOwner:'Odyssey', action:'Replace "Casey" with a real registered Texas county before resubmitting. Do not use fake county names in any environment.', ref:'OCA-007, OCA-008, OCA-009' },
-  { id:'BIS-003', entityType:'di-texas-oca-court-charges', field:'plea_type', matchType:'field_value', matchValue:'Guilty', translation:'The plea_type value is in plain-English format. The schema requires the coded format "G - Guilty" — not just "Guilty".', fixOwner:'Odyssey', action:'Update the plea_type mapping to use the OCA code format: G - Guilty, N - Not Guilty, C - No Contest or Nolo Contendere, etc.', ref:'OCA-010' },
-  { id:'BIS-004', entityType:'All', field:'party_race', matchType:'field_value', matchValue:'Not Available', translation:'"Not Available" is close but not exact. The approved value is "Not Available (Blank)" — the schema requires exact string match including the parenthetical.', fixOwner:'Odyssey', action:'Update the party_race mapping to send "Not Available (Blank)" exactly as written.', ref:'OCA-011' },
+  { id:'BIS-003', entityType:'di-texas-oca-court-charges', field:'plea_type', matchType:'field_value', matchValue:'Guilty', translation:'The plea_type value is in plain-English format. The schema requires the coded format "G - Guilty" - not just "Guilty".', fixOwner:'Odyssey', action:'Update the plea_type mapping to use the OCA code format: G - Guilty, N - Not Guilty, C - No Contest or Nolo Contendere, etc.', ref:'OCA-010' },
+  { id:'BIS-004', entityType:'All', field:'party_race', matchType:'field_value', matchValue:'Not Available', translation:'"Not Available" is close but not exact. The approved value is "Not Available (Blank)" - the schema requires exact string match including the parenthetical.', fixOwner:'Odyssey', action:'Update the party_race mapping to send "Not Available (Blank)" exactly as written.', ref:'OCA-011' },
   { id:'BIS-005', entityType:'All', field:'filing_statute_citation', matchType:'field_name', matchValue:'', translation:'This field name is wrong. The correct field name is "statute_citation". The filing_ prefix does not exist in the contract schema.', fixOwner:'Odyssey', action:'Rename the field from filing_statute_citation to statute_citation in the CMS data mapping.', ref:'OCA-010' },
   { id:'BIS-006', entityType:'All', field:'filing_level_and_degree_of_prosecuted_offense', matchType:'field_name', matchValue:'', translation:'This field name is wrong. The correct field name is "level_and_degree_of_prosecuted_offense". The filing_ prefix does not exist in the contract schema.', fixOwner:'Odyssey', action:'Rename the field from filing_level_and_degree_of_prosecuted_offense to level_and_degree_of_prosecuted_offense in the CMS data mapping.', ref:'OCA-010' }
 ];
@@ -4226,7 +4311,7 @@ function importLibrary(event) {
   reader.onload = function(e) {
     try {
       const imported = JSON.parse(e.target.result);
-      if (!Array.isArray(imported)) { alert('Invalid file — expected a JSON array of library entries.'); return; }
+      if (!Array.isArray(imported)) { alert('Invalid file - expected a JSON array of library entries.'); return; }
       const existing = loadLibrary();
       const existingIds = new Set(existing.map(function(e) { return e.id; }));
       const added = imported.filter(function(e) { return !existingIds.has(e.id); });
@@ -4241,8 +4326,8 @@ function importLibrary(event) {
   reader.readAsText(file);
 }
 
-// ── Library matching ───────────────────────────────────────────────────────────
-// Called by getTranslation — checks library for a match before generic fallback
+// --"- Library matching --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
+// Called by getTranslation - checks library for a match before generic fallback
 function matchLibraryEntry(field, msg, entity) {
   const entries = loadLibrary();
   for (var i = 0; i < entries.length; i++) {
@@ -4276,12 +4361,378 @@ try { renderLibrary(); } catch(e) {}
 
 
 
-// ── Error Catalog ─────────────────────────────────────────────────────────────
+
+function buildPortfolioViewData() {
+  const runs = loadHistory();
+  const publishers = {};
+  const issueMap = {};
+  let totalEntities = 0;
+  let totalErrors = 0;
+  let totalInvalidEntities = 0;
+  let totalValidEntities = 0;
+
+  runs.forEach(function(run, runIndex) {
+    const publisher = ((run.publisher || '').trim()) || '(unknown)';
+    const entityCount = Number(run.entityCount || 0);
+    const errors = Array.isArray(run.errors) ? run.errors : [];
+    const invalidKeys = {};
+    const topFieldMap = {};
+    errors.forEach(function(err) {
+      invalidKeys[(err.entityId || err.recordid || err.entityType || 'unknown') + '||' + (err.entityType || '')] = true;
+      if (err.field) topFieldMap[err.field] = (topFieldMap[err.field] || 0) + 1;
+      const issueKey = (err.field || '(unknown)') + '|||' + classifyErrorCatalog(err.msg || '');
+      if (!issueMap[issueKey]) {
+        issueMap[issueKey] = {
+          issue: (classifyErrorCatalog(err.msg || '') || 'Issue') + ((err.field || '') ? ' / ' + err.field : ''),
+          count: 0,
+          publishers: new Set(),
+          sample: err.translation || err.msg || 'Issue detected'
+        };
+      }
+      issueMap[issueKey].count++;
+      issueMap[issueKey].publishers.add(publisher);
+    });
+    const invalidEntities = Object.keys(invalidKeys).length || (errors.length > 0 ? 1 : 0);
+    const validEntities = Math.max(0, entityCount - invalidEntities);
+    const passRate = entityCount > 0 ? (validEntities / entityCount) * 100 : 100;
+    const errorProfile = errors.length === 0 ? 'Clean' : errors.length === 1 ? 'Single issue' : errors.length >= 10 ? 'High volume' : 'Multi-issue';
+    const topFields = Object.keys(topFieldMap).sort(function(a, b) { return topFieldMap[b] - topFieldMap[a]; }).slice(0, 3).map(function(field) { return field + ' (' + topFieldMap[field] + ')'; }).join(', ');
+    const whatWasWrong = errors.length ? errors.slice(0, 3).map(function(err) {
+      const raw = (err.field ? err.field + ': ' : '') + (err.translation || err.msg || 'Issue detected');
+      return raw.length > 120 ? raw.slice(0, 117) + '...' : raw;
+    }).join(' | ') : 'No incorrect data detected in this envelope.';
+
+    totalEntities += entityCount;
+    totalErrors += errors.length;
+    totalInvalidEntities += invalidEntities;
+    totalValidEntities += validEntities;
+
+    if (!publishers[publisher]) publishers[publisher] = { publisher: publisher, runs: 0, errors: 0, entities: 0, validEntities: 0, topFieldMap: {} };
+    publishers[publisher].runs++;
+    publishers[publisher].errors += errors.length;
+    publishers[publisher].entities += entityCount;
+    publishers[publisher].validEntities += validEntities;
+    Object.keys(topFieldMap).forEach(function(field) { publishers[publisher].topFieldMap[field] = (publishers[publisher].topFieldMap[field] || 0) + topFieldMap[field]; });
+
+    run._portfolio = {
+      runIndex: runIndex,
+      envelopeId: run.envelopeId || 'No EnvelopeId',
+      submittedAt: run.envelopeSubmittedAt || '',
+      analysedAt: run.timestamp || '',
+      publisher: publisher,
+      entities: entityCount,
+      errors: errors.length,
+      invalidEntities: invalidEntities,
+      passRate: passRate,
+      errorProfile: errorProfile,
+      topFields: topFields || (errors.length ? '-' : 'No errors'),
+      whatWasWrong: whatWasWrong,
+      sortStamp: getHistorySortStamp(run)
+    };
+  });
+
+  return {
+    runs: runs,
+    envelopeRows: runs.map(function(run) { return run._portfolio; }),
+    topPublishers: Object.keys(publishers).map(function(name) {
+      const bucket = publishers[name];
+      const passRate = bucket.entities > 0 ? (bucket.validEntities / bucket.entities) * 100 : 100;
+      const topField = Object.keys(bucket.topFieldMap).sort(function(a, b) { return bucket.topFieldMap[b] - bucket.topFieldMap[a]; })[0] || '-';
+      return { publisher: name, runs: bucket.runs, errors: bucket.errors, passRate: passRate, topField: topField };
+    }).sort(function(a, b) { return b.errors - a.errors; }),
+    topIssues: Object.values(issueMap).map(function(item) {
+      return { issue: item.issue, count: item.count, publishers: Array.from(item.publishers), sample: item.sample };
+    }).sort(function(a, b) { return b.count - a.count; }),
+    totalEntities: totalEntities,
+    totalErrors: totalErrors,
+    totalInvalidEntities: totalInvalidEntities,
+    totalValidEntities: totalValidEntities,
+    passRate: totalEntities > 0 ? (totalValidEntities / totalEntities) * 100 : 100,
+    distinctPublishers: Object.keys(publishers).length,
+    distinctEnvelopes: runs.filter(function(run){ return !!run.envelopeId; }).length,
+    distinctTrends: Object.keys(issueMap).length
+  };
+}
+
+function shortenPortfolioText(value, maxLen) {
+  value = String(value || '');
+  return value.length > maxLen ? value.slice(0, Math.max(0, maxLen - 3)) + '...' : value;
+}
+
+
+function buildPortfolioEnvelopeModalMarkup(run) {
+  if (!run) {
+    return '<div class="portfolio-empty">No saved run was found for this envelope.</div>';
+  }
+  var row = run._portfolio || {};
+  var errors = Array.isArray(run.errors) ? run.errors : [];
+  var ownerMap = {};
+  errors.forEach(function(err) {
+    var owner = _extractFixOwner(err.translation || '') || 'Review needed';
+    ownerMap[owner] = (ownerMap[owner] || 0) + 1;
+  });
+  var likelyOwner = Object.keys(ownerMap).sort(function(a, b) { return ownerMap[b] - ownerMap[a]; })[0] || 'Review needed';
+  return [
+    '<div class="schema-review-shell portfolio-modal-shell">',
+      '<div class="schema-review-summary">',
+        '<div class="schema-review-stat"><div class="schema-review-stat-label">Envelope</div><div class="schema-review-stat-value">' + escHtml(row.envelopeId || run.envelopeId || 'Not provided') + '</div></div>',
+        '<div class="schema-review-stat"><div class="schema-review-stat-label">Publisher</div><div class="schema-review-stat-value">' + escHtml(row.publisher || run.publisher || 'Unknown') + '</div></div>',
+        '<div class="schema-review-stat"><div class="schema-review-stat-label">Errors</div><div class="schema-review-stat-value">' + escHtml(String(row.errors || run.errorCount || 0)) + '</div></div>',
+        '<div class="schema-review-stat"><div class="schema-review-stat-label">Likely owner</div><div class="schema-review-stat-value">' + escHtml(likelyOwner) + '</div></div>',
+      '</div>',
+      '<div class="schema-review-grid">',
+        '<div class="schema-review-card"><div class="schema-review-block-title">AEP submitted</div><div class="schema-review-note">' + escHtml(row.submittedAt || run.envelopeSubmittedAt || 'Not provided') + '</div></div>',
+        '<div class="schema-review-card"><div class="schema-review-block-title">CATCH analysed</div><div class="schema-review-note">' + escHtml(run.timestamp || 'Not provided') + '</div></div>',
+        '<div class="schema-review-card"><div class="schema-review-block-title">Profile</div><div class="schema-review-note">' + escHtml(row.errorProfile || 'Unknown') + '</div></div>',
+        '<div class="schema-review-card"><div class="schema-review-block-title">Top fields</div><div class="schema-review-note">' + escHtml(row.topFields || 'No errors') + '</div></div>',
+      '</div>',
+      '<div class="schema-review-card" style="margin-top:16px;">',
+        '<div class="schema-review-block-title">What was sent incorrectly</div>',
+        '<div class="schema-review-note">' + escHtml(row.whatWasWrong || 'No incorrect data detected in this envelope.') + '</div>',
+      '</div>',
+      '<div class="schema-review-card" style="margin-top:16px;">',
+        '<div class="schema-review-block-title">Error detail</div>',
+        errors.length ? '<div class="portfolio-modal-table-wrap"><table class="portfolio-modal-table"><thead><tr><th>Field</th><th>Entity</th><th>Entity ID</th><th>Bad data</th><th>Translation</th></tr></thead><tbody>' + errors.map(function(err) {
+          return '<tr>' +
+            '<td>' + escHtml(err.field || '-') + '</td>' +
+            '<td>' + escHtml(err.entityType || '-') + '</td>' +
+            '<td>' + escHtml(err.entityId || err.recordid || '-') + '</td>' +
+            '<td>' + escHtml(err.msg || '-') + '</td>' +
+            '<td>' + escHtml(err.translation || 'No library translation stored yet.') + '</td>' +
+          '</tr>';
+        }).join('') + '</tbody></table></div>' : '<div class="schema-review-note">No errors were stored for this envelope.</div>',
+      '</div>',
+    '</div>'
+  ].join('');
+}
+
+function openPortfolioEnvelope(envelopeId) {
+  var data = buildPortfolioViewData();
+  var run = (data.runs || []).find(function(item) {
+    return String(item.envelopeId || '') === String(envelopeId || '');
+  });
+  openReaderContent('Envelope ' + String(envelopeId || 'Detail'), buildPortfolioEnvelopeModalMarkup(run));
+}
+
+function renderPortfolio() {
+  var rootSummary = document.getElementById('portfolio-summary');
+  var queueHost = document.getElementById('portfolio-envelope-table');
+  var pubHost = document.getElementById('portfolio-top-publishers');
+  var issueHost = document.getElementById('portfolio-top-issues');
+  if (!rootSummary || !queueHost || !pubHost || !issueHost) return;
+
+  var data = buildPortfolioViewData();
+  var runs = data.runs || [];
+  if (!runs.length) {
+    rootSummary.innerHTML = '<div class="portfolio-empty">Run and save validations to unlock the portfolio dashboard.</div>';
+    queueHost.innerHTML = '';
+    pubHost.innerHTML = '';
+    issueHost.innerHTML = '';
+    return;
+  }
+
+  var searchEl = document.getElementById('portfolio-search');
+  var pubFilterEl = document.getElementById('portfolio-publisher-filter');
+  var profileEl = document.getElementById('portfolio-profile-filter');
+  var sortEl = document.getElementById('portfolio-sort');
+  var q = ((searchEl && searchEl.value) || '').trim().toLowerCase();
+  var selectedPublisher = (pubFilterEl && pubFilterEl.value) || '';
+  var selectedProfile = (profileEl && profileEl.value) || '';
+  var selectedSort = (sortEl && sortEl.value) || 'submitted_desc';
+
+  if (pubFilterEl) {
+    var currentValue = selectedPublisher;
+    var pubOptions = ['<option value="">All publishers</option>'].concat(data.topPublishers.map(function(row){ return '<option value="' + escHtml(row.publisher) + '">' + escHtml(row.publisher) + '</option>'; }));
+    pubFilterEl.innerHTML = pubOptions.join('');
+    pubFilterEl.value = currentValue;
+  }
+
+  var filteredRows = data.envelopeRows.filter(function(row) {
+    if (!row) return false;
+    if (selectedPublisher && row.publisher !== selectedPublisher) return false;
+    if (selectedProfile && row.errorProfile !== selectedProfile) return false;
+    if (!q) return true;
+    var haystack = [row.envelopeId, row.publisher, row.topFields, row.whatWasWrong, row.errorProfile].join(' ').toLowerCase();
+    return haystack.indexOf(q) !== -1;
+  });
+
+  filteredRows.sort(function(a, b) {
+    if (selectedSort === 'submitted_asc') return (a.sortStamp || 0) - (b.sortStamp || 0);
+    if (selectedSort === 'errors_desc') return (b.errors || 0) - (a.errors || 0) || (b.sortStamp || 0) - (a.sortStamp || 0);
+    if (selectedSort === 'pass_asc') return (a.passRate || 0) - (b.passRate || 0) || (b.sortStamp || 0) - (a.sortStamp || 0);
+    return (b.sortStamp || 0) - (a.sortStamp || 0);
+  });
+
+  var filteredStats = {
+    envelopes: filteredRows.length,
+    errors: filteredRows.reduce(function(sum, row){ return sum + (row.errors || 0); }, 0),
+    entities: filteredRows.reduce(function(sum, row){ return sum + (row.entities || 0); }, 0),
+    atRisk: filteredRows.filter(function(row){ return row.errorProfile === 'Multi-issue' || row.errorProfile === 'High volume'; }).length,
+    passRate: filteredRows.reduce(function(sum, row){ return sum + (row.entities || 0); }, 0) > 0 ? (filteredRows.reduce(function(sum, row){ return sum + Math.max(0, (row.entities || 0) - (row.invalidEntities || 0)); }, 0) / filteredRows.reduce(function(sum, row){ return sum + (row.entities || 0); }, 0)) * 100 : 100
+  };
+
+  var publisherMap = {};
+  filteredRows.forEach(function(row){
+    if (!publisherMap[row.publisher]) publisherMap[row.publisher] = { publisher: row.publisher, envelopes: 0, errors: 0, totalPass: 0, fieldCounts: {} };
+    publisherMap[row.publisher].envelopes++;
+    publisherMap[row.publisher].errors += row.errors || 0;
+    publisherMap[row.publisher].totalPass += row.passRate || 0;
+    String(row.topFields || '').split(',').map(function(part){ return part.trim(); }).filter(Boolean).forEach(function(field){ publisherMap[row.publisher].fieldCounts[field] = (publisherMap[row.publisher].fieldCounts[field] || 0) + 1; });
+  });
+  var filteredPublishers = Object.values(publisherMap).map(function(item){ var topField = Object.keys(item.fieldCounts || {}).sort(function(a,b){ return (item.fieldCounts[b] || 0) - (item.fieldCounts[a] || 0); })[0] || '-'; item.topField = topField; return item; }).sort(function(a,b){ return b.errors - a.errors; }).slice(0,5);
+
+  var issueMap = {};
+  runs.forEach(function(run) {
+    var row = run._portfolio;
+    if (!row) return;
+    if (selectedPublisher && row.publisher !== selectedPublisher) return;
+    if (selectedProfile && row.errorProfile !== selectedProfile) return;
+    if (q) {
+      var rowHaystack = [row.envelopeId, row.publisher, row.topFields, row.whatWasWrong, row.errorProfile].join(' ').toLowerCase();
+      if (rowHaystack.indexOf(q) === -1) return;
+    }
+    (run.errors || []).forEach(function(err) {
+      var label = (classifyErrorCatalog(err.msg || '') || 'Issue') + ((err.field || '') ? ' / ' + err.field : '');
+      if (!issueMap[label]) issueMap[label] = { issue: label, count: 0, publishers: new Set() };
+      issueMap[label].count++;
+      issueMap[label].publishers.add(row.publisher);
+    });
+  });
+  var filteredIssues = Object.values(issueMap).map(function(item){ return { issue: item.issue, count: item.count, publishers: Array.from(item.publishers) }; }).sort(function(a,b){ return b.count - a.count; }).slice(0,5);
+
+  rootSummary.innerHTML = [
+    '<section class="portfolio-kpi-grid">',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Visible envelopes</div><div class="portfolio-kpi-value">' + filteredStats.envelopes + '</div><div class="portfolio-kpi-copy">Current queue after filters.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Error occurrences</div><div class="portfolio-kpi-value portfolio-kpi-value-risk">' + filteredStats.errors + '</div><div class="portfolio-kpi-copy">Total issue count in the active slice.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Entity pass rate</div><div class="portfolio-kpi-value">' + filteredStats.passRate.toFixed(1) + '%</div><div class="portfolio-kpi-copy">Valid entities divided by total visible entities.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">At-risk envelopes</div><div class="portfolio-kpi-value portfolio-kpi-value-warn">' + filteredStats.atRisk + '</div><div class="portfolio-kpi-copy">Multi-issue or high-volume envelopes.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Publishers</div><div class="portfolio-kpi-value">' + (new Set(filteredRows.map(function(row){ return row.publisher; })).size) + '</div><div class="portfolio-kpi-copy">Publishers in the active slice.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Top publisher</div><div class="portfolio-kpi-value">' + escHtml(shortenPortfolioText((filteredPublishers[0] && filteredPublishers[0].publisher) || '-', 18)) + '</div><div class="portfolio-kpi-copy">Highest error volume in the active slice.</div></article>',
+    '</section>'
+  ].join('');
+
+  if (!filteredRows.length) {
+    queueHost.innerHTML = '<div class="portfolio-empty">No envelopes match the current filters.</div>';
+  } else {
+    queueHost.innerHTML = [
+      '<div class="portfolio-table-wrap"><table class="portfolio-table"><thead><tr>',
+      '<th>Envelope ID</th><th>AEP submitted</th><th>Publisher</th><th>Errors</th><th>Profile</th><th>Primary issue</th><th></th>',
+      '</tr></thead><tbody>',
+      filteredRows.slice(0, 100).map(function(row) {
+        var profileClass = row.errorProfile === 'Clean' ? 'ok' : row.errorProfile === 'Single issue' ? 'warn' : 'risk';
+        return '<tr>' +
+          '<td class="portfolio-envelope">' + escHtml(row.envelopeId) + '</td>' +
+          '<td>' + escHtml(row.submittedAt || 'Not provided') + '</td>' +
+          '<td>' + escHtml(row.publisher) + '</td>' +
+          '<td><span class="portfolio-count ' + profileClass + '">' + row.errors + '</span></td>' +
+          '<td><span class="portfolio-pill ' + profileClass + '">' + escHtml(row.errorProfile) + '</span></td>' +
+          '<td><div class="portfolio-issue-title">' + escHtml(shortenPortfolioText(row.whatWasWrong, 118)) + '</div><div class="portfolio-issue-meta">Top fields: ' + escHtml(shortenPortfolioText(row.topFields, 44)) + '</div></td>' +
+          '<td><button class="portfolio-link-btn" data-envelope="' + escHtml(String(row.envelopeId || '')) + '" onclick="openPortfolioEnvelope(this.dataset.envelope)">View</button></td>' +
+        '</tr>';
+      }).join(''),
+      '</tbody></table></div>',
+      '<div class="portfolio-footnote">Showing ' + Math.min(filteredRows.length, 100) + ' of ' + filteredRows.length + ' envelopes in the current slice.</div>'
+    ].join('');
+  }
+
+  pubHost.innerHTML = filteredPublishers.length ? '<div class="portfolio-list">' + filteredPublishers.map(function(item) {
+    var avgPass = item.envelopes ? (item.totalPass / item.envelopes) : 100;
+    return '<div class="portfolio-list-row"><div><div class="portfolio-list-title">' + escHtml(item.publisher) + '</div><div class="portfolio-list-copy">' + item.envelopes + ' envelopes - ' + item.errors + ' errors</div></div><div class="portfolio-list-value">' + avgPass.toFixed(1) + '%</div></div>';
+  }).join('') + '</div>' : '<div class="portfolio-empty">No publisher data in the current slice.</div>';
+
+  issueHost.innerHTML = filteredIssues.length ? '<div class="portfolio-list">' + filteredIssues.map(function(item) {
+    return '<div class="portfolio-list-row"><div><div class="portfolio-list-title">' + escHtml(shortenPortfolioText(item.issue, 42)) + '</div><div class="portfolio-list-copy">' + escHtml(item.publishers.slice(0,3).join(', ') || '-') + '</div></div><div class="portfolio-list-value">' + item.count + '</div></div>';
+  }).join('') + '</div>' : '<div class="portfolio-empty">No recurring issues in the current slice.</div>';
+}
+
+// --"- Error Catalog --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 // Deduplicated error catalog: one row per unique (field + msg + entityType)
 // Each row shows all publishers who sent it, occurrence count, first/last seen.
 
 var _catalogData = [];
 
+
+async function exportPortfolioViewCSV() {
+  var data = buildPortfolioViewData();
+  var searchEl = document.getElementById('portfolio-search');
+  var pubFilterEl = document.getElementById('portfolio-publisher-filter');
+  var profileEl = document.getElementById('portfolio-profile-filter');
+  var sortEl = document.getElementById('portfolio-sort');
+  var q = ((searchEl && searchEl.value) || '').trim().toLowerCase();
+  var selectedPublisher = (pubFilterEl && pubFilterEl.value) || '';
+  var selectedProfile = (profileEl && profileEl.value) || '';
+  var selectedSort = (sortEl && sortEl.value) || 'submitted_desc';
+  var rows = (data.envelopeRows || []).filter(function(row) {
+    if (!row) return false;
+    if (selectedPublisher && row.publisher !== selectedPublisher) return false;
+    if (selectedProfile && row.errorProfile !== selectedProfile) return false;
+    if (!q) return true;
+    var haystack = [row.envelopeId, row.publisher, row.topFields, row.whatWasWrong, row.errorProfile].join(' ').toLowerCase();
+    return haystack.indexOf(q) !== -1;
+  });
+  rows.sort(function(a, b) {
+    if (selectedSort === 'submitted_asc') return (a.sortStamp || 0) - (b.sortStamp || 0);
+    if (selectedSort === 'errors_desc') return (b.errors || 0) - (a.errors || 0) || (b.sortStamp || 0) - (a.sortStamp || 0);
+    if (selectedSort === 'pass_asc') return (a.passRate || 0) - (b.passRate || 0) || (b.sortStamp || 0) - (a.sortStamp || 0);
+    return (b.sortStamp || 0) - (a.sortStamp || 0);
+  });
+  if (!rows.length) {
+    alert('No portfolio rows match the current filters.');
+    return;
+  }
+  var profileSlug = (selectedProfile || 'all-profiles').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  var pubSlug = (selectedPublisher || 'all-publishers').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  var stamp = new Date().toISOString().slice(0,10);
+  if (!(await confirmExport('CATCH Portfolio View (.xlsx)\nCurrent filters: ' + (selectedPublisher || 'All publishers') + ' / ' + (selectedProfile || 'All profiles')))) return;
+
+  var aoa = [[
+    'Envelope ID','Submitted At (AEP)','Publisher','Errors','Profile','Pass Rate','Entities','Top Error Fields','What Was Sent Incorrectly'
+  ]];
+  rows.forEach(function(row) {
+    aoa.push([
+      row.envelopeId || '',
+      row.submittedAt || '',
+      row.publisher || '',
+      row.errors || 0,
+      row.errorProfile || '',
+      row.passRate != null ? row.passRate / 100 : null,
+      row.entities || 0,
+      row.topFields || '',
+      row.whatWasWrong || ''
+    ]);
+  });
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    { wch: 38 },
+    { wch: 24 },
+    { wch: 22 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 32 },
+    { wch: 72 }
+  ];
+  ws['!autofilter'] = { ref: 'A1:I1' };
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+  for (var c = 0; c < 9; c++) {
+    ws[XLSX.utils.encode_cell({ r: 0, c: c })] = _xCol(aoa[0][c]);
+  }
+  for (var r = 1; r < aoa.length; r++) {
+    for (var c2 = 0; c2 < 9; c2++) {
+      var value = aoa[r][c2];
+      var cell = _xc(value, { fill: r % 2 === 1 ? 'EBF3FB' : null, sz: 10, wrap: c2 === 7 || c2 === 8, align: c2 === 3 || c2 === 5 || c2 === 6 ? 'center' : 'left' });
+      if (c2 === 5 && value !== null && value !== '') cell.z = '0.0%';
+      ws[XLSX.utils.encode_cell({ r: r, c: c2 })] = cell;
+    }
+  }
+  ws['!ref'] = XLSX.utils.encode_range({ r: 0, c: 0 }, { r: aoa.length - 1, c: 8 });
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Portfolio View');
+  dlWorkbook(wb, 'CATCH_Portfolio_' + pubSlug + '_' + profileSlug + '_' + stamp + '.xlsx');
+}
 function buildCatalogData() {
   const runs = loadHistory();
   if (!runs || runs.length === 0) return [];
@@ -4475,14 +4926,13 @@ function _applyFilterAndRender() {
   let html = `<div class="trends-table-toolbar">
     <div class="trends-table-title">Trend table</div>
     <div class="trends-table-tools">
-      <input id="catalog-search-inline" class="envelope-input" placeholder="Search field, message, publisher, envelope, entity…" value="${escHtml(document.getElementById('catalog-search') ? document.getElementById('catalog-search').value : '')}" oninput="document.getElementById('catalog-search').value=this.value;filterCatalog()" style="width:360px;font-size:10.5px;" />
+      <input id="catalog-search-inline" class="envelope-input" placeholder="Search field, message, publisher, envelope, entity..." value="${escHtml(document.getElementById('catalog-search') ? document.getElementById('catalog-search').value : '')}" oninput="document.getElementById('catalog-search').value=this.value;filterCatalog()" style="width:360px;font-size:10.5px;" />
       <select id="catalog-market-filter-inline" onchange="document.getElementById('catalog-market-filter').value=this.value;filterCatalog()" style="background:var(--bg2);border:1px solid var(--border2);color:var(--text2);font-size:10.5px;padding:4px 8px;border-radius:4px;font-family:var(--sans);">
         <option value="" ${!(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value) ? 'selected' : ''}>All Markets</option>
         <option value="TX" ${(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value === 'TX') ? 'selected' : ''}>TX</option>
         <option value="IL" ${(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value === 'IL') ? 'selected' : ''}>IL</option>
       </select>
-      <button class="export-btn" onclick="exportCatalogCSV()">↓ Export CSV</button>
-      <button class="export-btn" onclick="renderCatalog()">↺ Refresh</button>
+      <button class="export-btn" onclick="exportCatalogCSV()">Export CSV</button>
     </div>
   </div>
   <div style="padding:12px 20px 0;font-size:10px;color:var(--text3);">Showing ${_catalogFiltered.length.toLocaleString()} of ${_catalogData.length.toLocaleString()} unique errors</div>`;
@@ -4528,13 +4978,13 @@ function _applyFilterAndRender() {
 
     // Extract fix owner from translation text
     function extractFixOwner(trans) {
-      if (!trans) return '—';
-      const m = trans.match(/[Ff]ix owner[:\s]+([^.]+)/);
-      if (m) return m[1].trim().replace(/\.$/, '');
-      if (/D&I ticket|Submit.*ticket/i.test(trans)) return 'D&I ticket — OCA';
-      return '—';
+      if (!trans) return '-';
+      const m = trans.match(/[Ff]ix owner[:s]+([^.]+)/);
+      if (m) return m[1].trim().replace(/.$/, '');
+      if (/D&I ticket|Submit.*ticket/i.test(trans)) return 'D&I ticket - OCA';
+      return '-';
     }
-    const fixOwner = extractFixOwner(e.translation);
+    const fixOwner = cleanMetaText(extractFixOwner(e.translation), '-');
 
     // Publisher + market combined pill
     const pubMarket = e.publishers.map((p, pi) => {
@@ -4545,18 +4995,18 @@ function _applyFilterAndRender() {
     const etDisplay = e.entityType;
 
     // Description: canonical message with first bad value subbed in
-    const rawMsg = e.msg.replace('<BAD_VALUE>', e.badValues && e.badValues.length ? '"' + e.badValues[0] + '"' : '<value>');
-    const msgDisplay = rawMsg.length > 100 ? rawMsg.slice(0, 100) + '…' : rawMsg;
+    const rawMsg = cleanMetaText((e.msg || '').replace('<BAD_VALUE>', e.badValues && e.badValues.length ? '"' + e.badValues[0] + '"' : '<value>'), '-');
+    const msgDisplay = rawMsg.length > 100 ? rawMsg.slice(0, 100) + '...' : rawMsg;
 
-    // Bad values — compact chips
+    // Bad values - compact chips
     const badValsDisplay = (e.badValues && e.badValues.length > 0)
-      ? e.badValues.slice(0, 4).map(v => `<span style="display:inline-block;background:var(--red-bg);color:var(--red);border:1px solid #3d1515;border-radius:3px;padding:0px 4px;font-size:9px;font-family:var(--mono);margin:1px 2px 1px 0;white-space:nowrap;">${escHtml(String(v).length > 14 ? String(v).slice(0,14)+'…' : String(v))}</span>`).join('') + (e.badValues.length > 4 ? `<span style="font-size:9px;color:var(--text3);">+${e.badValues.length - 4}</span>` : '')
-      : '<span style="color:var(--text3);font-size:9px;">—</span>';
+      ? e.badValues.slice(0, 4).map(v => `<span style="display:inline-block;background:var(--red-bg);color:var(--red);border:1px solid #3d1515;border-radius:3px;padding:0px 4px;font-size:9px;font-family:var(--mono);margin:1px 2px 1px 0;white-space:nowrap;">${escHtml(cleanMetaText(String(v).length > 14 ? String(v).slice(0,14)+'...' : String(v), '-'))}</span>`).join('') + (e.badValues.length > 4 ? `<span style="font-size:9px;color:var(--text3);">+${e.badValues.length - 4}</span>` : '')
+      : '<span style="color:var(--text3);font-size:9px;">-</span>';
 
-    // Envelope IDs — just count + first ID as tooltip anchor
+    // Envelope IDs - just count + first ID as tooltip anchor
     const envIds = e.envelopeIds || [];
-    const envDisplay = envIds.length === 0 ? '<span style="color:var(--text3);font-size:9px;">—</span>'
-      : `<span style="font-size:9px;color:var(--text2);font-family:var(--mono);" title="${escHtml(envIds.join('\n'))}">${escHtml(envIds[0].slice(0,8))}…${envIds.length > 1 ? ' <span style=\'color:var(--text3);\'>+' + (envIds.length - 1) + '</span>' : ''}</span>`;
+    const envDisplay = envIds.length === 0 ? '<span style="color:var(--text3);font-size:9px;">-</span>'
+      : `<span style="font-size:9px;color:var(--text2);font-family:var(--mono);" title="${escHtml(envIds.join('\n'))}">${escHtml(cleanMetaText(envIds[0].slice(0,8), '-'))}...${envIds.length > 1 ? ' <span style=\'color:var(--text3);\'>+' + (envIds.length - 1) + '</span>' : ''}</span>`;
 
     html += `<tr style="background:${rowBg};border-bottom:1px solid var(--border);" title="${escHtml(rawMsg)}">
       <td style="padding:7px 10px;vertical-align:top;">
@@ -4574,14 +5024,14 @@ function _applyFilterAndRender() {
       </td>
       <td style="padding:7px 10px;color:var(--text2);font-size:9.5px;vertical-align:top;max-width:160px;">${escHtml(fixOwner)}</td>
       <td style="padding:7px 10px;text-align:right;font-weight:700;color:${e.count >= 500 ? 'var(--red)' : e.count >= 100 ? 'var(--orange)' : 'var(--text2)'};vertical-align:top;white-space:nowrap;">${e.count.toLocaleString()}</td>
-      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;color:var(--text2);">${escHtml(e.firstSeen || '—')}</td>
-      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;">${e.submittedAt ? `<span style='color:var(--orange);'>⬆ ${escHtml(e.submittedAt)}</span>` : `<span style='color:var(--text3);'>${escHtml(e.firstSeen)}</span>`}</td>
+      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;color:var(--text2);">${escHtml(cleanMetaText(e.firstSeen, '-'))}</td>
+      <td style="padding:7px 10px;font-size:9px;white-space:nowrap;vertical-align:top;">${e.submittedAt ? `<span style='color:var(--orange);'>${escHtml(cleanMetaText(e.submittedAt, '-'))}</span>` : `<span style='color:var(--text3);'>${escHtml(cleanMetaText(e.firstSeen, '-'))}</span>`}</td>
       <td style="padding:7px 10px;vertical-align:top;">${envDisplay}</td>
     </tr>`;
   });
 
   html += `</tbody></table></div>`;
-  html += `<div style="margin-top:10px;font-size:9.5px;color:var(--text3);">${_catalogFiltered.length} issues · sorted by occurrence count · generated ${new Date().toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`;
+  html += `<div style="margin-top:10px;font-size:9.5px;color:var(--text3);">${_catalogFiltered.length} issues - sorted by occurrence count - generated ${new Date().toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>`;
 
   container.innerHTML = html;
   if (activeId === 'catalog-search-inline' || activeId === 'catalog-search') {
@@ -4595,7 +5045,7 @@ function _applyFilterAndRender() {
   }
 }
 
-// ── Click-to-jump: error item → field in JSON textarea ───────────────────────
+// --"- Click-to-jump: error item -' field in JSON textarea --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
 function parseTrendRunDate(run) {
   if (!run) return null;
   if (run.analysedAt) {
@@ -4643,7 +5093,7 @@ function jumpToField(fieldName, entityIdx) {
   // If textarea is empty, nothing to jump to
   var raw = ta.value.trim();
   if (!raw) {
-    _showJumpMsg('Payload is empty — paste a payload and run validation first.', 'warn');
+    _showJumpMsg('Payload is empty - paste a payload and run validation first.', 'warn');
     return;
   }
 
@@ -4674,7 +5124,7 @@ function jumpToField(fieldName, entityIdx) {
   }
 
   if (positions.length === 0) {
-    _showJumpMsg('"' + fieldName + '" not in payload — may be a missing required field.', 'warn');
+    _showJumpMsg('"' + fieldName + '" not in payload - may be a missing required field.', 'warn');
     // Flash textarea border red
     ta.style.border = '2px solid var(--red)';
     setTimeout(function() { ta.style.border = ''; }, 800);
@@ -4705,12 +5155,12 @@ function jumpToField(fieldName, entityIdx) {
   // Use setTimeout(0) to re-apply scrollTop after browser processes focus
   setTimeout(function() {
     ta.scrollTop = desiredScrollTop;
-    // Flash textarea border blue — border overrides outline:none
+    // Flash textarea border blue - border overrides outline:none
     ta.style.border = '2px solid var(--blue)';
     setTimeout(function() { ta.style.border = ''; }, 1200);
   }, 0);
 
-  _showJumpMsg('Jumped to "' + fieldName + '" — line ' + (linesBefore + 1), 'ok');
+  _showJumpMsg('Jumped to "' + fieldName + '" - line ' + (linesBefore + 1), 'ok');
 }
 
 function _showJumpMsg(msg, type) {
@@ -4731,7 +5181,7 @@ function exportCatalogCSV() {
   // Use filtered data if a filter is active, otherwise full catalog
   const data = (_catalogFiltered.length ? _catalogFiltered : _catalogData);
   if (!data.length) {
-    alert('No catalog data to export. Run a validation first, then click ↺ Refresh on the Error Catalog tab.');
+    alert('No catalog data to export. Run a validation first, then click Refresh on the Error Catalog tab.');
     return;
   }
 
@@ -4744,7 +5194,7 @@ function exportCatalogCSV() {
       if (!t) return '';
       const m = t.match(/[Ff]ix owner[:\s]+([^.]+)/);
       if (m) return m[1].trim();
-      if (/D&I ticket|Submit.*ticket/i.test(t)) return 'D&I ticket — OCA';
+      if (/D&I ticket|Submit.*ticket/i.test(t)) return 'D&I ticket - OCA';
       return '';
     })(e.translation);
     const csvMsg = (e.msg || '').replace('<BAD_VALUE>', (e.badValues && e.badValues.length) ? e.badValues[0] : '<value>');
@@ -4772,16 +5222,16 @@ function exportCatalogCSV() {
 function buildTrendDetailText(entry) {
   if (!entry) return '';
   const lines = [
-    'Field: ' + (entry.field || '—'),
-    'Category: ' + (entry.errorCategory || '—'),
-    'Occurrences: ' + (entry.count != null ? entry.count : '—'),
-    'Publishers: ' + ((entry.publishers || []).join(', ') || '—'),
-    'Markets: ' + ((entry.markets || []).join(', ') || '—'),
-    'Entity Types: ' + ((entry.entityTypes || []).join(', ') || entry.entityType || '—'),
+    'Field: ' + (entry.field || '-'),
+    'Category: ' + (entry.errorCategory || '-'),
+    'Occurrences: ' + (entry.count != null ? entry.count : '-'),
+    'Publishers: ' + ((entry.publishers || []).join(', ') || '-'),
+    'Markets: ' + ((entry.markets || []).join(', ') || '-'),
+    'Entity Types: ' + ((entry.entityTypes || []).join(', ') || entry.entityType || '-'),
     'Bad Values: ' + formatTrendBadValues(entry),
-    'Fix Owner: ' + (((entry.translation || '').match(/[Ff]ix owner[:\s]+([^.]+)/) || [])[1] || '—'),
-    'Submitted: ' + (entry.submittedAt || entry.firstSeen || '—'),
-    'Envelopes: ' + ((entry.envelopeIds || []).join(', ') || '—'),
+    'Fix Owner: ' + (((entry.translation || '').match(/[Ff]ix owner[:\s]+([^.]+)/) || [])[1] || '-'),
+    'Submitted: ' + (entry.submittedAt || entry.firstSeen || '-'),
+    'Envelopes: ' + ((entry.envelopeIds || []).join(', ') || '-'),
     '',
     'Description:',
     (entry.msg || '').replace('<BAD_VALUE>', (entry.badValues && entry.badValues.length) ? '"' + entry.badValues[0] + '"' : '<value>'),
@@ -4845,10 +5295,10 @@ function buildPublisherDetailMarkup(publisherName) {
     '<div class="schema-review-stat"><div class="schema-review-stat-label">Recurring trends</div><div class="schema-review-stat-value">' + rows.length + '</div></div>' +
     '<div class="schema-review-stat"><div class="schema-review-stat-label">Occurrences</div><div class="schema-review-stat-value">' + totalOccurrences + '</div></div>' +
     '</div><div class="schema-review-grid">' +
-    '<div class="schema-review-card"><div class="schema-review-block-title">Top field</div><div class="schema-review-note">' + escHtml(topField ? topField[0] : '—') + (topField ? ' · ' + topField[1] + ' occurrences' : '') + '</div></div>' +
-    '<div class="schema-review-card"><div class="schema-review-block-title">Dominant issue class</div><div class="schema-review-note">' + escHtml(topCategory ? topCategory[0] : '—') + (topCategory ? ' · ' + topCategory[1] + ' occurrences' : '') + '</div></div>' +
-    '<div class="schema-review-card"><div class="schema-review-block-title">Oldest recurring trend</div><div class="schema-review-note">' + escHtml(oldest ? (oldest.field + ' since ' + (oldest.firstSeen || '—')) : '—') + '</div></div>' +
-    '<div class="schema-review-card"><div class="schema-review-block-title">Latest activity</div><div class="schema-review-note">' + escHtml(latest ? ((latest.lastSeen || '—') + ' · ' + latest.field) : '—') + '</div></div>' +
+    '<div class="schema-review-card"><div class="schema-review-block-title">Top field</div><div class="schema-review-note">' + escHtml(topField ? topField[0] : '-') + (topField ? ' - ' + topField[1] + ' occurrences' : '') + '</div></div>' +
+    '<div class="schema-review-card"><div class="schema-review-block-title">Dominant issue class</div><div class="schema-review-note">' + escHtml(topCategory ? topCategory[0] : '-') + (topCategory ? ' - ' + topCategory[1] + ' occurrences' : '') + '</div></div>' +
+    '<div class="schema-review-card"><div class="schema-review-block-title">Oldest recurring trend</div><div class="schema-review-note">' + escHtml(oldest ? (oldest.field + ' since ' + (oldest.firstSeen || '-')) : '-') + '</div></div>' +
+    '<div class="schema-review-card"><div class="schema-review-block-title">Latest activity</div><div class="schema-review-note">' + escHtml(latest ? ((latest.lastSeen || '-') + ' - ' + latest.field) : '-') + '</div></div>' +
     '</div></div>';
 }
 
@@ -4903,11 +5353,11 @@ window.openTrendDetail = function (idx) {
       </div>
       <div class="trend-detail-block">
         <span class="trend-detail-label">Signals</span>
-        <div class="trend-detail-value">Category: ${escHtml(entry.errorCategory || '—')}<br>Occurrences: ${escHtml(String(entry.count != null ? entry.count : '—'))}<br>Bad value: ${escHtml(formatTrendBadValues(entry))}<br>Fix owner: ${escHtml(fixOwner)}</div>
+        <div class="trend-detail-value">Category: ${escHtml(entry.errorCategory || '-')}<br>Occurrences: ${escHtml(String(entry.count != null ? entry.count : '-'))}<br>Bad value: ${escHtml(formatTrendBadValues(entry))}<br>Fix owner: ${escHtml(fixOwner)}</div>
       </div>
       <div class="trend-detail-block">
         <span class="trend-detail-label">Coverage</span>
-        <div class="trend-detail-value">Publishers: ${escHtml(((entry.publishers || []).join(', ')) || '—')}<br>Markets: ${escHtml(((entry.markets || []).join(', ')) || '—')}<br>Entity types: ${escHtml(((entry.entityTypes || []).join(', ')) || entry.entityType || '—')}<br>Envelopes: ${escHtml(((entry.envelopeIds || []).join(', ')) || '—')}</div>
+        <div class="trend-detail-value">Publishers: ${escHtml(((entry.publishers || []).join(', ')) || '-')}<br>Markets: ${escHtml(((entry.markets || []).join(', ')) || '-')}<br>Entity types: ${escHtml(((entry.entityTypes || []).join(', ')) || entry.entityType || '-')}<br>Envelopes: ${escHtml(((entry.envelopeIds || []).join(', ')) || '-')}</div>
       </div>
       <div class="trend-detail-block">
         <span class="trend-detail-label">Clipboard preview</span>
@@ -4936,7 +5386,7 @@ window.copyTrendDetail = function () {
           <div class="catch-brand-copy">
             <div class="catch-wordmark">CATCH</div>
             <div class="catch-tagline">Stop guessing. Start catching.</div>
-            <div class="catch-pill">Version 3.0</div>
+            <div class="catch-pill">Version 3.1</div>
           </div>
         </div>
       `;
@@ -5104,17 +5554,17 @@ window.copyTrendDetail = function () {
           </article>
           <article class="hero-stat-card">
             <div class="hero-stat-label">AEP submission</div>
-            <div class="hero-stat-value results-kpi-text" id="hero-submitted-at">—</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-submitted-at">-</div>
             <div class="hero-stat-copy">When the AEP received the envelope, when available.</div>
           </article>
           <article class="hero-stat-card">
             <div class="hero-stat-label">CATCH submission</div>
-            <div class="hero-stat-value results-kpi-text" id="hero-analysed-at">—</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-analysed-at">-</div>
             <div class="hero-stat-copy">The time this payload was last validated in CATCH.</div>
           </article>
           <article class="hero-stat-card">
             <div class="hero-stat-label">Run summary</div>
-            <div class="hero-stat-value results-kpi-text" id="hero-run-summary">0 entities · 0 errors</div>
+            <div class="hero-stat-value results-kpi-text" id="hero-run-summary">0 entities - 0 errors</div>
             <div class="hero-stat-copy" id="hero-run-meta">Filter: all findings</div>
           </article>
         </div>
@@ -5341,11 +5791,11 @@ window.copyTrendDetail = function () {
         if (def && def.format) bits.push("Format: " + def.format);
         if (def && typeof def.maxLength === "number") bits.push("Max length " + def.maxLength);
         if (def && typeof def.minLength === "number") bits.push("Min length " + def.minLength);
-        if (workbookRow && workbookRow.type === "enum" && workbookRow.values && workbookRow.values.trim() && workbookRow.values.trim() !== "Â ") {
+        if (workbookRow && workbookRow.type === "enum" && workbookRow.values && workbookRow.values.trim() && workbookRow.values.trim() !== "Ã‚Â ") {
           var workbookEnum = workbookRow.values.split(";").map(function (value) { return value.trim(); }).filter(Boolean);
           if (workbookEnum.length) bits.push("Workbook enum (" + workbookEnum.length + " values)");
         }
-        if (workbookRow && workbookRow.regex && workbookRow.regex.trim() && workbookRow.regex.trim() !== "Â " && workbookRow.regex !== "System.Xml.XmlElement") {
+        if (workbookRow && workbookRow.regex && workbookRow.regex.trim() && workbookRow.regex.trim() !== "Ã‚Â " && workbookRow.regex !== "System.Xml.XmlElement") {
           bits.push("Workbook pattern available");
         }
         return bits;
@@ -5545,7 +5995,7 @@ window.copyTrendDetail = function () {
               <div class="schema-review-json">
               <div class="schema-review-json-header">
                 <span class="schema-review-json-label">Raw schema JSON</span>
-                <span class="schema-review-json-meta">${sourceLabel} · ${version}</span>
+                <span class="schema-review-json-meta">${sourceLabel} - ${version}</span>
               </div>
               <pre class="schema-review-pre">${schemaJson.replace(/[&<>]/g, function (char) {
                 return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[char];
@@ -5670,453 +6120,3 @@ window.copyTrendDetail = function () {
       var historyIntro = document.createElement("div");
       historyIntro.id = "history-feed-intro";
       historyIntro.className = "hero-card";
-      historyIntro.style.padding = "18px 20px";
-      historyIntro.style.marginBottom = "14px";
-      historyIntro.innerHTML = `
-        <div class="hero-eyebrow">Run history</div>
-        <div class="hero-title" style="font-size:22px;">Review previous validation sessions</div>
-        <div class="hero-copy" style="font-size:13px;max-width:none;">
-          Each saved run is presented as a readable activity card so teams can revisit what failed, when it happened, and what should be reviewed next.
-        </div>
-      `;
-      historyPanel.insertBefore(historyIntro, historyPanel.firstChild);
-    }
-
-    var historyExplainer = historyPanel ? historyPanel.querySelector('div[style*="max-width:900px"]') : null;
-    if (historyExplainer) {
-      historyExplainer.innerHTML = 'Every validation run saved in this session — one card per envelope, showing which entities failed and why. Use this to debug a specific submission. For a cross-run summary of recurring issues, see the <span style="color:var(--text2);cursor:pointer;text-decoration:underline;" onclick="switchTab(\'assoc\')">Trends</span>. Export runs individually or in bulk using the buttons above.';
-    }
-
-    var historyPrimaryToolbar = historyPanel ? historyPanel.querySelector(".history-toolbar-primary") : null;
-    if (historyPrimaryToolbar && !historyPrimaryToolbar.getAttribute("data-modernized")) {
-      var exportWorkbookBtn = historyPrimaryToolbar.querySelector('button[onclick="exportCSV()"]');
-      var exportJsonBtn = historyPrimaryToolbar.querySelector('button[onclick="exportJSON()"]');
-      var healthBtn = historyPrimaryToolbar.querySelector('button[onclick="exportELTReport()"]');
-      var backupBtn = historyPrimaryToolbar.querySelector('button[onclick="saveAllHistory()"]');
-      var restoreBtn = historyPrimaryToolbar.querySelector('button[onclick*="import-input"]');
-      var clearBtn = historyPrimaryToolbar.querySelector('button[onclick="clearHistory()"]');
-      var existingActions = historyPrimaryToolbar.querySelector(".history-actions");
-
-      if (!existingActions) {
-        existingActions = document.createElement("div");
-        existingActions.className = "history-actions";
-        historyPrimaryToolbar.appendChild(existingActions);
-      }
-
-      if (exportWorkbookBtn && exportJsonBtn && healthBtn && backupBtn && restoreBtn && clearBtn) {
-        existingActions.innerHTML = "";
-
-        exportWorkbookBtn.textContent = "Workbook";
-        exportJsonBtn.textContent = "JSON";
-        healthBtn.textContent = "Health Report";
-        healthBtn.classList.add("history-health-btn");
-        healthBtn.removeAttribute("style");
-
-        backupBtn.textContent = "Backup";
-        restoreBtn.textContent = "Restore";
-        clearBtn.textContent = "Clear";
-
-        var exportCluster = document.createElement("div");
-        exportCluster.className = "history-action-cluster";
-        exportCluster.innerHTML = `<span class="history-action-label">Exports</span>`;
-        var exportButtons = document.createElement("div");
-        exportButtons.className = "history-action-buttons";
-        exportButtons.appendChild(exportWorkbookBtn);
-        exportButtons.appendChild(exportJsonBtn);
-        exportButtons.appendChild(healthBtn);
-        exportCluster.appendChild(exportButtons);
-
-        var backupCluster = document.createElement("div");
-        backupCluster.className = "history-action-cluster";
-        backupCluster.innerHTML = `<span class="history-action-label">Browser backup</span>`;
-        var backupButtons = document.createElement("div");
-        backupButtons.className = "history-action-buttons";
-        backupButtons.appendChild(backupBtn);
-        backupButtons.appendChild(restoreBtn);
-        backupButtons.appendChild(clearBtn);
-        backupCluster.appendChild(backupButtons);
-
-        existingActions.appendChild(exportCluster);
-        existingActions.appendChild(backupCluster);
-        historyPrimaryToolbar.setAttribute("data-modernized", "true");
-      }
-    }
-
-    var trendsPanel = document.getElementById("panel-assoc");
-    if (trendsPanel && !document.getElementById("trends-hero")) {
-      var trendsHero = document.createElement("section");
-      trendsHero.id = "trends-hero";
-      trendsHero.className = "trends-hero";
-      trendsHero.innerHTML = `
-        <article class="trends-card">
-          <div class="hero-eyebrow">Issue trends</div>
-          <div class="trends-title">Recurring validation patterns across runs</div>
-          <div class="trends-copy">
-            Use this view to spot where issue volume is concentrating, which publishers are driving it, and what should be addressed first.
-          </div>
-          <div class="trends-summary-strip" id="trends-summary-strip">Trend summary will appear here as validation history grows.</div>
-        </article>
-        <div class="trends-mini-grid">
-          <article class="trends-mini">
-            <span class="trends-mini-label">Trend health score</span>
-            <span class="trends-mini-value" id="trends-health-score">100</span>
-            <span class="trends-mini-copy" id="trends-health-copy">A lightweight internal score that drops as recurring issue volume concentrates across history.</span>
-          </article>
-          <article class="trends-mini">
-            <span class="trends-mini-label">Current posture</span>
-            <span class="trends-mini-value" id="trends-health-posture">Healthy</span>
-            <span class="trends-mini-copy" id="trends-health-posture-copy">Use the spotlight cards and row details below to decide what should be fixed upstream first.</span>
-          </article>
-          <article class="trends-mini">
-            <span class="trends-mini-label">7-day movement</span>
-            <span class="trends-mini-value" id="trends-movement-value">Stable</span>
-            <span class="trends-mini-copy" id="trends-movement-copy">Run more validations to compare the latest seven days to the previous seven.</span>
-          </article>
-          <article class="trends-mini">
-            <span class="trends-mini-label">Longest-running issue</span>
-            <span class="trends-mini-value" id="trends-aging-value">—</span>
-            <span class="trends-mini-copy" id="trends-aging-copy">This highlights the oldest recurring issue still visible in the current Trends slice.</span>
-          </article>
-        </div>
-      `;
-      trendsPanel.insertBefore(trendsHero, trendsPanel.firstChild);
-    }
-
-    var trendsHeaderBar = trendsPanel ? trendsPanel.querySelector('div[style*="border-bottom:1px solid"]') : null;
-    if (trendsHeaderBar) {
-      var headerSpans = trendsHeaderBar.querySelectorAll("span");
-      if (headerSpans[0]) {
-        headerSpans[0].remove();
-      }
-      if (headerSpans[1]) headerSpans[1].remove();
-
-      trendsHeaderBar.style.display = "none";
-    }
-
-    if (trendsPanel && !document.getElementById("trends-spotlights")) {
-      var trendsSpotlights = document.createElement("section");
-      trendsSpotlights.id = "trends-spotlights";
-      trendsSpotlights.className = "trends-spotlights";
-      trendsSpotlights.innerHTML = `
-        <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Highest pressure field</span>
-          <span class="trends-spotlight-value" id="trends-top-field">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-field-copy">Run validations to surface which field repeats most across submissions.</span>
-        </article>
-        <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Largest publisher concentration</span>
-          <span class="trends-spotlight-value" id="trends-top-publisher">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-publisher-copy">This spot helps teams see where repeated issue volume is accumulating.</span>
-        </article>
-        <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Dominant issue class</span>
-          <span class="trends-spotlight-value" id="trends-top-category">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-category-copy">Use this to decide whether you are dealing with completeness, enum, or type quality problems.</span>
-        </article>
-        <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Most affected entity</span>
-          <span class="trends-spotlight-value" id="trends-top-entity">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-entity-copy">High concentration here usually points to the best upstream cleanup opportunity.</span>
-        </article>
-      `;
-      trendsPanel.appendChild(trendsSpotlights);
-    }
-
-    var trendsStats = document.getElementById("catalog-stats");
-    if (trendsStats && !document.getElementById("trends-overview")) {
-      trendsStats.removeAttribute("style");
-      trendsStats.className = "trends-kpi-grid";
-
-      var trendsOverview = document.createElement("section");
-      trendsOverview.id = "trends-overview";
-      trendsOverview.className = "trends-overview";
-      trendsOverview.innerHTML = `
-        <div class="trends-overview-top">
-          <div class="trends-kpi-panel">
-            <div class="hero-eyebrow">Trend overview</div>
-            <div class="trends-chart-copy" style="max-width:none;margin:6px 0 14px;">
-              Use these signals to track recurring issue volume, publisher concentration, and the patterns most likely to need upstream remediation.
-              <button class="trends-inline-link" type="button" onclick="openCategoryDefinitions()">Category definitions</button>
-            </div>
-            <div id="trends-kpi-host"></div>
-          </div>
-          <article class="trends-chart-card">
-            <div class="trends-chart-header">
-              <div>
-                <div class="trends-chart-title">Issue mix</div>
-                <div class="trends-chart-copy">A category-level view of recurring issue pressure across the current Trends slice.</div>
-              </div>
-            </div>
-            <div class="trends-chart-shell">
-              <div class="trends-pie" id="trends-pie">
-                <div class="trends-pie-center">
-                  <div class="trends-pie-value" id="trends-pie-total">0</div>
-                  <div class="trends-pie-label">Occurrences</div>
-                </div>
-              </div>
-              <div class="trends-legend" id="trends-legend"></div>
-            </div>
-          </article>
-        </div>
-      `;
-      var trendsTableShellExisting = trendsPanel.querySelector(".trends-table-shell");
-      trendsPanel.insertBefore(trendsOverview, trendsTableShellExisting || trendsPanel.lastChild);
-      var kpiHost = document.getElementById("trends-kpi-host");
-      if (kpiHost) kpiHost.appendChild(trendsStats);
-    }
-
-    window.updateTrendsSpotlights = function () {
-      var trendsHealthScore = document.getElementById("trends-health-score");
-      var trendsHealthCopy = document.getElementById("trends-health-copy");
-      var trendsHealthPosture = document.getElementById("trends-health-posture");
-      var trendsHealthPostureCopy = document.getElementById("trends-health-posture-copy");
-      var trendsMovementValue = document.getElementById("trends-movement-value");
-      var trendsMovementCopy = document.getElementById("trends-movement-copy");
-      var trendsAgingValue = document.getElementById("trends-aging-value");
-      var trendsAgingCopy = document.getElementById("trends-aging-copy");
-      var trendsSummaryStrip = document.getElementById("trends-summary-strip");
-      var topField = document.getElementById("trends-top-field");
-      var topFieldCopy = document.getElementById("trends-top-field-copy");
-      var topPublisher = document.getElementById("trends-top-publisher");
-      var topPublisherCopy = document.getElementById("trends-top-publisher-copy");
-      var topCategory = document.getElementById("trends-top-category");
-      var topCategoryCopy = document.getElementById("trends-top-category-copy");
-      var topEntity = document.getElementById("trends-top-entity");
-      var topEntityCopy = document.getElementById("trends-top-entity-copy");
-      var trendsPie = document.getElementById("trends-pie");
-      var trendsPieTotal = document.getElementById("trends-pie-total");
-      var trendsLegend = document.getElementById("trends-legend");
-      if (!topField || !topPublisher || !topCategory || !topEntity) return;
-
-      var activeData = Array.isArray(_catalogFiltered) ? _catalogFiltered : [];
-      var hasTrendFilters = !!((document.getElementById("catalog-search") && document.getElementById("catalog-search").value) ||
-        (document.getElementById("catalog-market-filter") && document.getElementById("catalog-market-filter").value));
-      var sourceData = hasTrendFilters ? activeData : _catalogData;
-
-      if (!sourceData || !sourceData.length) {
-        if (trendsHealthScore) trendsHealthScore.textContent = "100";
-        if (trendsHealthCopy) trendsHealthCopy.textContent = "A lightweight internal score that drops as recurring issue volume concentrates across history.";
-        if (trendsHealthPosture) trendsHealthPosture.textContent = "Healthy";
-        if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = "Use the spotlight cards and row details below to decide what should be fixed upstream first.";
-        if (trendsMovementValue) trendsMovementValue.textContent = "Stable";
-        if (trendsMovementCopy) trendsMovementCopy.textContent = "Run more validations to compare the last seven days to the previous seven.";
-        if (trendsAgingValue) trendsAgingValue.textContent = "—";
-        if (trendsAgingCopy) trendsAgingCopy.textContent = "Once recurring issues are stored, this will show the oldest active trend in the current slice.";
-        if (trendsSummaryStrip) trendsSummaryStrip.textContent = "Run and retain validations to generate an executive summary of recurring issue pressure, concentration, and movement.";
-        topField.textContent = "Awaiting history";
-        topPublisher.textContent = "Awaiting history";
-        topCategory.textContent = "Awaiting history";
-        topEntity.textContent = "Awaiting history";
-        if (topFieldCopy) topFieldCopy.textContent = "Run validations to surface which field repeats most across submissions.";
-        if (topPublisherCopy) topPublisherCopy.textContent = "This spot helps teams see where repeated issue volume is accumulating.";
-        if (topCategoryCopy) topCategoryCopy.textContent = "Use this to decide whether you are dealing with completeness, enum, or type quality problems.";
-        if (topEntityCopy) topEntityCopy.textContent = "High concentration here usually points to the best upstream cleanup opportunity.";
-        if (trendsPie) trendsPie.style.background = "conic-gradient(#dbe3ef 0deg 360deg)";
-        if (trendsPieTotal) trendsPieTotal.textContent = "0";
-        if (trendsLegend) trendsLegend.innerHTML = '<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:#dbe3ef"></span>No trend data yet</span><span class="trends-legend-value">0%</span></div>';
-        return;
-      }
-
-      var byPublisher = {};
-      var byCategory = {};
-      var byEntity = {};
-      var totalOccurrences = 0;
-      sourceData.forEach(function (entry) {
-        totalOccurrences += entry.count || 0;
-        (entry.publishers || []).forEach(function (publisher) {
-          byPublisher[publisher] = (byPublisher[publisher] || 0) + entry.count;
-        });
-        byCategory[entry.errorCategory] = (byCategory[entry.errorCategory] || 0) + entry.count;
-        (entry.entityTypes || [entry.entityType]).forEach(function (entityType) {
-          if (!entityType) return;
-          byEntity[entityType] = (byEntity[entityType] || 0) + entry.count;
-        });
-      });
-
-      var topFieldEntry = sourceData[0];
-      var topPublisherEntry = Object.entries(byPublisher).sort(function (a, b) { return b[1] - a[1]; })[0];
-      var topCategoryEntry = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; })[0];
-      var topEntityEntry = Object.entries(byEntity).sort(function (a, b) { return b[1] - a[1]; })[0];
-      var scorePenalty = Math.min(45, Math.floor(totalOccurrences / 8)) + Math.min(20, sourceData.length * 3);
-      var healthScore = Math.max(18, 100 - scorePenalty);
-      var posture = healthScore >= 80 ? "Healthy" : healthScore >= 60 ? "Watch" : healthScore >= 40 ? "Needs attention" : "At risk";
-      var now = new Date();
-      var searchText = ((document.getElementById("catalog-search") && document.getElementById("catalog-search").value) || "").trim().toLowerCase();
-      var marketFilter = ((document.getElementById("catalog-market-filter") && document.getElementById("catalog-market-filter").value) || "").trim();
-      var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      var fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-      var historyRuns = loadHistory();
-      var recentWindowCount = 0;
-      var previousWindowCount = 0;
-      historyRuns.forEach(function (run) {
-        var runDate = parseTrendRunDate(run);
-        if (!runDate) return;
-        var matchingErrors = (run.errors || []).filter(function (err) {
-          return runErrorMatchesTrendFilters(err, run, searchText, marketFilter);
-        }).length;
-        if (!matchingErrors) return;
-        if (runDate >= sevenDaysAgo) recentWindowCount += matchingErrors;
-        else if (runDate >= fourteenDaysAgo) previousWindowCount += matchingErrors;
-      });
-      var movementDelta = recentWindowCount - previousWindowCount;
-      var movementLabel = movementDelta > 0 ? "+" + movementDelta : movementDelta < 0 ? String(movementDelta) : "Flat";
-      var oldestEntry = sourceData.slice().sort(function (a, b) {
-        return new Date(a.firstSeen || a.lastSeen || 0) - new Date(b.firstSeen || b.lastSeen || 0);
-      })[0];
-      var oldestDate = oldestEntry ? new Date(oldestEntry.firstSeen || oldestEntry.lastSeen || now) : null;
-      var oldestDays = oldestDate && !isNaN(oldestDate.getTime()) ? Math.max(0, Math.floor((now.getTime() - oldestDate.getTime()) / (24 * 60 * 60 * 1000))) : null;
-
-      if (trendsHealthScore) trendsHealthScore.textContent = String(healthScore);
-      if (trendsHealthCopy) trendsHealthCopy.textContent = totalOccurrences + " recurring issue occurrences across " + sourceData.length + " distinct trends are influencing this score.";
-      if (trendsHealthPosture) trendsHealthPosture.textContent = posture;
-      if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = (topCategoryEntry ? topCategoryEntry[0] : "Recurring issues") + " is currently the strongest pressure point in history.";
-      if (trendsMovementValue) trendsMovementValue.textContent = movementLabel;
-      if (trendsMovementCopy) trendsMovementCopy.textContent = recentWindowCount + " matched occurrences in the last 7 days versus " + previousWindowCount + " in the previous 7-day window.";
-      if (trendsAgingValue) trendsAgingValue.textContent = oldestDays == null ? "—" : oldestDays + "d";
-      if (trendsAgingCopy) trendsAgingCopy.textContent = oldestEntry ? '"' + oldestEntry.field + '" has been recurring since ' + (oldestEntry.firstSeen || oldestEntry.lastSeen || 'the first stored run') + '.' : "Once recurring issues are stored, this will show the oldest active trend in the current slice.";
-      if (trendsSummaryStrip) trendsSummaryStrip.textContent = sourceData.length + " recurring issues account for " + totalOccurrences + " occurrences in the current Trends view. " + (topCategoryEntry ? topCategoryEntry[0] : "This issue class") + " is the dominant pattern, and " + (topPublisherEntry ? topPublisherEntry[0] : "the top publisher") + " carries the highest visible concentration.";
-
-      topField.textContent = topFieldEntry ? topFieldEntry.field : "None yet";
-      topPublisher.textContent = topPublisherEntry ? topPublisherEntry[0] : "None yet";
-      topCategory.textContent = topCategoryEntry ? topCategoryEntry[0] : "None yet";
-      topEntity.textContent = topEntityEntry ? topEntityEntry[0] : "None yet";
-
-      if (topFieldCopy && topFieldEntry) topFieldCopy.textContent = topFieldEntry.count + " occurrences across " + (topFieldEntry.envelopeIds ? topFieldEntry.envelopeIds.length : 0) + " envelopes; fixing this field offers the biggest immediate payoff.";
-      if (topPublisherCopy && topPublisherEntry) topPublisherCopy.textContent = topPublisherEntry[1] + " issue occurrences currently tie back to this publisher across stored history.";
-      if (topCategoryCopy && topCategoryEntry) topCategoryCopy.textContent = topCategoryEntry[1] + " occurrences currently roll up into this issue class.";
-      if (topEntityCopy && topEntityEntry) topEntityCopy.textContent = topEntityEntry[1] + " occurrences currently map to this entity type, making it the strongest remediation target.";
-      var topPublisherCard = topPublisher ? topPublisher.closest(".trends-spotlight") : null;
-      if (topPublisherCard) {
-        topPublisherCard.classList.add("clickable");
-        topPublisherCard.setAttribute("tabindex", "0");
-        topPublisherCard.onclick = function () { openPublisherDetail(topPublisher.textContent || ""); };
-        topPublisherCard.onkeydown = function (event) {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openPublisherDetail(topPublisher.textContent || "");
-          }
-        };
-      }
-
-      var palette = {
-        "Missing Field": "#d96b15",
-        "Enum / Invalid Value": "#2d5e78",
-        "Type Error": "#c44536",
-        "Extra Field": "#7b5cff",
-        "Wrong Field Name": "#1d6b7d",
-        "Invalid Entity Type": "#7f5539",
-        "Other": "#8d99ae"
-      };
-      var orderedCategories = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; });
-      var angle = 0;
-      var gradientParts = [];
-      var legendHtml = [];
-      orderedCategories.forEach(function (entry) {
-        var label = entry[0];
-        var value = entry[1];
-        var slice = totalOccurrences ? (value / totalOccurrences) * 360 : 0;
-        var nextAngle = angle + slice;
-        var color = palette[label] || palette.Other;
-        gradientParts.push(color + " " + angle + "deg " + nextAngle + "deg");
-        legendHtml.push('<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:' + color + '"></span>' + escHtml(label) + '</span><span class="trends-legend-value">' + Math.round((value / totalOccurrences) * 100) + '%</span></div>');
-        angle = nextAngle;
-      });
-      if (trendsPie) trendsPie.style.background = "conic-gradient(" + gradientParts.join(", ") + ")";
-      if (trendsPieTotal) trendsPieTotal.textContent = String(totalOccurrences);
-      if (trendsLegend) trendsLegend.innerHTML = legendHtml.join("");
-    };
-
-    var catalogContainer = document.getElementById("catalog-table-container");
-    if (catalogContainer && !catalogContainer.parentElement.classList.contains("trends-table-shell")) {
-      var tableShell = document.createElement("div");
-      tableShell.className = "trends-table-shell";
-      catalogContainer.parentNode.insertBefore(tableShell, catalogContainer);
-      tableShell.appendChild(catalogContainer);
-    }
-
-    var trendsSpotlightsPanel = document.getElementById("trends-spotlights");
-    var trendsTableShell = trendsPanel ? trendsPanel.querySelector(".trends-table-shell") : null;
-    if (trendsPanel && trendsSpotlightsPanel && trendsTableShell) {
-      trendsPanel.insertBefore(trendsSpotlightsPanel, trendsTableShell);
-    }
-
-    var paneHeaders = document.querySelectorAll(".pane-header");
-    if (paneHeaders[0] && !paneHeaders[0].querySelector(".hero-eyebrow")) {
-      paneHeaders[0].style.padding = "16px 18px";
-    }
-    if (paneHeaders[1]) {
-      paneHeaders[1].style.padding = "16px 18px";
-    }
-
-    var summaryBar = document.getElementById("summary-bar");
-    if (summaryBar) {
-      summaryBar.setAttribute("data-modernized", "true");
-    }
-
-    stateSelect = document.getElementById("state-select");
-    if (stateSelect) {
-      stateSelect.style.minWidth = "180px";
-    }
-
-    var settingsTitles = document.querySelectorAll(".settings-section-title");
-    settingsTitles.forEach(function (node) {
-      if (node.textContent.indexOf("Error Library") !== -1) {
-        node.textContent = "Error Translation Library";
-      }
-    });
-
-    var settingsTitle = document.querySelector(".settings-title");
-    if (settingsTitle) {
-      settingsTitle.textContent = "Workspace Settings";
-    }
-
-    if (typeof window.onStateChange === "function" && !window.__modernStateWrapped) {
-      var originalOnStateChange = window.onStateChange;
-      window.onStateChange = function () {
-        originalOnStateChange();
-        var select = document.getElementById("state-select");
-        var heroMarket = null;
-        var heroMarketCode = document.getElementById("hero-market-code");
-        var heroMarketName = document.getElementById("hero-market-name");
-        if (select && heroMarket) {
-          var label = select.options[select.selectedIndex].dataset.label || select.value;
-          heroMarket.textContent = label.replace(/·/g, "").replace(/\s{2,}/g, " ").trim();
-        }
-        if (select && heroMarketCode && heroMarketName) {
-          var marketLabel = (select.options[select.selectedIndex].dataset.label || select.value).replace(/Â·/g, "").replace(/\s{2,}/g, " ").trim();
-          marketLabel = marketLabel.replace(/[^A-Za-z0-9 ]/g, " ").replace(/\s{2,}/g, " ").trim();
-          var parts = marketLabel.split(" ");
-          heroMarketCode.textContent = parts[0] || select.value;
-          heroMarketName.textContent = parts.slice(1).join(" ") || "Active market";
-        }
-      };
-      window.__modernStateWrapped = true;
-    }
-
-    if (typeof window.onStateChange === "function") {
-      window.onStateChange();
-    }
-
-    if (typeof window.updateTrendsSpotlights === "function") {
-      window.updateTrendsSpotlights();
-    }
-
-    function enableScrollHandoff(element) {
-      if (!element || element.getAttribute("data-scroll-handoff") === "true") return;
-      element.addEventListener("wheel", function (event) {
-        var delta = event.deltaY;
-        if (!delta) return;
-        var atTop = element.scrollTop <= 0;
-        var atBottom = Math.ceil(element.scrollTop + element.clientHeight) >= element.scrollHeight;
-        if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
-          event.preventDefault();
-          window.scrollBy({ top: delta, behavior: "auto" });
-        }
-      }, { passive: false });
-      element.setAttribute("data-scroll-handoff", "true");
-    }
-
-    enableScrollHandoff(document.getElementById("input-area"));
-    enableScrollHandoff(document.getElementById("results-area"));
-    enableScrollHandoff(document.getElementById("history-list"));
-  })();
