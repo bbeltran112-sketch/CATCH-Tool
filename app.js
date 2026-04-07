@@ -6120,3 +6120,1151 @@ window.copyTrendDetail = function () {
       var historyIntro = document.createElement("div");
       historyIntro.id = "history-feed-intro";
       historyIntro.className = "hero-card";
+      historyIntro.style.padding = "18px 20px";
+      historyIntro.style.marginBottom = "14px";
+      historyIntro.innerHTML = `
+        <div class="hero-eyebrow">Run history</div>
+        <div class="hero-title" style="font-size:22px;">Review previous validation sessions</div>
+        <div class="hero-copy" style="font-size:13px;max-width:none;">
+          Each saved run is presented as a readable activity card so teams can revisit what failed, when it happened, and what should be reviewed next.
+        </div>
+      `;
+      historyPanel.insertBefore(historyIntro, historyPanel.firstChild);
+    }
+
+    var historyExplainer = historyPanel ? historyPanel.querySelector('div[style*="max-width:900px"]') : null;
+    if (historyExplainer) {
+      historyExplainer.innerHTML = 'Saved validation runs appear here as one card per envelope. Use <span style="color:var(--text2);cursor:pointer;text-decoration:underline;" onclick="switchTab(\'portfolio\')">Portfolio</span> for the PM queue and <span style="color:var(--text2);cursor:pointer;text-decoration:underline;" onclick="switchTab(\'assoc\')">Trends</span> for recurring issue analysis.';
+    }
+
+    var historyPrimaryToolbar = historyPanel ? historyPanel.querySelector(".history-toolbar-primary") : null;
+    if (historyPrimaryToolbar && !historyPrimaryToolbar.getAttribute("data-modernized")) {
+      var exportWorkbookBtn = historyPrimaryToolbar.querySelector('button[onclick="exportCSV()"]');
+      var exportJsonBtn = historyPrimaryToolbar.querySelector('button[onclick="exportJSON()"]');
+      var healthBtn = historyPrimaryToolbar.querySelector('button[onclick="exportELTReport()"]');
+      var backupBtn = historyPrimaryToolbar.querySelector('button[onclick="saveAllHistory()"]');
+      var restoreBtn = historyPrimaryToolbar.querySelector('button[onclick*="import-input"]');
+      var clearBtn = historyPrimaryToolbar.querySelector('button[onclick="clearHistory()"]');
+      var existingActions = historyPrimaryToolbar.querySelector(".history-actions");
+
+      if (!existingActions) {
+        existingActions = document.createElement("div");
+        existingActions.className = "history-actions";
+        historyPrimaryToolbar.appendChild(existingActions);
+      }
+
+      if (exportWorkbookBtn && exportJsonBtn && healthBtn && backupBtn && restoreBtn && clearBtn) {
+        existingActions.innerHTML = "";
+
+        exportWorkbookBtn.textContent = "Workbook";
+        exportJsonBtn.textContent = "JSON";
+        healthBtn.textContent = "Health Report";
+        healthBtn.classList.add("history-health-btn");
+        healthBtn.removeAttribute("style");
+
+        backupBtn.textContent = "Backup";
+        restoreBtn.textContent = "Restore";
+        clearBtn.textContent = "Clear";
+
+        var exportCluster = document.createElement("div");
+        exportCluster.className = "history-action-cluster";
+        exportCluster.innerHTML = `<span class="history-action-label">Exports</span>`;
+        var exportButtons = document.createElement("div");
+        exportButtons.className = "history-action-buttons";
+        exportButtons.appendChild(exportWorkbookBtn);
+        exportButtons.appendChild(exportJsonBtn);
+        exportButtons.appendChild(healthBtn);
+        exportCluster.appendChild(exportButtons);
+
+        var backupCluster = document.createElement("div");
+        backupCluster.className = "history-action-cluster";
+        backupCluster.innerHTML = `<span class="history-action-label">Browser backup</span>`;
+        var backupButtons = document.createElement("div");
+        backupButtons.className = "history-action-buttons";
+        backupButtons.appendChild(backupBtn);
+        backupButtons.appendChild(restoreBtn);
+        backupButtons.appendChild(clearBtn);
+        backupCluster.appendChild(backupButtons);
+
+        existingActions.appendChild(exportCluster);
+        existingActions.appendChild(backupCluster);
+
+        var historySortWrap = document.createElement("div");
+        historySortWrap.className = "history-action-cluster";
+        historySortWrap.innerHTML = '<span class="history-action-label">Sort</span>';
+        var historySortSelect = document.createElement("select");
+        historySortSelect.id = "history-sort-order";
+        historySortSelect.className = "history-sort-select";
+        historySortSelect.innerHTML = '<option value="aep_desc">Newest AEP first</option><option value="aep_asc">Oldest AEP first</option>';
+        historySortSelect.value = getHistorySortOrder();
+        historySortSelect.onchange = function() { setHistorySortOrder(this.value); renderHistory(); };
+        historySortSelect.style.minWidth = "170px";
+        historySortSelect.style.padding = "11px 14px";
+        historySortSelect.style.borderRadius = "999px";
+        historySortSelect.style.border = "1px solid rgba(26,115,232,0.18)";
+        historySortSelect.style.background = "#fff";
+        historySortSelect.style.color = "var(--text1)";
+        historySortSelect.style.fontFamily = "var(--mono)";
+        historySortSelect.style.fontSize = "12px";
+        historySortWrap.appendChild(historySortSelect);
+        existingActions.appendChild(historySortWrap);
+        historyPrimaryToolbar.setAttribute("data-modernized", "true");
+      }
+    }
+
+    var trendsPanel = document.getElementById("panel-assoc");
+    if (trendsPanel && !document.getElementById("trends-hero")) {
+      var trendsHero = document.createElement("section");
+      trendsHero.id = "trends-hero";
+      trendsHero.className = "trends-hero";
+      trendsHero.innerHTML = `
+        <article class="trends-card">
+          <div class="hero-eyebrow">Issue trends</div>
+          <div class="trends-title">Recurring validation patterns across runs</div>
+          <div class="trends-copy">
+            Use this view to spot where issue volume is concentrating, which publishers are driving it, and what should be addressed first.
+          </div>
+          <div class="trends-summary-strip" id="trends-summary-strip">Trend summary will appear here as validation history grows.</div>
+        </article>
+        <div class="trends-mini-grid">
+          <article class="trends-mini">
+            <span class="trends-mini-label">Trend health score</span>
+            <span class="trends-mini-value" id="trends-health-score">100</span>
+            <span class="trends-mini-copy" id="trends-health-copy">A lightweight internal score that drops as recurring issue volume concentrates across history.</span>
+          </article>
+          <article class="trends-mini">
+            <span class="trends-mini-label">Current posture</span>
+            <span class="trends-mini-value" id="trends-health-posture">Healthy</span>
+            <span class="trends-mini-copy" id="trends-health-posture-copy">Use the spotlight cards and row details below to decide what should be fixed upstream first.</span>
+          </article>
+          <article class="trends-mini">
+            <span class="trends-mini-label">7-day movement</span>
+            <span class="trends-mini-value" id="trends-movement-value">Stable</span>
+            <span class="trends-mini-copy" id="trends-movement-copy">Run more validations to compare the latest seven days to the previous seven.</span>
+          </article>
+          <article class="trends-mini">
+            <span class="trends-mini-label">Longest-running issue</span>
+            <span class="trends-mini-value" id="trends-aging-value">-</span>
+            <span class="trends-mini-copy" id="trends-aging-copy">This highlights the oldest recurring issue still visible in the current Trends slice.</span>
+          </article>
+        </div>
+      `;
+      trendsPanel.insertBefore(trendsHero, trendsPanel.firstChild);
+    }
+
+    var trendsHeaderBar = trendsPanel ? trendsPanel.querySelector('div[style*="border-bottom:1px solid"]') : null;
+    if (trendsHeaderBar) {
+      var headerSpans = trendsHeaderBar.querySelectorAll("span");
+      if (headerSpans[0]) {
+        headerSpans[0].remove();
+      }
+      if (headerSpans[1]) headerSpans[1].remove();
+
+      trendsHeaderBar.style.display = "none";
+    }
+
+    if (trendsPanel && !document.getElementById("trends-spotlights")) {
+      var trendsSpotlights = document.createElement("section");
+      trendsSpotlights.id = "trends-spotlights";
+      trendsSpotlights.className = "trends-spotlights";
+      trendsSpotlights.innerHTML = `
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Highest pressure field</span>
+          <span class="trends-spotlight-value" id="trends-top-field">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-field-copy">Run validations to surface which field repeats most across submissions.</span>
+        </article>
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Largest publisher concentration</span>
+          <span class="trends-spotlight-value" id="trends-top-publisher">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-publisher-copy">This spot helps teams see where repeated issue volume is accumulating.</span>
+        </article>
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Dominant issue class</span>
+          <span class="trends-spotlight-value" id="trends-top-category">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-category-copy">Use this to decide whether you are dealing with completeness, enum, or type quality problems.</span>
+        </article>
+        <article class="trends-spotlight">
+          <span class="trends-spotlight-label">Most affected entity</span>
+          <span class="trends-spotlight-value" id="trends-top-entity">Awaiting history</span>
+          <span class="trends-spotlight-copy" id="trends-top-entity-copy">High concentration here usually points to the best upstream cleanup opportunity.</span>
+        </article>
+      `;
+      trendsPanel.appendChild(trendsSpotlights);
+    }
+
+    var trendsStats = document.getElementById("catalog-stats");
+    if (trendsStats && !document.getElementById("trends-overview")) {
+      trendsStats.removeAttribute("style");
+      trendsStats.className = "trends-kpi-grid";
+
+      var trendsOverview = document.createElement("section");
+      trendsOverview.id = "trends-overview";
+      trendsOverview.className = "trends-overview";
+      trendsOverview.innerHTML = `
+        <div class="trends-overview-top">
+          <div class="trends-kpi-panel">
+            <div class="hero-eyebrow">Trend overview</div>
+            <div class="trends-chart-copy" style="max-width:none;margin:6px 0 14px;">
+              Use these signals to track recurring issue volume, publisher concentration, and the patterns most likely to need upstream remediation.
+              <button class="trends-inline-link" type="button" onclick="openCategoryDefinitions()">Category definitions</button>
+            </div>
+            <div id="trends-kpi-host"></div>
+          </div>
+          <article class="trends-chart-card">
+            <div class="trends-chart-header">
+              <div>
+                <div class="trends-chart-title">Issue mix</div>
+                <div class="trends-chart-copy">A category-level view of recurring issue pressure across the current Trends slice.</div>
+              </div>
+            </div>
+            <div class="trends-chart-shell">
+              <div class="trends-pie" id="trends-pie">
+                <div class="trends-pie-center">
+                  <div class="trends-pie-value" id="trends-pie-total">0</div>
+                  <div class="trends-pie-label">Occurrences</div>
+                </div>
+              </div>
+              <div class="trends-legend" id="trends-legend"></div>
+            </div>
+          </article>
+        </div>
+      `;
+      var trendsTableShellExisting = trendsPanel.querySelector(".trends-table-shell");
+      trendsPanel.insertBefore(trendsOverview, trendsTableShellExisting || trendsPanel.lastChild);
+      var kpiHost = document.getElementById("trends-kpi-host");
+      if (kpiHost) kpiHost.appendChild(trendsStats);
+    }
+
+    window.updateTrendsSpotlights = function () {
+      var trendsHealthScore = document.getElementById("trends-health-score");
+      var trendsHealthCopy = document.getElementById("trends-health-copy");
+      var trendsHealthPosture = document.getElementById("trends-health-posture");
+      var trendsHealthPostureCopy = document.getElementById("trends-health-posture-copy");
+      var trendsMovementValue = document.getElementById("trends-movement-value");
+      var trendsMovementCopy = document.getElementById("trends-movement-copy");
+      var trendsAgingValue = document.getElementById("trends-aging-value");
+      var trendsAgingCopy = document.getElementById("trends-aging-copy");
+      var trendsSummaryStrip = document.getElementById("trends-summary-strip");
+      var topField = document.getElementById("trends-top-field");
+      var topFieldCopy = document.getElementById("trends-top-field-copy");
+      var topPublisher = document.getElementById("trends-top-publisher");
+      var topPublisherCopy = document.getElementById("trends-top-publisher-copy");
+      var topCategory = document.getElementById("trends-top-category");
+      var topCategoryCopy = document.getElementById("trends-top-category-copy");
+      var topEntity = document.getElementById("trends-top-entity");
+      var topEntityCopy = document.getElementById("trends-top-entity-copy");
+      var trendsPie = document.getElementById("trends-pie");
+      var trendsPieTotal = document.getElementById("trends-pie-total");
+      var trendsLegend = document.getElementById("trends-legend");
+      if (!topField || !topPublisher || !topCategory || !topEntity) return;
+
+      var activeData = Array.isArray(_catalogFiltered) ? _catalogFiltered : [];
+      var hasTrendFilters = !!((document.getElementById("catalog-search") && document.getElementById("catalog-search").value) ||
+        (document.getElementById("catalog-market-filter") && document.getElementById("catalog-market-filter").value));
+      var sourceData = hasTrendFilters ? activeData : _catalogData;
+
+      if (!sourceData || !sourceData.length) {
+        if (trendsHealthScore) trendsHealthScore.textContent = "100";
+        if (trendsHealthCopy) trendsHealthCopy.textContent = "A lightweight internal score that drops as recurring issue volume concentrates across history.";
+        if (trendsHealthPosture) trendsHealthPosture.textContent = "Healthy";
+        if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = "Use the spotlight cards and row details below to decide what should be fixed upstream first.";
+        if (trendsMovementValue) trendsMovementValue.textContent = "Stable";
+        if (trendsMovementCopy) trendsMovementCopy.textContent = "Run more validations to compare the last seven days to the previous seven.";
+        if (trendsAgingValue) trendsAgingValue.textContent = "-";
+        if (trendsAgingCopy) trendsAgingCopy.textContent = "Once recurring issues are stored, this will show the oldest active trend in the current slice.";
+        if (trendsSummaryStrip) trendsSummaryStrip.textContent = "Run and retain validations to generate an executive summary of recurring issue pressure, concentration, and movement.";
+        topField.textContent = "Awaiting history";
+        topPublisher.textContent = "Awaiting history";
+        topCategory.textContent = "Awaiting history";
+        topEntity.textContent = "Awaiting history";
+        if (topFieldCopy) topFieldCopy.textContent = "Run validations to surface which field repeats most across submissions.";
+        if (topPublisherCopy) topPublisherCopy.textContent = "This spot helps teams see where repeated issue volume is accumulating.";
+        if (topCategoryCopy) topCategoryCopy.textContent = "Use this to decide whether you are dealing with completeness, enum, or type quality problems.";
+        if (topEntityCopy) topEntityCopy.textContent = "High concentration here usually points to the best upstream cleanup opportunity.";
+        if (trendsPie) trendsPie.style.background = "conic-gradient(#dbe3ef 0deg 360deg)";
+        if (trendsPieTotal) trendsPieTotal.textContent = "0";
+        if (trendsLegend) trendsLegend.innerHTML = '<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:#dbe3ef"></span>No trend data yet</span><span class="trends-legend-value">0%</span></div>';
+        return;
+      }
+
+      var byPublisher = {};
+      var byCategory = {};
+      var byEntity = {};
+      var totalOccurrences = 0;
+      sourceData.forEach(function (entry) {
+        totalOccurrences += entry.count || 0;
+        (entry.publishers || []).forEach(function (publisher) {
+          byPublisher[publisher] = (byPublisher[publisher] || 0) + entry.count;
+        });
+        byCategory[entry.errorCategory] = (byCategory[entry.errorCategory] || 0) + entry.count;
+        (entry.entityTypes || [entry.entityType]).forEach(function (entityType) {
+          if (!entityType) return;
+          byEntity[entityType] = (byEntity[entityType] || 0) + entry.count;
+        });
+      });
+
+      var topFieldEntry = sourceData[0];
+      var topPublisherEntry = Object.entries(byPublisher).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var topCategoryEntry = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var topEntityEntry = Object.entries(byEntity).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var scorePenalty = Math.min(45, Math.floor(totalOccurrences / 8)) + Math.min(20, sourceData.length * 3);
+      var healthScore = Math.max(18, 100 - scorePenalty);
+      var posture = healthScore >= 80 ? "Healthy" : healthScore >= 60 ? "Watch" : healthScore >= 40 ? "Needs attention" : "At risk";
+      var now = new Date();
+      var searchText = ((document.getElementById("catalog-search") && document.getElementById("catalog-search").value) || "").trim().toLowerCase();
+      var marketFilter = ((document.getElementById("catalog-market-filter") && document.getElementById("catalog-market-filter").value) || "").trim();
+      var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      var fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+      var historyRuns = loadHistory();
+      var recentWindowCount = 0;
+      var previousWindowCount = 0;
+      historyRuns.forEach(function (run) {
+        var runDate = parseTrendRunDate(run);
+        if (!runDate) return;
+        var matchingErrors = (run.errors || []).filter(function (err) {
+          return runErrorMatchesTrendFilters(err, run, searchText, marketFilter);
+        }).length;
+        if (!matchingErrors) return;
+        if (runDate >= sevenDaysAgo) recentWindowCount += matchingErrors;
+        else if (runDate >= fourteenDaysAgo) previousWindowCount += matchingErrors;
+      });
+      var movementDelta = recentWindowCount - previousWindowCount;
+      var movementLabel = movementDelta > 0 ? "+" + movementDelta : movementDelta < 0 ? String(movementDelta) : "Flat";
+      var oldestEntry = sourceData.slice().sort(function (a, b) {
+        return new Date(a.firstSeen || a.lastSeen || 0) - new Date(b.firstSeen || b.lastSeen || 0);
+      })[0];
+      var oldestDate = oldestEntry ? new Date(oldestEntry.firstSeen || oldestEntry.lastSeen || now) : null;
+      var oldestDays = oldestDate && !isNaN(oldestDate.getTime()) ? Math.max(0, Math.floor((now.getTime() - oldestDate.getTime()) / (24 * 60 * 60 * 1000))) : null;
+
+      if (trendsHealthScore) trendsHealthScore.textContent = String(healthScore);
+      if (trendsHealthCopy) trendsHealthCopy.textContent = totalOccurrences + " recurring issue occurrences across " + sourceData.length + " distinct trends are influencing this score.";
+      if (trendsHealthPosture) trendsHealthPosture.textContent = posture;
+      if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = (topCategoryEntry ? topCategoryEntry[0] : "Recurring issues") + " is currently the strongest pressure point in history.";
+      if (trendsMovementValue) trendsMovementValue.textContent = movementLabel;
+      if (trendsMovementCopy) trendsMovementCopy.textContent = recentWindowCount + " matched occurrences in the last 7 days versus " + previousWindowCount + " in the previous 7-day window.";
+      if (trendsAgingValue) trendsAgingValue.textContent = oldestDays == null ? "-" : oldestDays + "d";
+      if (trendsAgingCopy) trendsAgingCopy.textContent = oldestEntry ? '"' + oldestEntry.field + '" has been recurring since ' + (oldestEntry.firstSeen || oldestEntry.lastSeen || 'the first stored run') + '.' : "Once recurring issues are stored, this will show the oldest active trend in the current slice.";
+      if (trendsSummaryStrip) trendsSummaryStrip.textContent = sourceData.length + " recurring issues account for " + totalOccurrences + " occurrences in the current Trends view. " + (topCategoryEntry ? topCategoryEntry[0] : "This issue class") + " is the dominant pattern, and " + (topPublisherEntry ? topPublisherEntry[0] : "the top publisher") + " carries the highest visible concentration.";
+
+      topField.textContent = topFieldEntry ? topFieldEntry.field : "None yet";
+      topPublisher.textContent = topPublisherEntry ? topPublisherEntry[0] : "None yet";
+      topCategory.textContent = topCategoryEntry ? topCategoryEntry[0] : "None yet";
+      topEntity.textContent = topEntityEntry ? topEntityEntry[0] : "None yet";
+
+      if (topFieldCopy && topFieldEntry) topFieldCopy.textContent = topFieldEntry.count + " occurrences across " + (topFieldEntry.envelopeIds ? topFieldEntry.envelopeIds.length : 0) + " envelopes; fixing this field offers the biggest immediate payoff.";
+      if (topPublisherCopy && topPublisherEntry) topPublisherCopy.textContent = topPublisherEntry[1] + " issue occurrences currently tie back to this publisher across stored history.";
+      if (topCategoryCopy && topCategoryEntry) topCategoryCopy.textContent = topCategoryEntry[1] + " occurrences currently roll up into this issue class.";
+      if (topEntityCopy && topEntityEntry) topEntityCopy.textContent = topEntityEntry[1] + " occurrences currently map to this entity type, making it the strongest remediation target.";
+      var topPublisherCard = topPublisher ? topPublisher.closest(".trends-spotlight") : null;
+      if (topPublisherCard) {
+        topPublisherCard.classList.add("clickable");
+        topPublisherCard.setAttribute("tabindex", "0");
+        topPublisherCard.onclick = function () { openPublisherDetail(topPublisher.textContent || ""); };
+        topPublisherCard.onkeydown = function (event) {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPublisherDetail(topPublisher.textContent || "");
+          }
+        };
+      }
+
+      var palette = {
+        "Missing Field": "#d96b15",
+        "Enum / Invalid Value": "#2d5e78",
+        "Type Error": "#c44536",
+        "Extra Field": "#7b5cff",
+        "Wrong Field Name": "#1d6b7d",
+        "Invalid Entity Type": "#7f5539",
+        "Other": "#8d99ae"
+      };
+      var orderedCategories = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; });
+      var angle = 0;
+      var gradientParts = [];
+      var legendHtml = [];
+      orderedCategories.forEach(function (entry) {
+        var label = entry[0];
+        var value = entry[1];
+        var slice = totalOccurrences ? (value / totalOccurrences) * 360 : 0;
+        var nextAngle = angle + slice;
+        var color = palette[label] || palette.Other;
+        gradientParts.push(color + " " + angle + "deg " + nextAngle + "deg");
+        legendHtml.push('<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:' + color + '"></span>' + escHtml(label) + '</span><span class="trends-legend-value">' + Math.round((value / totalOccurrences) * 100) + '%</span></div>');
+        angle = nextAngle;
+      });
+      if (trendsPie) trendsPie.style.background = "conic-gradient(" + gradientParts.join(", ") + ")";
+      if (trendsPieTotal) trendsPieTotal.textContent = String(totalOccurrences);
+      if (trendsLegend) trendsLegend.innerHTML = legendHtml.join("");
+    };
+
+    var catalogContainer = document.getElementById("catalog-table-container");
+    if (catalogContainer && !catalogContainer.parentElement.classList.contains("trends-table-shell")) {
+      var tableShell = document.createElement("div");
+      tableShell.className = "trends-table-shell";
+      catalogContainer.parentNode.insertBefore(tableShell, catalogContainer);
+      tableShell.appendChild(catalogContainer);
+    }
+
+    var trendsSpotlightsPanel = document.getElementById("trends-spotlights");
+    var trendsTableShell = trendsPanel ? trendsPanel.querySelector(".trends-table-shell") : null;
+    var trendsOverviewPanel = document.getElementById("trends-overview");
+    var trendsHeaderBlock = trendsPanel ? trendsPanel.firstElementChild : null;
+    if (trendsPanel && trendsTableShell && trendsHeaderBlock) {
+      trendsPanel.insertBefore(trendsTableShell, trendsHeaderBlock.nextSibling);
+    }
+    if (trendsPanel && trendsSpotlightsPanel && trendsOverviewPanel) {
+      trendsPanel.insertBefore(trendsSpotlightsPanel, trendsOverviewPanel);
+    }
+
+    var paneHeaders = document.querySelectorAll(".pane-header");
+    if (paneHeaders[0] && !paneHeaders[0].querySelector(".hero-eyebrow")) {
+      paneHeaders[0].style.padding = "16px 18px";
+    }
+    if (paneHeaders[1]) {
+      paneHeaders[1].style.padding = "16px 18px";
+    }
+
+    var summaryBar = document.getElementById("summary-bar");
+    if (summaryBar) {
+      summaryBar.setAttribute("data-modernized", "true");
+    }
+
+    stateSelect = document.getElementById("state-select");
+    if (stateSelect) {
+      stateSelect.style.minWidth = "180px";
+    }
+
+    var settingsTitles = document.querySelectorAll(".settings-section-title");
+    settingsTitles.forEach(function (node) {
+      if (node.textContent.indexOf("Error Library") !== -1) {
+        node.textContent = "Error Translation Library";
+      }
+    });
+
+    var settingsTitle = document.querySelector(".settings-title");
+    if (settingsTitle) {
+      settingsTitle.textContent = "Workspace Settings";
+    }
+
+    if (typeof window.onStateChange === "function" && !window.__modernStateWrapped) {
+      var originalOnStateChange = window.onStateChange;
+      window.onStateChange = function () {
+        originalOnStateChange();
+        var select = document.getElementById("state-select");
+        var heroMarket = null;
+        var heroMarketCode = document.getElementById("hero-market-code");
+        var heroMarketName = document.getElementById("hero-market-name");
+        if (select && heroMarket) {
+          var label = select.options[select.selectedIndex].dataset.label || select.value;
+          heroMarket.textContent = label.replace(/-/g, "").replace(/\s{2,}/g, " ").trim();
+        }
+        if (select && heroMarketCode && heroMarketName) {
+          var marketLabel = (select.options[select.selectedIndex].dataset.label || select.value).replace(/Ã‚-/g, "").replace(/\s{2,}/g, " ").trim();
+          marketLabel = marketLabel.replace(/[^A-Za-z0-9 ]/g, " ").replace(/\s{2,}/g, " ").trim();
+          var parts = marketLabel.split(" ");
+          heroMarketCode.textContent = parts[0] || select.value;
+          heroMarketName.textContent = parts.slice(1).join(" ") || "Active market";
+        }
+      };
+      window.__modernStateWrapped = true;
+    }
+
+    if (typeof window.onStateChange === "function") {
+      window.onStateChange();
+    }
+
+    if (typeof window.updateTrendsSpotlights === "function") {
+      window.updateTrendsSpotlights();
+    }
+
+    function enableScrollHandoff(element) {
+      if (!element || element.getAttribute("data-scroll-handoff") === "true") return;
+      element.addEventListener("wheel", function (event) {
+        var delta = event.deltaY;
+        if (!delta) return;
+        var atTop = element.scrollTop <= 0;
+        var atBottom = Math.ceil(element.scrollTop + element.clientHeight) >= element.scrollHeight;
+        if ((delta < 0 && atTop) || (delta > 0 && atBottom)) {
+          event.preventDefault();
+          window.scrollBy({ top: delta, behavior: "auto" });
+        }
+      }, { passive: false });
+      element.setAttribute("data-scroll-handoff", "true");
+    }
+
+    function buildCatalogDataFromRuns(runs) {
+      if (!runs || !runs.length) return [];
+      var map = {};
+
+      function extractBadValue(msg) {
+        if (!msg) return null;
+        var m = msg.match(/Invalid value ["\u201c"']([^"\u201c"']+)["\u201c"']/) ||
+                msg.match(/received string ["\u201c"']([^"\u201c"']+)["\u201c"']/) ||
+                msg.match(/^["\u201c"']([^"\u201c"']+)["\u201c"']/);
+        return m ? m[1] : null;
+      }
+
+      function canonicalMsg(msg) {
+        return (msg || '')
+          .replace(/Invalid value ["\u201c"'][^"\u201c"']+["\u201c"']\.?\s*/g, 'Invalid value <BAD_VALUE>. ')
+          .replace(/received string ["\u201c"'][^"\u201c"']+["\u201c"']/g, 'received string <BAD_VALUE>')
+          .trim();
+      }
+
+      runs.forEach(function(run) {
+        var runPublisher = (run.publisher || '').trim() || '(unknown)';
+        var market = run.market || 'TX';
+        var ts = run.timestamp || '';
+        var envelopeId = run.envelopeId || '';
+        (run.errors || []).forEach(function(err) {
+          var field = err.field || '';
+          var msg = err.msg || '';
+          var entityType = err.entityType || '';
+          var category = classifyErrorCatalog(msg);
+          var key = field + '|||' + category;
+          var badVal = extractBadValue(msg);
+          if (!map[key]) {
+            map[key] = {
+              field: field,
+              msg: canonicalMsg(msg),
+              entityType: entityType,
+              entityTypes: new Set(),
+              errorCategory: category,
+              count: 0,
+              badValues: new Set(),
+              publishers: new Set(),
+              markets: new Set(),
+              envelopeIds: new Set(),
+              firstSeen: ts,
+              lastSeen: ts,
+              ref: err.ref || '',
+              translation: err.translation || ''
+            };
+          }
+          var entry = map[key];
+          entry.count++;
+          if (badVal) entry.badValues.add(badVal);
+          if (entityType) entry.entityTypes.add(entityType);
+          entry.publishers.add((err.publisher && err.publisher.trim()) || runPublisher);
+          entry.markets.add(market);
+          if (envelopeId) entry.envelopeIds.add(envelopeId);
+          if (ts && (!entry.firstSeen || ts < entry.firstSeen)) entry.firstSeen = ts;
+          if (ts && (!entry.lastSeen || ts > entry.lastSeen)) entry.lastSeen = ts;
+          if (!entry.translation && err.translation) entry.translation = err.translation;
+          if (!entry.ref && err.ref) entry.ref = err.ref;
+        });
+      });
+
+      return Object.values(map).map(function(entry) {
+        return {
+          field: entry.field,
+          msg: entry.msg,
+          entityType: entry.entityType,
+          entityTypes: Array.from(entry.entityTypes).sort(),
+          errorCategory: entry.errorCategory,
+          count: entry.count,
+          badValues: Array.from(entry.badValues).sort(),
+          publishers: Array.from(entry.publishers).sort(),
+          markets: Array.from(entry.markets).sort(),
+          envelopeIds: Array.from(entry.envelopeIds),
+          firstSeen: entry.firstSeen,
+          lastSeen: entry.lastSeen,
+          ref: entry.ref,
+          translation: entry.translation
+        };
+      }).sort(function(a, b) { return b.count - a.count; });
+    }
+
+    function _getPortfolioRunsForExport() {
+      var runs = [];
+      try { runs = loadHistory() || []; } catch (e) { runs = []; }
+      if (runs.length) return runs;
+      if (!_lastValidationResults || !_lastValidationParsed) return [];
+
+      var parsed = _lastValidationParsed;
+      var results = _lastValidationResults;
+      var now = new Date();
+      var historyErrors = [];
+      results.forEach(function(row) {
+        (row.errors || []).forEach(function(err) {
+          var translation = '';
+          try { translation = getTranslation(err.field, err.msg, row) || ''; } catch (ex) {}
+          historyErrors.push({
+            entityId: row.entityId || '',
+            recordid: row.recordid || '-',
+            county: row.county || row.instanceid || '-',
+            entityType: row.entityType || '',
+            field: err.field || '',
+            ref: err.ref || '',
+            msg: err.msg || '',
+            translation: translation,
+            publisher: parsed.publisher || ''
+          });
+        });
+      });
+      return [{
+        timestamp: now.toLocaleString('en-US', { month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+        analysedAt: now.toISOString(),
+        envelopeSubmittedAt: parsed.originalTimestamp ? formatUnixMs(parsed.originalTimestamp) : '',
+        originalTimestamp: parsed.originalTimestamp || null,
+        envelopeId: parsed.envelopeId || '',
+        sourceMode: 'single',
+        batchSessionId: '',
+        eventType: parsed.eventType || '',
+        publisher: parsed.publisher || '',
+        market: parsed.market || 'TX',
+        entityCount: results.length,
+        errorCount: historyErrors.length,
+        errors: historyErrors
+      }];
+    }
+
+    function _buildAndDownloadPortfolioELTReport(runs) {
+      var now = new Date();
+      var catalog = buildCatalogDataFromRuns(runs);
+      var publishers = {};
+      var totalEntities = 0;
+      var totalErrors = 0;
+      var totalInvalidEntities = 0;
+      var totalValidEntities = 0;
+      var marketSet = new Set();
+      var envelopeSet = new Set();
+      var envelopeRows = [];
+      var dailyMap = {};
+
+      function parseSubmissionLabel(value) {
+        if (!value) return '';
+        if (typeof value === 'string' && value.indexOf(',') !== -1) return value.split(',')[0].trim();
+        return String(value).trim();
+      }
+      function sortByDateLabel(a, b) {
+        var da = new Date(a.dateLabel || a.label || a);
+        var db = new Date(b.dateLabel || b.label || b);
+        if (isNaN(da.getTime()) && isNaN(db.getTime())) return String(a.dateLabel || a.label || a).localeCompare(String(b.dateLabel || b.label || b));
+        if (isNaN(da.getTime())) return 1;
+        if (isNaN(db.getTime())) return -1;
+        return da - db;
+      }
+
+      runs.forEach(function(run) {
+        var publisher = ((run.publisher || '').trim()) || '(unknown)';
+        var market = run.market || 'TX';
+        var entityCount = Number(run.entityCount || 0);
+        var errors = Array.isArray(run.errors) ? run.errors : [];
+        var invalidKeys = {};
+        var topFieldMap = {};
+        var topEntityMap = {};
+        errors.forEach(function(err) {
+          invalidKeys[(err.entityId || err.recordid || err.entityType || 'unknown') + '||' + (err.entityType || '')] = true;
+          if (err.field) topFieldMap[err.field] = (topFieldMap[err.field] || 0) + 1;
+          if (err.entityType) topEntityMap[err.entityType] = (topEntityMap[err.entityType] || 0) + 1;
+        });
+        var invalidEntities = Object.keys(invalidKeys).length || (errors.length > 0 ? 1 : 0);
+        var validEntities = Math.max(0, entityCount - invalidEntities);
+        var passRate = entityCount > 0 ? (validEntities / entityCount) * 100 : 100;
+        var submissionLabel = parseSubmissionLabel(run.envelopeSubmittedAt) || 'Not provided';
+
+        totalEntities += entityCount;
+        totalErrors += errors.length;
+        totalInvalidEntities += invalidEntities;
+        totalValidEntities += validEntities;
+        marketSet.add(market);
+        if (run.envelopeId) envelopeSet.add(run.envelopeId);
+
+        if (!publishers[publisher]) {
+          publishers[publisher] = {
+            publisher: publisher,
+            runs: 0,
+            markets: new Set(),
+            envelopes: new Set(),
+            entities: 0,
+            validEntities: 0,
+            invalidEntities: 0,
+            errorOccurrences: 0,
+            topFieldMap: {},
+            topEntityMap: {}
+          };
+        }
+
+        var bucket = publishers[publisher];
+        bucket.runs++;
+        bucket.markets.add(market);
+        if (run.envelopeId) bucket.envelopes.add(run.envelopeId);
+        bucket.entities += entityCount;
+        bucket.validEntities += validEntities;
+        bucket.invalidEntities += invalidEntities;
+        bucket.errorOccurrences += errors.length;
+        errors.forEach(function(err) {
+          if (err.field) bucket.topFieldMap[err.field] = (bucket.topFieldMap[err.field] || 0) + 1;
+          if (err.entityType) bucket.topEntityMap[err.entityType] = (bucket.topEntityMap[err.entityType] || 0) + 1;
+        });
+
+        if (!dailyMap[submissionLabel]) {
+          dailyMap[submissionLabel] = {
+            dateLabel: submissionLabel,
+            envelopes: new Set(),
+            publishers: new Set(),
+            entities: 0,
+            validEntities: 0,
+            invalidEntities: 0,
+            errors: 0
+          };
+        }
+        dailyMap[submissionLabel].envelopes.add(run.envelopeId || '(missing envelope)');
+        dailyMap[submissionLabel].publishers.add(publisher);
+        dailyMap[submissionLabel].entities += entityCount;
+        dailyMap[submissionLabel].validEntities += validEntities;
+        dailyMap[submissionLabel].invalidEntities += invalidEntities;
+        dailyMap[submissionLabel].errors += errors.length;
+
+        var topFields = Object.keys(topFieldMap).sort(function(a, b) { return topFieldMap[b] - topFieldMap[a]; }).slice(0, 3).map(function(field) { return field + ' (' + topFieldMap[field] + ')'; }).join(', ');
+        var topEntities = Object.keys(topEntityMap).sort(function(a, b) { return topEntityMap[b] - topEntityMap[a]; }).slice(0, 3).map(function(entityType) { return entityType + ' (' + topEntityMap[entityType] + ')'; }).join(', ');
+        var topErrorSummaries = errors.slice(0, 3).map(function(err) {
+          var raw = (err.field ? err.field + ': ' : '') + (err.translation || err.msg || 'Issue detected');
+          return raw.length > 120 ? raw.slice(0, 117) + '...' : raw;
+        }).join(' | ');
+        var badDataSummary = errors.length ? topErrorSummaries : 'No incorrect data detected in this envelope.';
+        var errorProfile = errors.length === 0 ? 'Clean' : errors.length === 1 ? 'Single issue' : errors.length >= 10 ? 'High volume' : 'Multi-issue';
+        envelopeRows.push({
+          submittedAt: run.envelopeSubmittedAt || '',
+          analysedAt: run.timestamp || '',
+          envelopeId: run.envelopeId || '',
+          publisher: publisher,
+          market: market,
+          eventType: run.eventType || '',
+          entities: entityCount,
+          invalidEntities: invalidEntities,
+          errors: errors.length,
+          errorProfile: errorProfile,
+          passRate: passRate,
+          topFields: topFields || (errors.length ? '-' : 'No errors'),
+          badDataSummary: badDataSummary,
+          topEntities: topEntities || (errors.length ? '-' : 'No errors')
+        });
+      });
+
+      var dailyRows = Object.keys(dailyMap).map(function(key) {
+        var row = dailyMap[key];
+        var passRate = row.entities > 0 ? (row.validEntities / row.entities) * 100 : 100;
+        return {
+          dateLabel: row.dateLabel,
+          envelopeCount: row.envelopes.size,
+          publisherCount: row.publishers.size,
+          entities: row.entities,
+          errors: row.errors,
+          passRate: passRate
+        };
+      }).sort(sortByDateLabel);
+
+      var byPublisherTrend = {};
+      var byCategory = {};
+      var byEntity = {};
+      var totalTrendOccurrences = 0;
+      catalog.forEach(function(entry) {
+        totalTrendOccurrences += entry.count || 0;
+        (entry.publishers || []).forEach(function(publisher) {
+          byPublisherTrend[publisher] = (byPublisherTrend[publisher] || 0) + (entry.count || 0);
+        });
+        byCategory[entry.errorCategory] = (byCategory[entry.errorCategory] || 0) + (entry.count || 0);
+        (entry.entityTypes || [entry.entityType]).forEach(function(entityType) {
+          if (!entityType) return;
+          byEntity[entityType] = (byEntity[entityType] || 0) + (entry.count || 0);
+        });
+      });
+
+      var healthPenalty = Math.min(45, Math.floor(totalTrendOccurrences / 8)) + Math.min(20, catalog.length * 3);
+      var healthScore = Math.max(18, 100 - healthPenalty);
+      var posture = healthScore >= 80 ? 'Healthy' : healthScore >= 60 ? 'Watch' : healthScore >= 40 ? 'Needs attention' : 'At risk';
+      var topPublisherEntry = Object.entries(byPublisherTrend).sort(function(a, b) { return b[1] - a[1]; })[0];
+      var topCategoryEntry = Object.entries(byCategory).sort(function(a, b) { return b[1] - a[1]; })[0];
+      var topEntityEntry = Object.entries(byEntity).sort(function(a, b) { return b[1] - a[1]; })[0];
+      var passRate = totalEntities > 0 ? (totalValidEntities / totalEntities) * 100 : 100;
+
+      var publisherRows = Object.keys(publishers).map(function(name) {
+        var bucket = publishers[name];
+        var trendCount = catalog.filter(function(entry) {
+          return (entry.publishers || []).indexOf(name) !== -1;
+        }).length;
+        var topField = Object.keys(bucket.topFieldMap).sort(function(a, b) { return bucket.topFieldMap[b] - bucket.topFieldMap[a]; })[0] || '-';
+        var topEntity = Object.keys(bucket.topEntityMap).sort(function(a, b) { return bucket.topEntityMap[b] - bucket.topEntityMap[a]; })[0] || '-';
+        var entityPassRate = bucket.entities > 0 ? (bucket.validEntities / bucket.entities) * 100 : 100;
+        return {
+          publisher: name,
+          runs: bucket.runs,
+          markets: Array.from(bucket.markets).sort().join(', '),
+          envelopes: bucket.envelopes.size,
+          entities: bucket.entities,
+          validEntities: bucket.validEntities,
+          invalidEntities: bucket.invalidEntities,
+          errorOccurrences: bucket.errorOccurrences,
+          passRate: entityPassRate,
+          status: entityPassRate >= 95 ? 'Healthy' : entityPassRate >= 80 ? 'Watch' : 'At risk',
+          trendCount: trendCount,
+          topField: topField,
+          topEntity: topEntity
+        };
+      }).sort(function(a, b) {
+        if (b.errorOccurrences !== a.errorOccurrences) return b.errorOccurrences - a.errorOccurrences;
+        return a.publisher.localeCompare(b.publisher);
+      });
+
+      envelopeRows.sort(function(a, b) {
+        return sortByDateLabel({ dateLabel: b.submittedAt || b.analysedAt || '' }, { dateLabel: a.submittedAt || a.analysedAt || '' });
+      });
+
+      function mkCell(v, opts) {
+        opts = opts || {};
+        return { v: v, t: typeof v === 'number' ? 'n' : 's', s: { font: { name:'Arial', sz:opts.sz || 10, bold:!!opts.bold, color:{ rgb:opts.color || '000000' } }, fill: opts.fill ? { fgColor:{ rgb:opts.fill }, patternType:'solid' } : { patternType:'none' }, alignment: { horizontal:opts.align || 'left', vertical:'center', wrapText:!!opts.wrap }, border: { top:{ style:'thin', color:{ rgb:'7895A8' } }, bottom:{ style:'thin', color:{ rgb:'7895A8' } }, left:{ style:'thin', color:{ rgb:'7895A8' } }, right:{ style:'thin', color:{ rgb:'7895A8' } } } } };
+      }
+      function hdr(v) { return mkCell(v, { bold:true, fill:'1F3864', color:'FFFFFF', sz:11, align:'center' }); }
+      function subhdr(v) { return mkCell(v, { bold:true, fill:'2E75B6', color:'FFFFFF', sz:10, align:'center' }); }
+      function lbl(v) { return mkCell(v, { bold:true, fill:'D6E4F0', sz:10 }); }
+      function val(v, alt, align) { return mkCell(v, { fill:alt ? 'EBF3FB' : 'FFFFFF', sz:10, align:align || 'left' }); }
+      function ok(v) { return mkCell(v, { fill:'D4EDDA', color:'155724', align:'center', sz:10, bold:true }); }
+      function wrn(v) { return mkCell(v, { fill:'FFF3CD', color:'7D4E00', align:'center', sz:10, bold:true }); }
+      function crt(v) { return mkCell(v, { fill:'FFE0E0', color:'721C24', align:'center', sz:10, bold:true }); }
+      function note(v) { return mkCell(v, { fill:'F6F8FA', color:'555555', sz:9, wrap:true }); }
+      function statusCell(score) { return score >= 95 ? ok : score >= 80 ? wrn : crt; }
+      function cellRef(r, c) { return XLSX.utils.encode_cell({r:r, c:c}); }
+      function span(setter, r, c1, c2, builder, value, alt, align) {
+        for (var c = c1; c <= c2; c++) {
+          setter(r, c, builder(c === c1 ? value : '', alt, align));
+        }
+      }
+
+      var dashboard = {};
+      var dashboardMerges = [];
+      function dset(r, c, cell) { dashboard[cellRef(r, c)] = cell; }
+      function merge(r1, c1, r2, c2) { dashboardMerges.push({ s:{ r:r1, c:c1 }, e:{ r:r2, c:c2 } }); }
+      function dashText(v, align) { return mkCell(v, { fill:'FFFFFF', sz:10, align:align || 'left' }); }
+      function dashLabel(v) { return mkCell(v, { bold:true, fill:'EEF3F7', sz:10, align:'left' }); }
+      function dashSection(v) { return mkCell(v, { bold:true, fill:'1F3864', color:'FFFFFF', sz:11, align:'center' }); }
+      function cardLabel(v) { return mkCell(v, { bold:true, fill:'F5F7FA', color:'4A5A6A', sz:9, align:'center' }); }
+      function cardValue(v, tone) {
+        var fill = 'FFFFFF', color = '17324D';
+        if (tone === 'good') { fill = 'EAF6EC'; color = '155724'; }
+        if (tone === 'warn') { fill = 'FFF5E6'; color = '8A4B08'; }
+        if (tone === 'risk') { fill = 'FCEBEC'; color = '8B1E2D'; }
+        if (tone === 'info') { fill = 'EEF5FB'; color = '1B4F72'; }
+        return mkCell(v, { bold:true, fill:fill, color:color, sz:16, align:'center' });
+      }
+      function cardToneForScore(score) { return score >= 95 ? 'good' : score >= 80 ? 'warn' : 'risk'; }
+      function shortText(v, n) { v = String(v || '-'); return v.length > n ? v.slice(0, Math.max(0, n - 3)) + '...' : v; }
+      function card(r, c1, c2, label, value, tone) {
+        dset(r, c1, cardLabel(label));
+        for (var c = c1 + 1; c <= c2; c++) dset(r, c, cardLabel(''));
+        merge(r, c1, r, c2);
+        dset(r + 1, c1, cardValue(value, tone));
+        for (var c2i = c1 + 1; c2i <= c2; c2i++) dset(r + 1, c2i, cardValue('', tone));
+        merge(r + 1, c1, r + 1, c2);
+      }
+      var row = 0;
+      var topIssueRows = catalog.slice(0, 3).map(function(entry, idx) {
+        return {
+          rank: idx + 1,
+          issue: shortText((entry.errorCategory || '-') + (entry.field ? ' / ' + entry.field : ''), 32),
+          publisher: shortText(((entry.publishers || [])[0] || '-'), 22),
+          count: entry.count || 0
+        };
+      });
+      if (!topIssueRows.length) topIssueRows = [{ rank: 1, issue: 'No recurring issues yet', publisher: '-', count: 0 }];
+      var topPublisherRows = publisherRows.slice(0, 3);
+      var tabRows = [
+        ['Envelope Summary', 'Ticket queue by envelope'],
+        ['Publisher Health', 'Publisher performance snapshot'],
+        ['Trends', 'Recurring issue patterns'],
+        ['Raw tabs', 'Field-level evidence and run detail']
+      ];
+
+      dset(row, 0, dashSection('CATCH Portfolio Health Report')); for (var c = 1; c <= 7; c++) dset(row, c, dashSection('')); merge(row, 0, row, 7); row++;
+      dset(row, 0, dashText('Portfolio summary from saved validation history', 'center')); for (var c1 = 1; c1 <= 7; c1++) dset(row, c1, dashText('', 'center')); merge(row, 0, row, 7); row += 2;
+
+      dset(row, 0, dashLabel('Report exported')); dset(row, 1, dashText(now.toLocaleString('en-US', {month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'})));
+      dset(row, 2, dashLabel('History runs')); dset(row, 3, dashText(runs.length, 'center'));
+      dset(row, 4, dashLabel('Publishers')); dset(row, 5, dashText(publisherRows.length, 'center'));
+      dset(row, 6, dashLabel('Envelopes')); dset(row, 7, dashText(envelopeSet.size, 'center')); row++;
+      dset(row, 0, dashLabel('Markets')); dset(row, 1, dashText(Array.from(marketSet).sort().join(', ') || '-'));
+      dset(row, 2, dashLabel('Distinct trends')); dset(row, 3, dashText(catalog.length, 'center'));
+      dset(row, 4, dashLabel('Top category')); dset(row, 5, dashText(shortText(topCategoryEntry ? topCategoryEntry[0] : '-', 20), 'center'));
+      dset(row, 6, dashLabel('Top publisher')); dset(row, 7, dashText(shortText(topPublisherEntry ? topPublisherEntry[0] : '-', 20), 'center')); row += 2;
+
+      card(row, 0, 1, 'Health score', String(healthScore), cardToneForScore(healthScore));
+      card(row, 2, 3, 'Posture', posture.toUpperCase(), cardToneForScore(healthScore));
+      card(row, 4, 5, 'Pass rate', passRate.toFixed(1) + '%', cardToneForScore(passRate));
+      card(row, 6, 7, 'Error occurrences', String(totalErrors), totalErrors > 0 ? 'risk' : 'good'); row += 3;
+
+      card(row, 0, 1, 'Total entities', String(totalEntities), 'info');
+      card(row, 2, 3, 'Trend pressure', String(totalTrendOccurrences), totalTrendOccurrences > 0 ? 'warn' : 'good');
+      card(row, 4, 5, 'Invalid entities', String(totalInvalidEntities), totalInvalidEntities > 0 ? 'risk' : 'good');
+      card(row, 6, 7, 'Valid entities', String(totalValidEntities), 'good'); row += 3;
+
+      dset(row, 0, dashSection('Top Publishers')); dset(row, 1, dashSection('')); dset(row, 2, dashSection('')); dset(row, 3, dashSection(''));
+      dset(row, 4, dashSection('Top Observed Issues')); dset(row, 5, dashSection('')); dset(row, 6, dashSection('')); dset(row, 7, dashSection(''));
+      merge(row, 0, row, 3); merge(row, 4, row, 7); row++;
+      dset(row, 0, subhdr('Publisher')); dset(row, 1, subhdr('Errors')); dset(row, 2, subhdr('Pass rate')); dset(row, 3, subhdr('Top field'));
+      dset(row, 4, subhdr('#')); dset(row, 5, subhdr('Issue')); dset(row, 6, subhdr('Publisher')); dset(row, 7, subhdr('Count')); row++;
+      for (var i = 0; i < 3; i++) {
+        var pub = topPublisherRows[i] || { publisher:'-', errorOccurrences:0, passRate:100, topField:'-' };
+        var issue = topIssueRows[i] || { rank:i+1, issue:'-', publisher:'-', count:0 };
+        var alt = i % 2 === 0;
+        dset(row, 0, dashText(shortText(pub.publisher, 24)));
+        dset(row, 1, pub.errorOccurrences > 0 ? crt(pub.errorOccurrences) : ok(0));
+        dset(row, 2, statusCell(pub.passRate)(pub.passRate.toFixed(1) + '%'));
+        dset(row, 3, dashText(shortText(pub.topField, 24)));
+        dset(row, 4, dashText(issue.rank, 'center'));
+        dset(row, 5, dashText(shortText(issue.issue, 26)));
+        dset(row, 6, dashText(shortText(issue.publisher, 18)));
+        dset(row, 7, issue.count > 0 ? crt(issue.count) : ok(0));
+        row++;
+      }
+      row++;
+
+      dset(row, 0, dashSection('Workbook Tabs')); for (var c3 = 1; c3 <= 7; c3++) dset(row, c3, dashSection('')); merge(row, 0, row, 7); row++;
+      dset(row, 0, subhdr('Tab')); merge(row, 0, row, 1);
+      dset(row, 2, subhdr('Purpose')); merge(row, 2, row, 7); row++;
+      tabRows.forEach(function(item) {
+        dset(row, 0, dashLabel(item[0])); dset(row, 1, dashLabel('')); merge(row, 0, row, 1);
+        dset(row, 2, dashText(item[1])); for (var c4 = 3; c4 <= 7; c4++) dset(row, c4, dashText('')); merge(row, 2, row, 7);
+        row++;
+      });
+      row++;
+
+      dset(row, 0, dashText('Metric guide: Total entities = all entities processed across saved history. Entity pass rate = valid entities divided by total entities. Trend pressure = total recurring issue occurrences. Health score = internal directional signal only.', 'center'));
+      for (var c5 = 1; c5 <= 7; c5++) dset(row, c5, dashText('', 'center'));
+      merge(row, 0, row, 7);
+
+      dashboard['!ref'] = XLSX.utils.encode_range({r:0, c:0}, {r:row, c:7});
+      dashboard['!cols'] = [{wch:18},{wch:18},{wch:16},{wch:16},{wch:18},{wch:18},{wch:18},{wch:18}];
+      dashboard['!rows'] = Array.from({length: row + 1}, function(_, idx) {
+        if (idx === 0) return {hpt: 26};
+        if (idx === 1) return {hpt: 20};
+        if (idx === 2) return {hpt: 10};
+        if (idx === 5 || idx === 8 || idx === 13 || idx === 19) return {hpt: 10};
+        if (idx === 6 || idx === 9) return {hpt: 18};
+        if (idx === 7 || idx === 10) return {hpt: 34};
+        return {hpt: 22};
+      });
+      dashboard['!merges'] = dashboardMerges;
+      dashboard['!freeze'] = {xSplit:0, ySplit:2};
+      var publisherSheet = {};
+      function pset(r, c, cell) { publisherSheet[cellRef(r, c)] = cell; }
+      pset(0, 0, hdr('Publisher Health')); for (var pc = 1; pc <= 12; pc++) pset(0, pc, hdr(''));
+      ['Publisher', 'Markets', 'Runs', 'Envelopes', 'Entities', 'Valid', 'Invalid', 'Errors', 'Pass Rate', 'Status', 'Trend Count', 'Top Field', 'Top Entity'].forEach(function(h, c) { pset(1, c, subhdr(h)); });
+      publisherRows.forEach(function(item, idx) {
+        var alt = idx % 2 === 0; var r = idx + 2;
+        pset(r, 0, val(item.publisher, alt)); pset(r, 1, val(item.markets, alt)); pset(r, 2, val(item.runs, alt, 'center')); pset(r, 3, val(item.envelopes, alt, 'center')); pset(r, 4, val(item.entities, alt, 'center')); pset(r, 5, ok(item.validEntities)); pset(r, 6, item.invalidEntities > 0 ? crt(item.invalidEntities) : ok(0)); pset(r, 7, item.errorOccurrences > 0 ? crt(item.errorOccurrences) : ok(0)); pset(r, 8, statusCell(item.passRate)(item.passRate.toFixed(1) + '%')); pset(r, 9, statusCell(item.passRate)(item.status)); pset(r, 10, val(item.trendCount, alt, 'center')); pset(r, 11, val(item.topField, alt)); pset(r, 12, val(item.topEntity, alt));
+      });
+      publisherSheet['!ref'] = XLSX.utils.encode_range({r:0, c:0}, {r:publisherRows.length + 1, c:12});
+      publisherSheet['!cols'] = [{wch:24},{wch:14},{wch:8},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:22},{wch:24}];
+      publisherSheet['!rows'] = Array.from({length: publisherRows.length + 2}, function(_, idx) { return {hpt: idx <= 1 ? 22 : 24}; });
+      publisherSheet['!freeze'] = {xSplit:0, ySplit:2};
+      publisherSheet['!autofilter'] = {ref:'A2:M2'};
+
+      var envelopeSheet = {};
+      function envset(r, c, cell) { envelopeSheet[cellRef(r, c)] = cell; }
+      envset(0, 0, hdr('Envelope Summary')); for (var ec = 1; ec <= 8; ec++) envset(0, ec, hdr(''));
+      ['Envelope ID', 'Submitted At (AEP)', 'Publisher', 'Errors', 'Error Profile', 'Top Error Fields', 'What Was Sent Incorrectly', 'Pass Rate', 'Entities'].forEach(function(h, c) { envset(1, c, subhdr(h)); });
+      envelopeRows.forEach(function(item, idx) {
+        var alt = idx % 2 === 0; var r = idx + 2;
+        envset(r, 0, lbl(item.envelopeId || 'No EnvelopeId'));
+        envset(r, 1, val(item.submittedAt || 'Not provided', alt));
+        envset(r, 2, val(item.publisher, alt));
+        envset(r, 3, item.errors > 0 ? crt(item.errors) : ok(0));
+        var profileCell = item.errorProfile === 'Clean' ? ok(item.errorProfile) : item.errorProfile === 'Single issue' ? wrn(item.errorProfile) : crt(item.errorProfile);
+        envset(r, 4, profileCell);
+        envset(r, 5, val(item.topFields, alt));
+        envset(r, 6, mkCell(item.badDataSummary || '', { fill:alt ? 'EBF3FB' : 'FFFFFF', sz:10, wrap:true }));
+        envset(r, 7, statusCell(item.passRate)(item.passRate.toFixed(1) + '%'));
+        envset(r, 8, val(item.entities, alt, 'center'));
+      });
+      envelopeSheet['!ref'] = XLSX.utils.encode_range({r:0, c:0}, {r:envelopeRows.length + 1, c:8});
+      envelopeSheet['!cols'] = [{wch:38},{wch:24},{wch:22},{wch:10},{wch:16},{wch:32},{wch:72},{wch:10},{wch:10}];
+      envelopeSheet['!rows'] = Array.from({length: envelopeRows.length + 2}, function(_, idx) { return {hpt: idx <= 1 ? 22 : 42}; });
+      envelopeSheet['!freeze'] = {xSplit:0, ySplit:2};
+      envelopeSheet['!autofilter'] = {ref:'A2:I2'};
+
+      var envelopeGroupSheet = {}; // legacy builder retained but not appended
+
+      function egset(r, c, cell) { envelopeGroupSheet[cellRef(r, c)] = cell; }
+      function summarizeEnvelopeTopFields(run) {
+        var map = {};
+        (run.errors || []).forEach(function(err) { var k = err.field || '(unknown)'; map[k] = (map[k] || 0) + 1; });
+        return Object.keys(map).sort(function(a, b) { return map[b] - map[a]; }).slice(0, 3).join(', ') || '-';
+      }
+      function summarizeDetail(err) {
+        var parts = [];
+        if (err.field) parts.push(err.field);
+        if (err.entityType) parts.push(err.entityType);
+        if (err.entityId) parts.push(err.entityId);
+        var head = parts.join(' | ');
+        var msg = shortText(err.msg || '', 90);
+        return head ? (head + ' ? ' + msg) : msg;
+      }
+      egset(0, 0, hdr('Envelope Error Groups')); for (var egc = 1; egc <= 9; egc++) egset(0, egc, hdr(''));
+      ['Row Type', 'Envelope ID', 'Submitted At (AEP)', 'Publisher', 'Entities', 'Errors', 'Status', 'Top Fields', 'Detail Summary', 'Ticket Note'].forEach(function(h, c) { egset(1, c, subhdr(h)); });
+      var groupedEnvelopeRows = [];
+      runs.forEach(function(run) {
+        var pass = run.entityCount > 0 ? (((run.entityCount - run.errorCount) / run.entityCount) * 100) : 100;
+        groupedEnvelopeRows.push({
+          kind: 'summary',
+          envelopeId: run.envelopeId || 'No EnvelopeId',
+          submittedAt: run.envelopeSubmittedAt || '',
+          publisher: run.publisher || '(unknown)',
+          entities: run.entityCount || 0,
+          errors: run.errorCount || 0,
+          status: pass >= 95 ? 'Healthy' : pass >= 80 ? 'Watch' : 'At risk',
+          topFields: summarizeEnvelopeTopFields(run),
+          note: run.errorCount > 0 ? 'Expand this envelope to review its grouped issue set.' : 'No errors for this envelope.'
+        });
+        if ((run.errors || []).length) {
+          run.errors.forEach(function(err) {
+            groupedEnvelopeRows.push({
+              kind: 'detail',
+              envelopeId: run.envelopeId || 'No EnvelopeId',
+              detail: summarizeDetail(err),
+              note: shortText(err.translation || '', 90)
+            });
+          });
+        }
+      });
+      var egRowsMeta = [{ hpt: 22 }, { hpt: 22 }];
+      groupedEnvelopeRows.forEach(function(item, idx) {
+        var r = idx + 2;
+        if (item.kind === 'summary') {
+          egset(r, 0, lbl('Envelope'));
+          egset(r, 1, lbl(item.envelopeId));
+          egset(r, 2, val(item.submittedAt || 'Not provided', false));
+          egset(r, 3, val(item.publisher, false));
+          egset(r, 4, val(item.entities, false, 'center'));
+          egset(r, 5, item.errors > 0 ? crt(item.errors) : ok(0));
+          egset(r, 6, item.errors > 0 ? crt(item.status) : ok(item.status));
+          egset(r, 7, val(item.topFields, false));
+          egset(r, 8, val('Expand for details', false));
+          egset(r, 9, val(item.note, false));
+          egRowsMeta.push({ hpt: 24 });
+        } else {
+          egset(r, 0, dashText('Detail'));
+          egset(r, 1, val(item.envelopeId, true));
+          egset(r, 2, val('', true));
+          egset(r, 3, val('', true));
+          egset(r, 4, val('', true));
+          egset(r, 5, val('', true));
+          egset(r, 6, val('', true));
+          egset(r, 7, val('', true));
+          egset(r, 8, mkCell(item.detail, { fill:'FFF8E1', sz:10, wrap:true }));
+          egset(r, 9, mkCell(item.note, { fill:'FFFFFF', sz:10, wrap:true }));
+          egRowsMeta.push({ hpt: 30, level: 1, hidden: true });
+        }
+      });
+      envelopeGroupSheet['!ref'] = XLSX.utils.encode_range({r:0, c:0}, {r:Math.max(2, groupedEnvelopeRows.length + 1), c:9});
+      envelopeGroupSheet['!cols'] = [{wch:12},{wch:38},{wch:22},{wch:20},{wch:10},{wch:10},{wch:12},{wch:24},{wch:56},{wch:42}];
+      envelopeGroupSheet['!rows'] = egRowsMeta;
+      envelopeGroupSheet['!freeze'] = {xSplit:0, ySplit:2};
+      envelopeGroupSheet['!autofilter'] = {ref:'A2:J2'};
+      envelopeGroupSheet['!outline'] = { above: false };
+      var errorSheet = {};
+      function eset(r, c, cell) { errorSheet[cellRef(r, c)] = cell; }
+      eset(0, 0, hdr('Portfolio Error Log')); for (var erc = 1; erc <= 11; erc++) eset(0, erc, hdr(''));
+      ['Submitted At (AEP)', 'Analysed At (CATCH)', 'Envelope ID', 'Publisher', 'Market', 'Event Type', 'Entity Type', 'Entity ID', 'Record ID', 'County', 'Field', 'Error', 'Translation'].forEach(function(h, c) { eset(1, c, subhdr(h)); });
+      var errorRows = [];
+      runs.forEach(function(run) {
+        (run.errors || []).forEach(function(err) {
+          errorRows.push([run.envelopeSubmittedAt || '', run.timestamp || '', run.envelopeId || '', run.publisher || '(unknown)', run.market || 'TX', run.eventType || '', err.entityType || '', err.entityId || '', err.recordid || '', err.county || err.instanceid || '', err.field || '', err.msg || '', err.translation || '']);
+        });
+      });
+      if (!errorRows.length) { eset(2, 0, ok('No errors in stored history')); for (var ec2 = 1; ec2 <= 12; ec2++) eset(2, ec2, ok('')); }
+      else {
+        errorRows.forEach(function(cols, idx) {
+          var alt = idx % 2 === 0;
+          cols.forEach(function(v, c) {
+            var cell = (c === 11) ? mkCell(v, { fill:'FFF8E1', sz:10, wrap:true }) : val(v, alt);
+            if (c === 12) cell = mkCell(v, { fill:alt ? 'EBF3FB' : 'FFFFFF', sz:10, wrap:true });
+            eset(idx + 2, c, cell);
+          });
+        });
+      }
+      errorSheet['!ref'] = XLSX.utils.encode_range({r:0, c:0}, {r:Math.max(2, errorRows.length + 1), c:12});
+      errorSheet['!cols'] = [{wch:24},{wch:22},{wch:38},{wch:20},{wch:8},{wch:28},{wch:28},{wch:18},{wch:18},{wch:14},{wch:18},{wch:48},{wch:52}];
+      errorSheet['!rows'] = Array.from({length: Math.max(3, errorRows.length + 2)}, function(_, idx) { return {hpt: idx <= 1 ? 22 : 34}; });
+      errorSheet['!freeze'] = {xSplit:0, ySplit:2};
+      errorSheet['!autofilter'] = {ref:'A2:M2'};
+
+      var trendsSheet = {};
+      function tset(r, c, cell) { trendsSheet[cellRef(r, c)] = cell; }
+      tset(0, 0, hdr('Trends')); for (var tc = 1; tc <= 10; tc++) tset(0, tc, hdr(''));
+      ['Field', 'Category', 'Occurrences', 'Publishers', 'Markets', 'Entity Types', 'First Seen', 'Last Seen', 'Envelope Count', 'Pattern', 'Translation'].forEach(function(h, c) { tset(1, c, subhdr(h)); });
+      if (!catalog.length) { tset(2, 0, ok('No recurring trends in stored history')); for (var tc2 = 1; tc2 <= 10; tc2++) tset(2, tc2, ok('')); }
+      else {
+        catalog.forEach(function(entry, idx) {
+          var alt = idx % 2 === 0;
+          [entry.field || '', entry.errorCategory || '-', entry.count || 0, (entry.publishers || []).join(', '), (entry.markets || []).join(', '), (entry.entityTypes || []).join(', '), entry.firstSeen || '', entry.lastSeen || '', (entry.envelopeIds || []).length, entry.msg || '', entry.translation || ''].forEach(function(v, c) {
+            var cell = val(v, alt);
+            if (c === 2 || c === 8) cell = val(v, alt, 'center');
+            if (c === 9) cell = mkCell(v, { fill:'FFF8E1', sz:10, wrap:true });
+            if (c === 10) cell = mkCell(v, { fill:alt ? 'EBF3FB' : 'FFFFFF', sz:10, wrap:true });
+            tset(idx + 2, c, cell);
+          });
+        });
+      }
+      trendsSheet['!ref'] = XLSX.utils.encode_range({r:0, c:0}, {r:Math.max(2, catalog.length + 1), c:10});
+      trendsSheet['!cols'] = [{wch:20},{wch:18},{wch:12},{wch:28},{wch:12},{wch:30},{wch:18},{wch:18},{wch:14},{wch:48},{wch:52}];
+      trendsSheet['!rows'] = Array.from({length: Math.max(3, catalog.length + 2)}, function(_, idx) { return {hpt: idx <= 1 ? 22 : 34}; });
+      trendsSheet['!freeze'] = {xSplit:0, ySplit:2};
+      trendsSheet['!autofilter'] = {ref:'A2:K2'};
+
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, dashboard, 'Dashboard');
+      XLSX.utils.book_append_sheet(wb, envelopeSheet, 'Envelope Summary');
+      XLSX.utils.book_append_sheet(wb, publisherSheet, 'Publisher Health');
+      XLSX.utils.book_append_sheet(wb, trendsSheet, 'Trends');
+      XLSX.utils.book_append_sheet(wb, errorSheet, 'Raw Error Log');
+      XLSX.utils.book_append_sheet(wb, _buildHistoryDataSheet(runs, true), 'Raw Run Detail');
+      dlWorkbook(wb, 'CATCH_Portfolio_Health_Report_' + now.toISOString().slice(0, 10) + '.xlsx');
+    }
+    function exportELTReport() {
+      var runs = _getPortfolioRunsForExport();
+      if (!runs.length) {
+        alert('No validation data available.\n\nPlease run a validation first by pasting a payload and clicking Run Validation.');
+        return;
+      }
+      var publisherCount = new Set(runs.map(function(run) { return ((run.publisher || '').trim()) || '(unknown)'; })).size;
+      var label = runs.length + ' stored run' + (runs.length === 1 ? '' : 's') + ' across ' + publisherCount + ' publisher' + (publisherCount === 1 ? '' : 's');
+      confirmExport('CATCH Portfolio Health Report (.xlsx)\nUsing ' + label + '\n\nThis export rolls up full history, publisher health, field-level errors, run detail, and Trends data for downstream monitoring and ticket creation.').then(function(confirmed) {
+        if (!confirmed) return;
+        try { _buildAndDownloadPortfolioELTReport(runs); }
+        catch (e) { console.error('Portfolio ELT export failed:', e); }
+      });
+    }
+
+    enableScrollHandoff(document.getElementById("input-area"));
+    enableScrollHandoff(document.getElementById("results-area"));
+    enableScrollHandoff(document.getElementById("history-list"));
+    window.exportELTReport = exportELTReport;
+  })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
