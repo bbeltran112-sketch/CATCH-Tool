@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<link rel="stylesheet" href="styles.css?v=20260406ac">
+<link rel="stylesheet" href="styles.css?v=20260407e">
 <title>CATCH / TX OCA</title>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -585,7 +585,7 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
         <option value="TX">TX</option>
         <option value="IL">IL</option>
       </select>
-      <button class="export-btn" onclick="exportCatalogCSV()">Export CSV</button>
+      <button class="export-btn" onclick="exportCatalogCSV()">Export View</button>
     </div>
     <div id="catalog-stats" style="padding:10px 20px 8px;border-bottom:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap;"></div>
     <div id="catalog-table-container" style="padding:12px 20px; font-family:var(--sans); font-size:11px;">
@@ -632,6 +632,7 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
           <select id="portfolio-publisher-filter" onchange="renderPortfolio()"><option value="">All publishers</option></select>
           <select id="portfolio-profile-filter" onchange="renderPortfolio()">
             <option value="">All profiles</option>
+            <option value="Needs attention" selected>Needs attention</option>
             <option value="Clean">Clean</option>
             <option value="Single issue">Single issue</option>
             <option value="Multi-issue">Multi-issue</option>
@@ -647,6 +648,7 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
         </div>
       </section>
       <div id="portfolio-summary"></div>
+      <div id="portfolio-status-strip"></div>
       <section class="portfolio-grid-2">
         <article class="portfolio-card">
           <div class="portfolio-card-header">
@@ -662,6 +664,13 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
               <div class="portfolio-card-copy">Publishers contributing the most visible issues in the current slice.</div>
             </div>
             <div id="portfolio-top-publishers"></div>
+          </article>
+          <article class="portfolio-card">
+            <div class="portfolio-card-header">
+              <div class="portfolio-card-title">Issue Profile Mix</div>
+              <div class="portfolio-card-copy">A quick visual of the current envelope mix by issue profile.</div>
+            </div>
+            <div id="portfolio-profile-mix"></div>
           </article>
           <article class="portfolio-card">
             <div class="portfolio-card-header">
@@ -840,11 +849,12 @@ Each payload is validated as its own run and can be reopened in Single.'></texta
 
 
 
-<script src="tx-workbook-schema-v3.js?v=20260406ac"></script>
-<script src="app.js?v=20260406ac"></script>
+<script src="tx-workbook-schema-v3.js?v=20260407e"></script>
+<script src="app.js?v=20260407e"></script>
 
 </body>
 </html>
+
 
 
 
