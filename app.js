@@ -2785,6 +2785,7 @@ function switchTab(tab) {
     else { el.style.display = 'none'; el.classList.remove('active'); }
   });
   if (tab === 'history') renderHistory();
+  if (tab === 'portfolio') renderPortfolio();
   if (tab === 'assoc') renderCatalog();
   try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch(e) {}
 }
@@ -4459,6 +4460,14 @@ function shortenPortfolioText(value, maxLen) {
   return value.length > maxLen ? value.slice(0, Math.max(0, maxLen - 3)) + '...' : value;
 }
 
+function setPortfolioProfile(profile) {
+  var profileEl = document.getElementById('portfolio-profile-filter');
+  var sortEl = document.getElementById('portfolio-sort');
+  if (profileEl) profileEl.value = profile || '';
+  if (sortEl && !sortEl.value) sortEl.value = 'submitted_desc';
+  renderPortfolio();
+}
+
 
 function buildPortfolioEnvelopeModalMarkup(run) {
   if (!run) {
@@ -4516,8 +4525,10 @@ function openPortfolioEnvelope(envelopeId) {
 
 function renderPortfolio() {
   var rootSummary = document.getElementById('portfolio-summary');
+  var statusStrip = document.getElementById('portfolio-status-strip');
   var queueHost = document.getElementById('portfolio-envelope-table');
   var pubHost = document.getElementById('portfolio-top-publishers');
+  var mixHost = document.getElementById('portfolio-profile-mix');
   var issueHost = document.getElementById('portfolio-top-issues');
   if (!rootSummary || !queueHost || !pubHost || !issueHost) return;
 
@@ -4525,8 +4536,10 @@ function renderPortfolio() {
   var runs = data.runs || [];
   if (!runs.length) {
     rootSummary.innerHTML = '<div class="portfolio-empty">Run and save validations to unlock the portfolio dashboard.</div>';
+    if (statusStrip) statusStrip.innerHTML = '';
     queueHost.innerHTML = '';
     pubHost.innerHTML = '';
+    if (mixHost) mixHost.innerHTML = '';
     issueHost.innerHTML = '';
     return;
   }
@@ -4537,7 +4550,7 @@ function renderPortfolio() {
   var sortEl = document.getElementById('portfolio-sort');
   var q = ((searchEl && searchEl.value) || '').trim().toLowerCase();
   var selectedPublisher = (pubFilterEl && pubFilterEl.value) || '';
-  var selectedProfile = (profileEl && profileEl.value) || '';
+  var selectedProfile = (profileEl && profileEl.value) || 'Needs attention';
   var selectedSort = (sortEl && sortEl.value) || 'submitted_desc';
 
   if (pubFilterEl) {
@@ -4547,10 +4560,11 @@ function renderPortfolio() {
     pubFilterEl.value = currentValue;
   }
 
-  var filteredRows = data.envelopeRows.filter(function(row) {
+  var allRows = data.envelopeRows || [];
+  var filteredRows = allRows.filter(function(row) {
     if (!row) return false;
     if (selectedPublisher && row.publisher !== selectedPublisher) return false;
-    if (selectedProfile && row.errorProfile !== selectedProfile) return false;
+    if (selectedProfile === 'Needs attention') { if ((row.errors || 0) <= 0) return false; } else if (selectedProfile && row.errorProfile !== selectedProfile) return false;
     if (!q) return true;
     var haystack = [row.envelopeId, row.publisher, row.topFields, row.whatWasWrong, row.errorProfile].join(' ').toLowerCase();
     return haystack.indexOf(q) !== -1;
@@ -4567,9 +4581,12 @@ function renderPortfolio() {
     envelopes: filteredRows.length,
     errors: filteredRows.reduce(function(sum, row){ return sum + (row.errors || 0); }, 0),
     entities: filteredRows.reduce(function(sum, row){ return sum + (row.entities || 0); }, 0),
-    atRisk: filteredRows.filter(function(row){ return row.errorProfile === 'Multi-issue' || row.errorProfile === 'High volume'; }).length,
+    atRisk: filteredRows.filter(function(row){ return row.errors > 0; }).length,
+    highVolume: filteredRows.filter(function(row){ return row.errorProfile === 'High volume'; }).length,
     passRate: filteredRows.reduce(function(sum, row){ return sum + (row.entities || 0); }, 0) > 0 ? (filteredRows.reduce(function(sum, row){ return sum + Math.max(0, (row.entities || 0) - (row.invalidEntities || 0)); }, 0) / filteredRows.reduce(function(sum, row){ return sum + (row.entities || 0); }, 0)) * 100 : 100
   };
+  var newestSubmittedRow = filteredRows[0] || null;
+  var uniquePublishers = new Set(filteredRows.map(function(row){ return row.publisher; })).size;
 
   var publisherMap = {};
   filteredRows.forEach(function(row){
@@ -4586,7 +4603,7 @@ function renderPortfolio() {
     var row = run._portfolio;
     if (!row) return;
     if (selectedPublisher && row.publisher !== selectedPublisher) return;
-    if (selectedProfile && row.errorProfile !== selectedProfile) return;
+    if (selectedProfile === 'Needs attention') { if ((row.errors || 0) <= 0) return; } else if (selectedProfile && row.errorProfile !== selectedProfile) return;
     if (q) {
       var rowHaystack = [row.envelopeId, row.publisher, row.topFields, row.whatWasWrong, row.errorProfile].join(' ').toLowerCase();
       if (rowHaystack.indexOf(q) === -1) return;
@@ -4599,20 +4616,49 @@ function renderPortfolio() {
     });
   });
   var filteredIssues = Object.values(issueMap).map(function(item){ return { issue: item.issue, count: item.count, publishers: Array.from(item.publishers) }; }).sort(function(a,b){ return b.count - a.count; }).slice(0,5);
+  var profileBuckets = { 'Clean': 0, 'Single issue': 0, 'Multi-issue': 0, 'High volume': 0 };
+  filteredRows.forEach(function(row){ profileBuckets[row.errorProfile] = (profileBuckets[row.errorProfile] || 0) + 1; });
+  var profileTotal = filteredRows.length || 1;
+  var profileSegments = [
+    { label: 'Clean', value: profileBuckets['Clean'] || 0, color: '#3f8f63' },
+    { label: 'Single issue', value: profileBuckets['Single issue'] || 0, color: '#c88b2a' },
+    { label: 'Multi-issue', value: profileBuckets['Multi-issue'] || 0, color: '#cc6d2f' },
+    { label: 'High volume', value: profileBuckets['High volume'] || 0, color: '#b33a2f' }
+  ];
+  var profileConic = [];
+  var runningDeg = 0;
+  profileSegments.forEach(function(seg){
+    var slice = seg.value ? (seg.value / profileTotal) * 360 : 0;
+    if (slice > 0) {
+      profileConic.push(seg.color + ' ' + runningDeg.toFixed(2) + 'deg ' + (runningDeg + slice).toFixed(2) + 'deg');
+      runningDeg += slice;
+    }
+  });
+  if (runningDeg < 360) profileConic.push('#dbe3ef ' + runningDeg.toFixed(2) + 'deg 360deg');
+
+  var portfolioStatusCopy = filteredRows.length
+    ? ('Showing ' + filteredRows.length + ' envelopes sorted by newest AEP submission first. Portfolio opens to Needs attention by default so PMs land directly in the active queue.')
+    : 'No envelopes match the current filters. Try All profiles, switch publishers, or clear the search to widen the queue.';
+  if (statusStrip) statusStrip.innerHTML = '<div class="portfolio-status-card"><div class="portfolio-status-title">Current portfolio view</div><div class="portfolio-status-copy">' + portfolioStatusCopy + '</div><div class="portfolio-quick-filters">' +
+    '<button type="button" class="portfolio-quick-chip ' + (selectedProfile === 'Needs attention' ? 'active' : '') + '" onclick="setPortfolioProfile(\'Needs attention\')">Needs attention</button>' +
+    '<button type="button" class="portfolio-quick-chip ' + (selectedProfile === 'High volume' ? 'active' : '') + '" onclick="setPortfolioProfile(\'High volume\')">High volume</button>' +
+    '<button type="button" class="portfolio-quick-chip ' + (selectedProfile === '' ? 'active' : '') + '" onclick="setPortfolioProfile(\'\')">All profiles</button>' +
+    '<button type="button" class="portfolio-quick-chip ' + (selectedSort === 'submitted_desc' ? 'active' : '') + '" onclick="document.getElementById(\'portfolio-sort\').value=\'submitted_desc\';renderPortfolio();">Newest submitted</button>' +
+  '</div></div>';
 
   rootSummary.innerHTML = [
     '<section class="portfolio-kpi-grid">',
-      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Visible envelopes</div><div class="portfolio-kpi-value">' + filteredStats.envelopes + '</div><div class="portfolio-kpi-copy">Current queue after filters.</div></article>',
-      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Error occurrences</div><div class="portfolio-kpi-value portfolio-kpi-value-risk">' + filteredStats.errors + '</div><div class="portfolio-kpi-copy">Total issue count in the active slice.</div></article>',
+      '<article class="portfolio-kpi-card priority"><div class="portfolio-kpi-label">Needs attention</div><div class="portfolio-kpi-value portfolio-kpi-value-warn">' + filteredStats.atRisk + '</div><div class="portfolio-kpi-copy">Envelopes with at least one visible error in the active slice.</div></article>',
+      '<article class="portfolio-kpi-card priority"><div class="portfolio-kpi-label">High volume</div><div class="portfolio-kpi-value portfolio-kpi-value-risk">' + filteredStats.highVolume + '</div><div class="portfolio-kpi-copy">Envelopes currently classified as high volume.</div></article>',
+      '<article class="portfolio-kpi-card priority"><div class="portfolio-kpi-label">Newest submitted</div><div class="portfolio-kpi-value portfolio-kpi-value-date">' + escHtml(shortenPortfolioText((newestSubmittedRow && newestSubmittedRow.submittedAt) || 'Not provided', 20)) + '</div><div class="portfolio-kpi-copy">Queue is sorted from the latest AEP submission first by default.</div></article>',
       '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Entity pass rate</div><div class="portfolio-kpi-value">' + filteredStats.passRate.toFixed(1) + '%</div><div class="portfolio-kpi-copy">Valid entities divided by total visible entities.</div></article>',
-      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">At-risk envelopes</div><div class="portfolio-kpi-value portfolio-kpi-value-warn">' + filteredStats.atRisk + '</div><div class="portfolio-kpi-copy">Multi-issue or high-volume envelopes.</div></article>',
-      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Publishers</div><div class="portfolio-kpi-value">' + (new Set(filteredRows.map(function(row){ return row.publisher; })).size) + '</div><div class="portfolio-kpi-copy">Publishers in the active slice.</div></article>',
-      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Top publisher</div><div class="portfolio-kpi-value">' + escHtml(shortenPortfolioText((filteredPublishers[0] && filteredPublishers[0].publisher) || '-', 18)) + '</div><div class="portfolio-kpi-copy">Highest error volume in the active slice.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Top publisher</div><div class="portfolio-kpi-value">' + escHtml(shortenPortfolioText((filteredPublishers[0] && filteredPublishers[0].publisher) || '-', 18)) + '</div><div class="portfolio-kpi-copy">Highest visible error volume in the active slice.</div></article>',
+      '<article class="portfolio-kpi-card"><div class="portfolio-kpi-label">Visible envelopes</div><div class="portfolio-kpi-value">' + filteredStats.envelopes + '</div><div class="portfolio-kpi-copy">Across ' + uniquePublishers + ' publishers with ' + filteredStats.errors + ' visible issue occurrences.</div></article>',
     '</section>'
   ].join('');
 
   if (!filteredRows.length) {
-    queueHost.innerHTML = '<div class="portfolio-empty">No envelopes match the current filters.</div>';
+    queueHost.innerHTML = '<div class="portfolio-empty portfolio-empty-strong"><div class="portfolio-empty-title">No envelopes match the current filters.</div><div class="portfolio-empty-copy">Try All profiles, switch the publisher filter, or clear the search field to bring the queue back.</div></div>';
   } else {
     queueHost.innerHTML = [
       '<div class="portfolio-table-wrap"><table class="portfolio-table"><thead><tr>',
@@ -4637,8 +4683,14 @@ function renderPortfolio() {
 
   pubHost.innerHTML = filteredPublishers.length ? '<div class="portfolio-list">' + filteredPublishers.map(function(item) {
     var avgPass = item.envelopes ? (item.totalPass / item.envelopes) : 100;
-    return '<div class="portfolio-list-row"><div><div class="portfolio-list-title">' + escHtml(item.publisher) + '</div><div class="portfolio-list-copy">' + item.envelopes + ' envelopes - ' + item.errors + ' errors</div></div><div class="portfolio-list-value">' + avgPass.toFixed(1) + '%</div></div>';
+    var pressure = item.errors > 0 ? (item.errors >= 10 ? 'High volume' : 'Needs attention') : 'Clean';
+    return '<div class="portfolio-list-row"><div><div class="portfolio-list-title">' + escHtml(item.publisher) + '</div><div class="portfolio-list-copy">' + item.envelopes + ' envelopes - ' + item.errors + ' errors - Top field: ' + escHtml(item.topField || '-') + '</div></div><div class="portfolio-list-value">' + avgPass.toFixed(1) + '%</div><div class="portfolio-list-meta">' + escHtml(pressure) + '</div></div>';
   }).join('') + '</div>' : '<div class="portfolio-empty">No publisher data in the current slice.</div>';
+
+  if (mixHost) mixHost.innerHTML = '<div class="portfolio-mix-shell">' +
+    '<div class="portfolio-mix-chart" style="background:conic-gradient(' + profileConic.join(', ') + ')"><div class="portfolio-mix-center"><div class="portfolio-mix-total">' + filteredRows.length + '</div><div class="portfolio-mix-label">envelopes</div></div></div>' +
+    '<div class="portfolio-mix-legend">' + profileSegments.map(function(seg){ var pct = filteredRows.length ? Math.round((seg.value / filteredRows.length) * 100) : 0; return '<div class="portfolio-mix-row"><span class="portfolio-mix-key"><span class="portfolio-mix-dot" style="background:' + seg.color + '"></span>' + escHtml(seg.label) + '</span><span class="portfolio-mix-value">' + seg.value + ' - ' + pct + '%</span></div>'; }).join('') + '</div>' +
+  '</div>';
 
   issueHost.innerHTML = filteredIssues.length ? '<div class="portfolio-list">' + filteredIssues.map(function(item) {
     return '<div class="portfolio-list-row"><div><div class="portfolio-list-title">' + escHtml(shortenPortfolioText(item.issue, 42)) + '</div><div class="portfolio-list-copy">' + escHtml(item.publishers.slice(0,3).join(', ') || '-') + '</div></div><div class="portfolio-list-value">' + item.count + '</div></div>';
@@ -4660,12 +4712,12 @@ async function exportPortfolioViewCSV() {
   var sortEl = document.getElementById('portfolio-sort');
   var q = ((searchEl && searchEl.value) || '').trim().toLowerCase();
   var selectedPublisher = (pubFilterEl && pubFilterEl.value) || '';
-  var selectedProfile = (profileEl && profileEl.value) || '';
+  var selectedProfile = (profileEl && profileEl.value) || 'Needs attention';
   var selectedSort = (sortEl && sortEl.value) || 'submitted_desc';
   var rows = (data.envelopeRows || []).filter(function(row) {
     if (!row) return false;
     if (selectedPublisher && row.publisher !== selectedPublisher) return false;
-    if (selectedProfile && row.errorProfile !== selectedProfile) return false;
+    if (selectedProfile === 'Needs attention') { if ((row.errors || 0) <= 0) return false; } else if (selectedProfile && row.errorProfile !== selectedProfile) return false;
     if (!q) return true;
     var haystack = [row.envelopeId, row.publisher, row.topFields, row.whatWasWrong, row.errorProfile].join(' ').toLowerCase();
     return haystack.indexOf(q) !== -1;
@@ -4797,7 +4849,9 @@ function buildCatalogData() {
           envelopeIds: new Set(),
           firstSeen: ts,
           submittedAt: runSubmittedAt,
+          firstSubmittedAt: runSubmittedAt || ts,
           lastSeen: ts,
+          lastSubmittedAt: runSubmittedAt || ts,
           ref: e.ref || '',
           translation: e.translation || '',
         };
@@ -4811,9 +4865,18 @@ function buildCatalogData() {
       entry.publishers.add(errPublisher);
       entry.markets.add(market);
       if (envelopeId) entry.envelopeIds.add(envelopeId);
+      var submittedDate = parseTrendDateValue(runSubmittedAt || ts);
+      var entryFirstSubmitted = parseTrendDateValue(entry.firstSubmittedAt || entry.submittedAt || entry.firstSeen);
+      var entryLastSubmitted = parseTrendDateValue(entry.lastSubmittedAt || entry.submittedAt || entry.lastSeen);
+      if (submittedDate && (!entryFirstSubmitted || submittedDate < entryFirstSubmitted)) {
+        entry.firstSubmittedAt = runSubmittedAt || ts;
+        entry.submittedAt = runSubmittedAt || entry.submittedAt;
+      }
+      if (submittedDate && (!entryLastSubmitted || submittedDate > entryLastSubmitted)) {
+        entry.lastSubmittedAt = runSubmittedAt || ts;
+      }
       if (ts && ts < entry.firstSeen) {
         entry.firstSeen = ts;
-        entry.submittedAt = runSubmittedAt;
       }
       if (ts && ts > entry.lastSeen) entry.lastSeen = ts;
       // Keep the most descriptive translation (prefer ones with OCA refs)
@@ -4832,6 +4895,13 @@ function buildCatalogData() {
       envelopeIds: Array.from(e.envelopeIds),
     }))
     .sort((a, b) => b.count - a.count);
+}
+
+function formatTrendIssueLabel(entry) {
+  if (!entry) return 'None yet';
+  var category = entry.errorCategory || 'Issue';
+  var field = entry.field || '';
+  return field ? (category + ' / ' + field) : category;
 }
 
 function classifyErrorCatalog(msg) {
@@ -4932,7 +5002,7 @@ function _applyFilterAndRender() {
         <option value="TX" ${(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value === 'TX') ? 'selected' : ''}>TX</option>
         <option value="IL" ${(document.getElementById('catalog-market-filter') && document.getElementById('catalog-market-filter').value === 'IL') ? 'selected' : ''}>IL</option>
       </select>
-      <button class="export-btn" onclick="exportCatalogCSV()">Export CSV</button>
+      <button class="export-btn" onclick="exportCatalogCSV()">Export View</button>
     </div>
   </div>
   <div style="padding:12px 20px 0;font-size:10px;color:var(--text3);">Showing ${_catalogFiltered.length.toLocaleString()} of ${_catalogData.length.toLocaleString()} unique errors</div>`;
@@ -5046,16 +5116,20 @@ function _applyFilterAndRender() {
 }
 
 // --"- Click-to-jump: error item -' field in JSON textarea --"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-"-
+function parseTrendDateValue(value) {
+  if (!value) return null;
+  var parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function parseTrendRunDate(run) {
   if (!run) return null;
-  if (run.analysedAt) {
-    var iso = new Date(run.analysedAt);
-    if (!isNaN(iso.getTime())) return iso;
-  }
-  if (run.timestamp) {
-    var parsed = new Date(run.timestamp);
-    if (!isNaN(parsed.getTime())) return parsed;
-  }
+  var submitted = parseTrendDateValue(run.envelopeSubmittedAt || run.submittedAt);
+  if (submitted) return submitted;
+  var analysed = parseTrendDateValue(run.analysedAt);
+  if (analysed) return analysed;
+  var timestamp = parseTrendDateValue(run.timestamp);
+  if (timestamp) return timestamp;
   return null;
 }
 
@@ -6163,7 +6237,7 @@ window.copyTrendDetail = function () {
         healthBtn.removeAttribute("style");
 
         backupBtn.textContent = "Backup";
-        restoreBtn.textContent = "Restore";
+        restoreBtn.textContent = "Import";
         clearBtn.textContent = "Clear";
 
         var exportCluster = document.createElement("div");
@@ -6269,24 +6343,24 @@ window.copyTrendDetail = function () {
       trendsSpotlights.className = "trends-spotlights";
       trendsSpotlights.innerHTML = `
         <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Highest pressure field</span>
+          <span class="trends-spotlight-label">Top affected field</span>
           <span class="trends-spotlight-value" id="trends-top-field">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-field-copy">Run validations to surface which field repeats most across submissions.</span>
+          <span class="trends-spotlight-copy" id="trends-top-field-copy">Run validations to surface which field repeats most across submitted envelopes.</span>
         </article>
         <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Largest publisher concentration</span>
+          <span class="trends-spotlight-label">Top affected publisher</span>
           <span class="trends-spotlight-value" id="trends-top-publisher">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-publisher-copy">This spot helps teams see where repeated issue volume is accumulating.</span>
+          <span class="trends-spotlight-copy" id="trends-top-publisher-copy">This shows which publisher currently carries the most visible recurring issue pressure.</span>
         </article>
         <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Dominant issue class</span>
+          <span class="trends-spotlight-label">Top 3 issues</span>
           <span class="trends-spotlight-value" id="trends-top-category">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-category-copy">Use this to decide whether you are dealing with completeness, enum, or type quality problems.</span>
+          <span class="trends-spotlight-copy" id="trends-top-category-copy">The three most repeated recurring issue patterns in the active Trends slice.</span>
         </article>
         <article class="trends-spotlight">
-          <span class="trends-spotlight-label">Most affected entity</span>
+          <span class="trends-spotlight-label">Oldest open issue</span>
           <span class="trends-spotlight-value" id="trends-top-entity">Awaiting history</span>
-          <span class="trends-spotlight-copy" id="trends-top-entity-copy">High concentration here usually points to the best upstream cleanup opportunity.</span>
+          <span class="trends-spotlight-copy" id="trends-top-entity-copy">The oldest recurring issue still visible, based on AEP submission date.</span>
         </article>
       `;
       trendsPanel.appendChild(trendsSpotlights);
@@ -6377,10 +6451,10 @@ window.copyTrendDetail = function () {
         topPublisher.textContent = "Awaiting history";
         topCategory.textContent = "Awaiting history";
         topEntity.textContent = "Awaiting history";
-        if (topFieldCopy) topFieldCopy.textContent = "Run validations to surface which field repeats most across submissions.";
-        if (topPublisherCopy) topPublisherCopy.textContent = "This spot helps teams see where repeated issue volume is accumulating.";
-        if (topCategoryCopy) topCategoryCopy.textContent = "Use this to decide whether you are dealing with completeness, enum, or type quality problems.";
-        if (topEntityCopy) topEntityCopy.textContent = "High concentration here usually points to the best upstream cleanup opportunity.";
+        if (topFieldCopy) topFieldCopy.textContent = "Run validations to surface which field repeats most across submitted envelopes.";
+        if (topPublisherCopy) topPublisherCopy.textContent = "This shows which publisher currently carries the most visible recurring issue pressure.";
+        if (topCategoryCopy) topCategoryCopy.textContent = "The three most repeated recurring issue patterns in the active Trends slice.";
+        if (topEntityCopy) topEntityCopy.textContent = "The oldest recurring issue still visible, based on AEP submission date.";
         if (trendsPie) trendsPie.style.background = "conic-gradient(#dbe3ef 0deg 360deg)";
         if (trendsPieTotal) trendsPieTotal.textContent = "0";
         if (trendsLegend) trendsLegend.innerHTML = '<div class="trends-legend-row"><span class="trends-legend-label"><span class="trends-legend-dot" style="background:#dbe3ef"></span>No trend data yet</span><span class="trends-legend-value">0%</span></div>';
@@ -6407,6 +6481,7 @@ window.copyTrendDetail = function () {
       var topPublisherEntry = Object.entries(byPublisher).sort(function (a, b) { return b[1] - a[1]; })[0];
       var topCategoryEntry = Object.entries(byCategory).sort(function (a, b) { return b[1] - a[1]; })[0];
       var topEntityEntry = Object.entries(byEntity).sort(function (a, b) { return b[1] - a[1]; })[0];
+      var topIssueEntries = sourceData.slice(0, 3);
       var scorePenalty = Math.min(45, Math.floor(totalOccurrences / 8)) + Math.min(20, sourceData.length * 3);
       var healthScore = Math.max(18, 100 - scorePenalty);
       var posture = healthScore >= 80 ? "Healthy" : healthScore >= 60 ? "Watch" : healthScore >= 40 ? "Needs attention" : "At risk";
@@ -6431,9 +6506,9 @@ window.copyTrendDetail = function () {
       var movementDelta = recentWindowCount - previousWindowCount;
       var movementLabel = movementDelta > 0 ? "+" + movementDelta : movementDelta < 0 ? String(movementDelta) : "Flat";
       var oldestEntry = sourceData.slice().sort(function (a, b) {
-        return new Date(a.firstSeen || a.lastSeen || 0) - new Date(b.firstSeen || b.lastSeen || 0);
+        return (parseTrendDateValue(a.firstSubmittedAt || a.submittedAt || a.firstSeen || a.lastSeen || 0) || new Date(8640000000000000)) - (parseTrendDateValue(b.firstSubmittedAt || b.submittedAt || b.firstSeen || b.lastSeen || 0) || new Date(8640000000000000));
       })[0];
-      var oldestDate = oldestEntry ? new Date(oldestEntry.firstSeen || oldestEntry.lastSeen || now) : null;
+      var oldestDate = oldestEntry ? parseTrendDateValue(oldestEntry.firstSubmittedAt || oldestEntry.submittedAt || oldestEntry.firstSeen || oldestEntry.lastSeen || now) : null;
       var oldestDays = oldestDate && !isNaN(oldestDate.getTime()) ? Math.max(0, Math.floor((now.getTime() - oldestDate.getTime()) / (24 * 60 * 60 * 1000))) : null;
 
       if (trendsHealthScore) trendsHealthScore.textContent = String(healthScore);
@@ -6441,20 +6516,20 @@ window.copyTrendDetail = function () {
       if (trendsHealthPosture) trendsHealthPosture.textContent = posture;
       if (trendsHealthPostureCopy) trendsHealthPostureCopy.textContent = (topCategoryEntry ? topCategoryEntry[0] : "Recurring issues") + " is currently the strongest pressure point in history.";
       if (trendsMovementValue) trendsMovementValue.textContent = movementLabel;
-      if (trendsMovementCopy) trendsMovementCopy.textContent = recentWindowCount + " matched occurrences in the last 7 days versus " + previousWindowCount + " in the previous 7-day window.";
+      if (trendsMovementCopy) trendsMovementCopy.textContent = recentWindowCount + " matched occurrences in the last 7 days by AEP submission date versus " + previousWindowCount + " in the previous 7-day window.";
       if (trendsAgingValue) trendsAgingValue.textContent = oldestDays == null ? "-" : oldestDays + "d";
-      if (trendsAgingCopy) trendsAgingCopy.textContent = oldestEntry ? '"' + oldestEntry.field + '" has been recurring since ' + (oldestEntry.firstSeen || oldestEntry.lastSeen || 'the first stored run') + '.' : "Once recurring issues are stored, this will show the oldest active trend in the current slice.";
-      if (trendsSummaryStrip) trendsSummaryStrip.textContent = sourceData.length + " recurring issues account for " + totalOccurrences + " occurrences in the current Trends view. " + (topCategoryEntry ? topCategoryEntry[0] : "This issue class") + " is the dominant pattern, and " + (topPublisherEntry ? topPublisherEntry[0] : "the top publisher") + " carries the highest visible concentration.";
+      if (trendsAgingCopy) trendsAgingCopy.textContent = oldestEntry ? '"' + oldestEntry.field + '" has been recurring since ' + (oldestEntry.firstSubmittedAt || oldestEntry.submittedAt || oldestEntry.firstSeen || oldestEntry.lastSeen || 'the first stored submission') + '.' : "Once recurring issues are stored, this will show the oldest active trend in the current slice.";
+      if (trendsSummaryStrip) trendsSummaryStrip.textContent = sourceData.length + " recurring issues account for " + totalOccurrences + " occurrences in the current Trends view. " + (topPublisherEntry ? topPublisherEntry[0] : "The leading publisher") + " currently carries the highest concentration, and " + (topFieldEntry ? topFieldEntry.field : "the leading field") + " is the strongest immediate cleanup target.";
 
       topField.textContent = topFieldEntry ? topFieldEntry.field : "None yet";
       topPublisher.textContent = topPublisherEntry ? topPublisherEntry[0] : "None yet";
-      topCategory.textContent = topCategoryEntry ? topCategoryEntry[0] : "None yet";
-      topEntity.textContent = topEntityEntry ? topEntityEntry[0] : "None yet";
+      topCategory.textContent = topIssueEntries.length ? shortenPortfolioText(formatTrendIssueLabel(topIssueEntries[0]), 38) : "None yet";
+      topEntity.textContent = oldestEntry ? shortenPortfolioText(oldestEntry.field || 'None yet', 38) : "None yet";
 
       if (topFieldCopy && topFieldEntry) topFieldCopy.textContent = topFieldEntry.count + " occurrences across " + (topFieldEntry.envelopeIds ? topFieldEntry.envelopeIds.length : 0) + " envelopes; fixing this field offers the biggest immediate payoff.";
       if (topPublisherCopy && topPublisherEntry) topPublisherCopy.textContent = topPublisherEntry[1] + " issue occurrences currently tie back to this publisher across stored history.";
-      if (topCategoryCopy && topCategoryEntry) topCategoryCopy.textContent = topCategoryEntry[1] + " occurrences currently roll up into this issue class.";
-      if (topEntityCopy && topEntityEntry) topEntityCopy.textContent = topEntityEntry[1] + " occurrences currently map to this entity type, making it the strongest remediation target.";
+      if (topCategoryCopy) topCategoryCopy.textContent = topIssueEntries.length ? topIssueEntries.map(function(entry, index) { return '#' + (index + 1) + ' ' + shortenPortfolioText(formatTrendIssueLabel(entry), 34) + ' (' + entry.count + ')'; }).join(' - ') : "The three most repeated recurring issue patterns in the active Trends slice.";
+      if (topEntityCopy && oldestEntry) topEntityCopy.textContent = (oldestEntry.count || 0) + " occurrences have remained visible since " + (oldestEntry.firstSubmittedAt || oldestEntry.submittedAt || oldestEntry.firstSeen || oldestEntry.lastSeen || 'the first stored submission') + ".";
       var topPublisherCard = topPublisher ? topPublisher.closest(".trends-spotlight") : null;
       if (topPublisherCard) {
         topPublisherCard.classList.add("clickable");
@@ -7240,6 +7315,7 @@ window.copyTrendDetail = function () {
     enableScrollHandoff(document.getElementById("history-list"));
     window.exportELTReport = exportELTReport;
   })();
+
 
 
 
