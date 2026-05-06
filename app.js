@@ -829,6 +829,7 @@ function getTranslation(field, msg, entity) {
 function getLibraryEntryMeta(field, msg, entity) {
   try {
     const entries = loadLibrary();
+    var raw = entity.raw || entity;
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i];
       if (e.entityType && e.entityType !== 'All' && e.entityType !== entity.entityType) continue;
@@ -837,10 +838,10 @@ function getLibraryEntryMeta(field, msg, entity) {
       if (e.matchType === 'field_name') {
         matched = true;
       } else if (e.matchType === 'field_value') {
-        var val = entity[field];
+        var val = raw[field] !== undefined ? raw[field] : entity[field];
         matched = val !== undefined && String(val) === String(e.matchValue);
       } else if (e.matchType === 'contains') {
-        var val2 = entity[field];
+        var val2 = raw[field] !== undefined ? raw[field] : entity[field];
         matched = val2 !== undefined && String(val2).toLowerCase().indexOf(String(e.matchValue).toLowerCase()) !== -1;
       }
       if (matched) return e;
@@ -4342,13 +4343,14 @@ function matchLibraryEntry(field, msg, entity) {
     if (e.field && e.field !== field) continue;
     // Match type
     var matched = false;
+    var raw = entity.raw || entity;
     if (e.matchType === 'field_name') {
       matched = true; // field already matched above
     } else if (e.matchType === 'field_value') {
-      var val = entity[field];
+      var val = raw[field] !== undefined ? raw[field] : entity[field];
       matched = val !== undefined && String(val) === String(e.matchValue);
     } else if (e.matchType === 'contains') {
-      var val2 = entity[field];
+      var val2 = raw[field] !== undefined ? raw[field] : entity[field];
       matched = val2 !== undefined && String(val2).toLowerCase().indexOf(String(e.matchValue).toLowerCase()) !== -1;
     }
     if (matched && (e.translation || e.action)) {
